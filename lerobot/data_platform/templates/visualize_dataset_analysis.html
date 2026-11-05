@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ dataset_key }} · Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {% include "data_platform_workspace_styles.html" %}
+</head>
+<body class="min-h-screen text-sm text-slate-200 antialiased" x-data="analysisPage()">
+    {% set page_kind = "Explore / Analysis" %}
+    {% set page_title = dataset_key %}
+    {% set page_subtitle = "Explore task coverage and inspect the episodes behind each distribution." %}
+    {% include "visualize_dataset_topbar.html" %}
+    <main class="dp-workspace space-y-5">
+        <header class="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 class="dp-page-title">Dataset overview</h2><p class="dp-page-description">Explore dataset statistics. No Viewer cache is required.</p></div>
+            <div class="flex flex-wrap gap-2">
+                {% if task_configuration_enabled %}<a class="dp-btn" href="/tasks?dataset_key={{ dataset_key|urlencode }}">Task setup</a>{% endif %}
+                <button class="dp-btn" @click="refreshAnalysis()" :disabled="busy" x-text="busy ? 'Loading…' : 'Refresh analysis'"></button>
+            </div>
+        </header>
+        <div class="dp-notice border-rose-900 text-rose-200" role="alert" x-show="error" x-cloak x-text="error"></div>
+        <div class="dp-notice text-sky-200" role="status" x-show="busy" x-text="loadingMessage"></div>
+        <div class="dp-notice border-amber-900 bg-amber-950/20 text-amber-200" x-show="summary.task_config_stale" x-cloak>
+            This analysis uses an older task configuration. Rebuild the cache to apply the update. A remote node must be online to rebuild its cache.
+        </div>
+        <div class="dp-notice text-slate-300" x-show="summary.remote_source" x-cloak>
+            <p x-text="'Using Agent metadata last synced at ' + (summary.remote_source?.last_synced_at || 'an unknown time') + '. Analysis remains available while the Agent is offline.'"></p>
+            <p class="mt-1 text-amber-200" x-show="summary.remote_source && !summary.remote_source.metadata_complete">Some episode metadata is unavailable. Update the Agent and wait for its automatic metadata sync to include per-episode lengths; Prepare cache is not required.</p>
+        </div>
+        <div class="dp-notice border-amber-900 text-amber-200" x-show="summary.annotation_cache_stale" x-cloak>Task definitions are current. Cached stages from a different stage configuration are omitted; metadata statistics remain available.</div>
+        <section class="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Dataset totals">
+            <div class="dp-metric"><p class="dp-metric-label">Episodes</p><p class="dp-metric-value" x-text="loaded ? formatInt(baseSummary().total_episodes) : '—'"></p><p class="mt-1 text-xs text-slate-500" x-text="`${formatInt(baseSummary().cached_episodes)} with optional annotation cache`"></p></div>
+            <div class="dp-metric"><p class="dp-metric-label">Task types</p><p class="dp-metric-value" x-text="loaded ? taskTypes().length : '—'"></p><p class="mt-1 text-xs text-slate-500" x-text="`${configuredCount()} episodes matched to tasks`"></p></div>
+            <div class="dp-metric"><p class="dp-metric-label">Duration</p><p class="dp-metric-value" x-text="loaded && totalDurationAvailable() ? formatDuration(baseSummary().total_duration_seconds) : '—'"></p><p class="mt-1 text-xs text-slate-500" x-text="totalFramesAvailable() ? `${formatInt(baseSummary().total_frames)} frames in the dataset` : 'Frame count unavailable'"></p></div>
+            <div class="dp-metric"><p class="dp-metric-label">Episodes with review flags</p><p class="dp-metric-value" :class="reviewCount(episodes) ? '!text-amber-200' : ''" x-text="loaded ? formatInt(reviewCount(episodes)) : '—'"></p><p class="mt-1 text-xs text-slate-500">Available annotation diagnostics</p></div>
+        </section>
+        <div class="dp-notice flex flex-wrap items-center justify-between gap-3 text-slate-300" x-show="pendingCount()" x-cloak>
+            <p><span class="font-semibold text-amber-200" x-text="`${pendingCount()} episodes need task setup. `"></span>They remain searchable by instruction. This does not indicate damaged data.</p>
+            {% if task_configuration_enabled %}<a class="text-sm font-semibold text-sky-300 hover:underline" href="/tasks?dataset_key={{ dataset_key|urlencode }}">Match instructions →</a>{% endif %}
+        </div>
+        <section class="dp-page-surface" aria-label="Episode filters">
+            <div class="dp-page-header flex flex-wrap items-center justify-between gap-3">
+                <div><h2 class="font-semibold">Explore a selection</h2><p class="dp-page-description">Filter by task, instruction, or chart selection.</p></div>
+                <button class="dp-btn dp-btn-compact" @click="resetFilters()" :disabled="!hasFilters()">Reset filters</button>
+            </div>
+            <div class="space-y-3 p-5">
+                <div class="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                    <label class="dp-field">Instruction contains<input class="dp-input" x-model.debounce.200ms="instructionSearch" placeholder="Search original task text"></label>
+                    <label class="dp-field">Task type<select class="dp-input" aria-label="Task type" x-model="activeScene" @change="setScene(activeScene)"><option value="overview">All task types</option><template x-for="tab in sceneTabs.filter(t => t.key !== 'overview' && t.key !== 'review')" :key="tab.key"><option :value="tab.key" x-text="tab.label"></option></template></select></label>
+                    <label class="dp-field">Review status<select class="dp-input" aria-label="Review status" x-model="reviewOnly"><option value="all">All episodes</option><option value="flagged">With review flags</option><option value="clear">Without review flags</option></select></label>
+                </div>
+                <div class="flex flex-wrap gap-2" x-show="taskFilters.length || selectedCell || hasDetailFilters()">
+                    <template x-for="(filter, index) in taskFilters" :key="index"><button class="dp-badge border-sky-800 !text-sky-200" @click="taskFilters.splice(index, 1)" :aria-label="'Remove ' + dimensionLabel(filter.dimension) + ' filter'" x-text="dimensionLabel(filter.dimension) + ': ' + valueLabel(filter.dimension, filter.value) + ' ×'"></button></template>
+                    <button class="dp-badge" x-show="selectedCell" @click="selectedCell = null" x-text="(selectedCell?.label || '') + ' ×'"></button>
+                    <template x-for="chip in detailFilterChips()" :key="chip.key"><button class="dp-badge" @click="removeDetailFilter(chip)" x-text="chip.label + ' ×'"></button></template>
+                </div>
+                {% if task_configuration_enabled %}
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3">
+                    <p class="text-xs text-slate-500">Build a selection carries task and instruction filters into Curation.<span x-show="hasDetailFilters() || selectedCell || reviewOnly !== 'all' || activePickScene"> Review, spatial, and breakdown filters stay in this view.</span></p>
+                    <a class="dp-btn dp-btn-compact" :href="curationTaskUrl()">Build selection →</a>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        <div class="grid items-start gap-5 lg:grid-cols-2">
+            <section class="dp-page-surface">
+                <div class="dp-page-header flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-semibold">Task distribution</h2><p class="dp-page-description" x-text="`${formatInt(activeRows().length)} episodes in the current task selection`"></p></div><label class="dp-field">Group by<select class="dp-input" aria-label="Group by" x-model="taskDimension"><template x-for="dimension in taskDimensions()" :key="dimension"><option :value="dimension" x-text="dimensionLabel(dimension)"></option></template></select></label></div>
+                <div class="max-h-[420px] space-y-2 overflow-y-auto p-5">
+                    <template x-for="row in taskDistribution()" :key="row.key"><button class="block w-full rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-left hover:border-sky-700" @click="addTaskFilter(row.key)"><span class="flex items-start justify-between gap-4"><span class="min-w-0 break-words text-sm text-slate-200" x-text="valueLabel(taskDimension, row.key)"></span><span class="shrink-0 text-xs tabular-nums text-slate-400" x-text="`${formatInt(row.count)} · ${fmt(row.percent)}`"></span></span><span class="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-800"><span class="block h-full rounded-full bg-sky-500" :style="`width:${Math.min(row.percent, 100)}%`"></span></span></button></template>
+                    <p class="dp-empty-state" x-show="!taskDistribution().length">No task values match these filters.</p>
+                </div>
+                <p class="border-t border-slate-800 px-5 py-3 text-xs leading-5 text-slate-500">Counts are per episode. An episode with multiple tasks can appear in more than one group.</p>
+            </section>
+            <section class="dp-page-surface">
+                <div class="dp-page-header flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-semibold">Episode breakdown</h2><p class="dp-page-description" x-text="detailChartTitle()"></p></div><label class="dp-field">Measure<select class="dp-input" aria-label="Measure" x-model="detailChartDimension"><template x-for="dimension in detailChartDimensions()" :key="dimension.key"><option :value="dimension.key" x-text="dimension.label"></option></template></select></label></div>
+                <div class="max-h-[420px] space-y-2 overflow-y-auto p-5">
+                    <template x-for="row in detailChartRows()" :key="row.key"><button class="block w-full rounded-lg border p-3 text-left" :class="detailChartRowSelected(row) ? 'border-sky-700 bg-sky-950/50' : 'border-slate-800 bg-slate-950/50 hover:border-slate-600'" @click="applyDetailChartFilter(row)"><span class="flex justify-between gap-4"><span class="text-sm" x-text="row.label"></span><span class="shrink-0 text-xs tabular-nums text-slate-400" x-text="`${formatInt(row.count)} · ${fmt(row.percent)}`"></span></span><span class="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-800"><span class="block h-full rounded-full bg-slate-500" :style="`width:${Math.min(row.percent, 100)}%`"></span></span></button></template>
+                    <p class="dp-empty-state" x-show="!detailChartRows().length">No values are available for this measure. Task and duration analysis remains available without annotation cache.</p>
+                </div>
+                <p class="border-t border-slate-800 px-5 py-3 text-xs leading-5 text-slate-500" x-text="detailChartDimension === 'stage' ? 'Counts are frames by stage index. These counts use available annotation rows. Stage definitions can differ across task types.' : 'Counts are episodes in the current task selection. Click a bar to filter the table.'"></p>
+            </section>
+        </div>
+        <details class="dp-context-card p-4" x-show="(summary.signal_statistics || []).length">
+            <summary>Raw signal statistics (full dataset; unaffected by filters)</summary>
+            <div class="overflow-auto mt-3"><table class="w-full text-xs"><thead><tr><th>Signal</th><th>Unit</th><th>Coordinate frame</th><th>Min</th><th>Max</th><th>Mean</th><th>Std</th></tr></thead>
+                <tbody><template x-for="row in (summary.signal_statistics || [])" :key="row.name"><tr>
+                    <td x-text="row.name"></td><td x-text="row.unit || 'Not declared'"></td><td x-text="row.coordinate_frame || 'Not declared'"></td>
+                    <td x-text="row.min ?? 'Not available'"></td><td x-text="row.max ?? 'Not available'"></td><td x-text="row.mean ?? 'Not available'"></td><td x-text="row.std ?? 'Not available'"></td>
+                </tr></template></tbody></table></div>
+        </details>
+        <details class="dp-page-surface dp-disclosure" x-show="activeScene === 'pick_group' || ['give', 'place'].includes(activeScene)" x-cloak>
+            <summary>Object and spatial coverage <span class="ml-2 font-normal text-slate-500">Optional view for pick, place, and give tasks</span></summary>
+            <div class="space-y-4 p-5">
+                <div class="flex flex-wrap items-center gap-3">
+                    <label class="dp-field" x-show="activeScene === 'pick_group'">Pick variation<select class="dp-input" x-model="activePickScene" @change="setPickSubtype(activePickScene)"><option value="">All pick variations</option><template x-for="tab in pickSubtypeTabs" :key="tab.key"><option :value="tab.key" x-text="tab.label"></option></template></select></label>
+                    <label class="dp-field" x-show="matrixScene() === 'relational_pick'">Relative position<select class="dp-input" x-model="relationalSide" @change="selectedCell = null"><option value="left">Left</option><option value="right">Right</option></select></label>
+                    <p class="text-xs text-slate-500" x-show="matrixScene() === 'pick_group'">Choose a pick variation to inspect its objects and positions.</p>
+                </div>
+                    <div x-show="['give', 'pick', 'place'].includes(matrixScene())" class="grid gap-3 md:grid-cols-4">
+                        <template x-for="object in canonicalObjects()" :key="object">
+                            <button class="rounded border p-4 text-left"
+                                    :class="cellClass({type: 'object', target: object})"
+                                    @click="selectCell({type: 'object', target: object, label: object})">
+                                <div class="text-xs text-slate-500">Object</div>
+                                <div class="mt-1 font-semibold" x-text="object"></div>
+                                <div class="mt-3 text-2xl font-semibold" x-text="cellCount({type: 'object', target: object})"></div>
+                                <div class="mt-1 text-[11px]" x-text="`${cellReviewCount({type: 'object', target: object})} review`"></div>
+                            </button>
+                        </template>
+                    </div>
+
+                    <div x-show="matrixScene() === 'directional_pick'" class="overflow-x-auto">
+                        <table class="min-w-full border-separate border-spacing-2 text-left text-xs">
+                            <thead class="text-slate-500">
+                                <tr>
+                                    <th class="px-2 py-1">Target</th>
+                                    <template x-for="side in directions()" :key="side">
+                                        <th class="px-2 py-1" x-text="side"></th>
+                                    </template>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="object in canonicalObjects()" :key="object">
+                                    <tr>
+                                        <th class="w-44 px-2 py-2 font-semibold text-slate-300" x-text="object"></th>
+                                        <template x-for="side in directions()" :key="`${object}-${side}`">
+                                            <td>
+                                                <button class="w-full rounded border p-3 text-left"
+                                                        :class="cellClass({type: 'directional', target: object, side})"
+                                                        @click="selectCell({type: 'directional', target: object, side, label: `${object} · ${side}`})">
+                                                    <div class="text-lg font-semibold" x-text="cellCount({type: 'directional', target: object, side})"></div>
+                                                    <div class="text-[11px]" x-text="`${cellReviewCount({type: 'directional', target: object, side})} review`"></div>
+                                                </button>
+                                            </td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div x-show="matrixScene() === 'relational_pick'" class="overflow-x-auto">
+                        <table class="min-w-full border-separate border-spacing-2 text-left text-xs">
+                            <thead class="text-slate-500">
+                                <tr>
+                                    <th class="px-2 py-1">target \\ reference</th>
+                                    <template x-for="reference in canonicalObjects()" :key="reference">
+                                        <th class="px-2 py-1" x-text="reference"></th>
+                                    </template>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="target in canonicalObjects()" :key="target">
+                                    <tr>
+                                        <th class="w-44 px-2 py-2 font-semibold text-slate-300" x-text="target"></th>
+                                        <template x-for="reference in canonicalObjects()" :key="`${target}-${reference}`">
+                                            <td>
+                                                <button class="w-full rounded border p-3 text-left"
+                                                        :disabled="target === reference"
+                                                        :class="cellClass({type: 'relational', target, reference, side: relationalSide}, target === reference)"
+                                                        @click="target !== reference && selectCell({type: 'relational', target, reference, side: relationalSide, label: `${target} ${relationalSide} of ${reference}`})">
+                                                    <div class="text-lg font-semibold" x-text="target === reference ? 'N/A' : cellCount({type: 'relational', target, reference, side: relationalSide})"></div>
+                                                    <div class="text-[11px]" x-text="target === reference ? 'Not applicable' : `${cellReviewCount({type: 'relational', target, reference, side: relationalSide})} review`"></div>
+                                                </button>
+                                            </td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+
+            </div>
+        </details>
+        <details class="dp-page-surface dp-disclosure" x-show="tagSummaryRows(activeSummary()).length" x-cloak>
+            <summary>Tag filters <span class="ml-2 font-normal text-slate-500">Combine tags to narrow the episode list</span></summary>
+            <div class="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+                <template x-for="tag in tagSummaryRows(activeSummary())" :key="tag.name"><div class="rounded-lg border border-slate-800 p-4"><h3 class="text-xs font-semibold text-slate-300" x-text="humanize(tag.name)"></h3><div class="mt-3 flex flex-wrap gap-2"><template x-for="value in tag.values" :key="value.key"><button class="dp-badge" :class="isTagFilterActive(tag.name, value.key) ? 'border-sky-700 !text-sky-200 bg-sky-950' : ''" @click="toggleTagFilter(tag.name, value.key)" x-text="`${value.label} · ${value.count}`"></button></template></div></div></template>
+            </div>
+            <a class="m-5 mt-0 inline-block text-xs font-semibold text-sky-300 hover:underline" :href="taggingReviewFilterUrl()" x-show="taggingMeta().review_url">Open tag review →</a>
+        </details>
+        <section class="dp-page-surface" aria-label="Matching episodes">
+            <div class="dp-page-header flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-semibold">Episodes</h2><p class="dp-page-description" x-text="`${formatInt(detailsRows().length)} matching episodes · ${formatDuration(detailsSummary().total_duration_seconds)} with known duration`"></p></div><span class="dp-badge" x-text="`${formatInt(detailsSummary().total_frames)} frames`"></span></div>
+            <div class="max-h-[640px] overflow-auto">
+                <table class="dp-table min-w-[800px]"><thead class="sticky top-0 z-10"><tr><th>Episode</th><th>Instruction</th><th>Task type</th><th>Duration</th><th>Cache</th><th>Review flags</th></tr></thead><tbody>
+                    <template x-for="row in pagedEpisodes()" :key="row.episode_id"><tr><td><a class="font-semibold text-sky-300 hover:underline" x-show="episodeUrl(row)" :href="episodeUrl(row)" x-text="row.episode_id"></a><span x-show="!episodeUrl(row)" x-text="row.episode_id"></span></td><td class="max-w-lg"><p class="leading-6" x-text="row.task"></p><p class="mt-1 text-xs text-amber-200" x-show="row.task_status === 'pending'">Needs task setup</p></td><td class="max-w-44 text-xs text-slate-400" x-text="(row.task_families || [row.task_type || 'unknown']).map(humanize).join(', ')"></td><td class="whitespace-nowrap text-slate-400" x-text="durationAvailable(row) ? formatDuration(row.duration_seconds) : '—'"></td><td><span class="dp-badge" :class="cacheStatusClass(row.cache_status)" x-text="cacheStatusLabel(row.cache_status)"></span></td><td class="max-w-xs text-xs leading-5 text-slate-400" x-text="(row.review_reasons || []).map(humanize).join(', ') || 'None'"></td></tr></template>
+                    <tr x-show="!detailsRows().length"><td colspan="6" class="!py-10 text-center text-slate-500" x-text="busy ? 'Loading episodes…' : episodes.length ? 'No episodes match these filters. Reset filters to see all episodes.' : summary.remote_source && baseSummary().total_episodes ? 'Episode details have not been synced yet. Update the Agent and wait for its next metadata sync.' : 'No episodes were found for this dataset.'"></td></tr>
+                </tbody></table>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 px-5 py-3"><span class="text-xs text-slate-500" x-text="pageRange()"></span><div class="flex items-center gap-3"><button class="dp-btn dp-btn-compact" @click="episodePage = currentPage() - 1" :disabled="currentPage() <= 1">Previous</button><span class="text-xs text-slate-400" x-text="`Page ${currentPage()} of ${pageCount()}`"></span><button class="dp-btn dp-btn-compact" @click="episodePage = currentPage() + 1" :disabled="currentPage() >= pageCount()">Next</button></div></div>
+        </section>
+        <footer class="flex flex-wrap justify-between gap-2 px-1 text-xs text-slate-500"><span x-text="configurationLabel()"></span><span>Metadata supplies task and duration statistics. Existing CSV files add optional annotations.</span></footer>
+    </main>
+
+    <script>
+        function analysisPage() {
+            return {
+                summary: {},
+                analysisApiBase: {{ (analysis_api_base|default('/api/analysis/' ~ dataset_namespace ~ '/' ~ dataset_name))|tojson }},
+                analysisRemote: {{ analysis_remote|default(false)|tojson }},
+                episodes: [],
+                busy: false,
+                loaded: false,
+                loadingMessage: 'loading',
+                error: '',
+                activeScene: 'overview',
+                activePickScene: '',
+                instructionSearch: '', reviewOnly: 'all', episodePage: 1, pageSize: 50,
+                relationalSide: 'left',
+                selectedCell: null,
+                detailFilters: {
+                    stage: '',
+                    exist: '',
+                    existValue: '',
+                    duration: '',
+                    cache: '',
+                    missingCsv: false,
+                    reason: '',
+                    tagName: '',
+                    tagValue: '',
+                    tagFilters: []
+                },
+                detailChartDimension: 'duration',
+                taskFilters: [],
+                taskDimension: 'task_family',
+                get sceneTabs() {
+                    const colors = ['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa'];
+                    return [
+                        {key:'overview', label:'Overview', expected:''},
+                        ...(this.summary.task_families || []).map((family, index) => ({
+                            key:family === 'pick' ? 'pick_group' : family,
+                            label:this.humanize(family),
+                            expected:'', color:colors[index % colors.length]
+                        })),
+                        {key:'review', label:'Needs Review', expected:''}
+                    ];
+                },
+                get pickSubtypeTabs() {
+                    return [
+                        {key:'pick', label:'Normal Pick', expected:'', color:'#84cc16'},
+                        {key:'directional_pick', label:'Directional Pick', expected:'', color:'#06b6d4'},
+                        {key:'relational_pick', label:'Relational Pick', expected:'', color:'#8b5cf6'}
+                    ].filter(tab => this.episodes.some(row => row.scene === tab.key));
+                },
+                humanize(value) {
+                    if (value === 'unknown') return 'Unconfigured';
+                    return String(value || '').replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase());
+                },
+                dimensionLabel(key) {
+                    return {task:'Instruction', task_family:'Task type', task_id:'Task'}[key] || this.humanize(key.replace('task_attributes.', ''));
+                },
+                valueLabel(dimension, value) {
+                    if (dimension === 'task_id') {
+                        for (const row of this.episodes) {
+                            const task = (row.resolved_tasks || []).find(task => task.task_id === value);
+                            if (task) return task.label || value;
+                        }
+                    }
+                    return dimension === 'task' ? value : this.humanize(value);
+                },
+                taskTypes() { return [...new Set(this.episodes.flatMap(row => row.task_families || []))].filter(value => value !== 'unknown'); },
+                configuredCount() { return this.episodes.filter(row => row.task_status === 'configured').length; },
+                pendingCount() { return this.episodes.filter(row => row.task_status === 'pending').length; },
+                taskDimensions() { return [...new Set(['task_family', 'task_id', ...Object.keys(this.summary.task_dimensions || {}), 'task'])]; },
+                taskValues(row, dimension) {
+                    if (dimension === 'task') {
+                        const instructions = (row.resolved_tasks || []).map(task => task.raw_task).filter(Boolean);
+                        return instructions.length ? instructions : row.task ? [row.task] : [];
+                    }
+                    return dimension === 'task_family' ? (row.task_families || []) : dimension === 'task_id' ? (row.task_ids || []) : (row.task_attributes || {})[dimension.slice(16)] || [];
+                },
+                taskRows() {
+                    const search = this.instructionSearch.trim().toLowerCase();
+                    return this.episodes.filter(row => (!search || this.taskValues(row, 'task').some(text => text.toLowerCase().includes(search))) && this.taskFilters.every(filter => {
+                        const values = this.taskValues(row, filter.dimension);
+                        return filter.dimension === 'task' ? values.some(value => value.toLowerCase().includes(filter.value.toLowerCase())) : values.includes(filter.value);
+                    }));
+                },
+                taskDistribution() {
+                    const rows = this.activeRows();
+                    const counter = {};
+                    for (const row of rows) for (const value of new Set(this.taskValues(row, this.taskDimension))) counter[value] = (counter[value] || 0) + 1;
+                    return this.counterItems(counter, rows.length);
+                },
+                addTaskFilter(value) {
+                    if (this.taskDimension === 'task_family') {
+                        this.taskFilters = this.taskFilters.filter(filter => filter.dimension !== 'task_family');
+                        this.setScene(value === 'pick' ? 'pick_group' : value);
+                        return;
+                    }
+                    this.taskFilters = this.taskFilters.filter(filter => filter.dimension !== this.taskDimension);
+                    this.taskFilters.push({dimension:this.taskDimension, value});
+                    this.selectedCell = null;
+                },
+                hasFilters() { return Boolean(this.instructionSearch || this.activeScene !== 'overview' || this.reviewOnly !== 'all' || this.taskFilters.length || this.selectedCell || this.hasDetailFilters()); },
+                resetFilters() {
+                    this.instructionSearch = ''; this.reviewOnly = 'all'; this.taskFilters = []; this.episodePage = 1;
+                    this.setScene('overview');
+                },
+                detailFilterChips() {
+                    const chips = [];
+                    for (const key of ['stage', 'exist', 'duration', 'cache', 'reason']) {
+                        const value = this.detailFilters[key];
+                        if (value) chips.push({key, label: this.humanize(key) + ': ' + (key === 'cache' ? this.cacheStatusLabel(value) : this.humanize(value)) + (key === 'exist' && this.detailFilters.existValue ? ' · ' + this.detailFilters.existValue : '')});
+                    }
+                    for (const filter of this.activeTagFilters()) chips.push({key:'tag:' + filter.name, tag:filter.name, label:this.tagFilterLabel(filter)});
+                    return chips;
+                },
+                removeDetailFilter(chip) {
+                    if (chip.tag) this.removeTagFilter(chip.tag);
+                    else { this.detailFilters[chip.key] = ''; if (chip.key === 'exist') this.detailFilters.existValue = ''; }
+                },
+                pageCount() { return Math.max(1, Math.ceil(this.detailsRows().length / this.pageSize)); },
+                currentPage() { return Math.min(this.episodePage, this.pageCount()); },
+                pagedEpisodes() { const start = (this.currentPage() - 1) * this.pageSize; return this.detailsRows().slice(start, start + this.pageSize); },
+                pageRange() { const total = this.detailsRows().length; return total ? `${(this.currentPage() - 1) * this.pageSize + 1}–${Math.min(this.currentPage() * this.pageSize, total)} of ${this.formatInt(total)} episodes` : '0 episodes'; },
+                configurationLabel() {
+                    const config = this.summary.task_config;
+                    if (!config) return 'Task configuration unavailable';
+                    const version = config.catalog?.version;
+                    return (version === 0 ? 'Built-in task catalog' : `Task catalog v${version ?? '?'}`) + (this.summary.task_config_stale ? ' · Cached version, update pending' : ' · Configuration used by this analysis');
+                },
+                curationTaskUrl() {
+                    const filters = this.taskFilters.filter(filter => filter.dimension !== 'task_family' || this.activeScene === 'overview');
+                    if (!['overview','review'].includes(this.activeScene)) filters.push({dimension:'task_family', value:this.activeScene === 'pick_group' ? 'pick' : this.activeScene});
+                    if (this.instructionSearch.trim()) filters.push({dimension:'task', value:this.instructionSearch.trim()});
+                    return '/tasks?dataset_key=' + encodeURIComponent({{ dataset_key|tojson }}) + '&tab=selection&filters=' + encodeURIComponent(JSON.stringify(filters));
+                },
+                async init() {
+                    this.$watch('taskFilters', () => { this.episodePage = 1; });
+                    this.$watch('instructionSearch', () => { this.episodePage = 1; });
+                    this.$watch('reviewOnly', () => { this.episodePage = 1; });
+                    this.$watch('detailFilters', () => { this.episodePage = 1; });
+                    await this.loadAnalysis();
+                },
+                async requestJson(url, payload = null) {
+                    const response = await fetch(url, {
+                        method: payload ? 'POST' : 'GET',
+                        headers: payload ? {'Content-Type': 'application/json'} : {},
+                        body: payload ? JSON.stringify(payload) : null
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || `request failed: ${response.status}`);
+                    return data;
+                },
+                async loadAnalysis() {
+                    this.busy = true;
+                    this.loaded = false;
+                    this.loadingMessage = 'Reading analysis summary...';
+                    this.error = '';
+                    try {
+                        const summaryData = await this.requestJson(this.analysisApiBase + '/summary');
+                        this.summary = summaryData.summary || {};
+                        this.loadingMessage = 'Reading episode analysis rows...';
+                        const episodeData = await this.requestJson(this.analysisApiBase + '/episodes');
+                        this.episodes = episodeData.episodes || [];
+                        this.loaded = true;
+                    } catch (err) {
+                        this.error = err.message;
+                    } finally {
+                        this.loadingMessage = 'ready';
+                        this.busy = false;
+                    }
+                },
+                async refreshAnalysis() {
+                    this.busy = true;
+                    this.loadingMessage = 'Running analysis from metadata...';
+                    this.error = '';
+                    try {
+                        const data = await this.requestJson(this.analysisApiBase + '/refresh');
+                        this.summary = data.summary || {};
+                        this.episodes = data.episodes || [];
+                        this.loaded = true;
+                        this.selectedCell = null;
+                    } catch (err) {
+                        this.error = err.message;
+                    } finally {
+                        this.loadingMessage = 'ready';
+                        this.busy = false;
+                    }
+                },
+                canonicalObjects() {
+                    return [...new Set(this.rowsForScene(this.matrixScene()).flatMap(row => [row.target, row.reference]).filter(value => value && value !== 'unknown'))].sort();
+                },
+                directions() {
+                    return this.summary.canonical_directions || ['left', 'right'];
+                },
+                setScene(scene) {
+                    this.activeScene = scene;
+                    this.activePickScene = '';
+                    this.episodePage = 1;
+                    this.selectedCell = null;
+                    this.clearDetailFilters();
+                },
+                setPickSubtype(scene) {
+                    this.activePickScene = scene;
+                    this.selectedCell = null;
+                    this.clearDetailFilters();
+                },
+                selectCell(cell) {
+                    this.selectedCell = cell;
+                    this.clearDetailFilters();
+                },
+                clearDetailFilters() {
+                    this.detailFilters = {
+                        stage: '',
+                        exist: '',
+                        existValue: '',
+                        duration: '',
+                        cache: '',
+                        missingCsv: false,
+                        reason: '',
+                        tagName: '',
+                        tagValue: '',
+                        tagFilters: []
+                    };
+                },
+                reviewRows() {
+                    return this.taskRows().filter(row => (row.review_reasons || []).length > 0);
+                },
+                canonicalCount() {
+                    return this.episodes.filter(row => row.is_canonical).length;
+                },
+                rowsForScene(scene = this.activeScene) {
+                    if (scene === 'overview') return this.taskRows();
+                    if (scene === 'review') return this.reviewRows();
+                    if (scene === 'pick_group') {
+                        return this.taskRows().filter(row => (row.task_families || []).includes('pick'));
+                    }
+                    return this.taskRows().filter(row => (row.task_families || []).includes(scene) || row.scene === scene || row.task_type === scene);
+                },
+                matrixScene() {
+                    return this.activeScene === 'pick_group' ? (this.activePickScene || 'pick_group') : this.activeScene;
+                },
+                tabCount(scene) {
+                    return this.rowsForScene(scene).length;
+                },
+                rowMatchesCell(row, cell) {
+                    if (!cell) return true;
+                    if (cell.target && row.target !== cell.target) return false;
+                    if (cell.side && row.side !== cell.side) return false;
+                    if (cell.reference && row.reference !== cell.reference) return false;
+                    return true;
+                },
+                cellRows(cell) {
+                    return this.rowsForScene(this.matrixScene()).filter(row => this.rowMatchesCell(row, cell));
+                },
+                cellCount(cell) {
+                    return this.cellRows(cell).length;
+                },
+                cellReviewCount(cell) {
+                    return this.reviewCount(this.cellRows(cell));
+                },
+                isSelectedCell(cell) {
+                    return JSON.stringify(cell || null) === JSON.stringify(this.selectedCell || null);
+                },
+                cellClass(cell, illegal = false) {
+                    if (illegal) return 'border-slate-800 bg-slate-950/40 text-slate-600 cursor-not-allowed';
+                    const count = this.cellCount(cell);
+                    const reviews = this.cellReviewCount(cell);
+                    if (this.isSelectedCell(cell)) return 'border-sky-500 bg-sky-950 text-sky-100';
+                    if (count === 0) return 'border-slate-800 bg-slate-950 text-slate-500 hover:border-slate-600';
+                    if (reviews > 0) return 'border-amber-800 bg-amber-950/40 text-amber-200 hover:border-amber-600';
+                    return 'border-emerald-800 bg-emerald-950/40 text-emerald-200 hover:border-emerald-600';
+                },
+                activeRows() {
+                    return this.rowsForScene(this.matrixScene()).filter(row => this.rowMatchesCell(row, this.selectedCell));
+                },
+                detailsRows() {
+                    return this.activeRows().filter(row => {
+                        const flagged = (row.review_reasons || []).length > 0;
+                        if (this.reviewOnly === 'flagged' && !flagged || this.reviewOnly === 'clear' && flagged) return false;
+                        if (this.detailFilters.stage && !(row.stage_counts || {}).hasOwnProperty(this.detailFilters.stage)) return false;
+                        if (this.detailFilters.exist) {
+                            const counts = this.existCountsForRow(row, this.detailFilters.exist);
+                            if (this.detailFilters.existValue) {
+                                if (this.detailFilters.existValue === 'missing') {
+                                    if (counts && Number(counts.true || 0) + Number(counts.false || 0) > 0) return false;
+                                } else if (Number((counts || {})[this.detailFilters.existValue] || 0) <= 0) return false;
+                            } else if (Number((counts || {}).true || 0) <= 0) {
+                                return false;
+                            }
+                        }
+                        if (this.detailFilters.duration) {
+                            if (!this.durationAvailable(row)) return false;
+                            const bucket = row.duration_bucket || this.durationBucket(Number(row.duration_seconds || 0));
+                            if (bucket !== this.detailFilters.duration) return false;
+                        }
+                        if (this.detailFilters.cache && row.cache_status !== this.detailFilters.cache) return false;
+                        if (this.detailFilters.missingCsv && row.cache_status !== 'missing_csv') return false;
+                        if (this.detailFilters.reason && !(row.review_reasons || []).includes(this.detailFilters.reason)) return false;
+                        for (const filter of this.activeTagFilters()) {
+                            if (!this.rowMatchesTagFilter(row, filter)) return false;
+                        }
+                        if (this.detailFilters.tagName) {
+                            const tags = row.tags || {};
+                            if (!Object.prototype.hasOwnProperty.call(tags, this.detailFilters.tagName)) return false;
+                            if (this.detailFilters.tagValue && this.normalizedTagKey(this.detailFilters.tagName, tags[this.detailFilters.tagName]) !== this.detailFilters.tagValue) return false;
+                        }
+                        return true;
+                    });
+                },
+                activeSummary() {
+                    return this.summaryFor(this.activeRows());
+                },
+                baseSummary() {
+                    const computed = this.summaryFor(this.episodes);
+                    return {...computed,
+                        total_episodes: this.summary.reported_total_episodes ?? computed.total_episodes,
+                        total_frames: this.summary.total_frames ?? computed.total_frames,
+                        total_duration_seconds: this.summary.total_duration_seconds ?? computed.total_duration_seconds};
+                },
+                durationAvailable(row) {
+                    return row.duration_source ? row.duration_source !== 'unavailable' : !['missing_csv', 'csv_read_error', 'stale'].includes(row.cache_status);
+                },
+                totalFramesAvailable() { return this.summary.reported_total_frames != null || this.episodes.some(row => row.frames_source !== 'unavailable'); },
+                totalDurationAvailable() { return this.episodes.some(row => this.durationAvailable(row)) || Number(this.summary.total_duration_seconds || 0) > 0; },
+                episodeUrl(row) { return this.analysisRemote ? row.viewer_url || '' : `/{{ dataset_key }}/episode_${row.episode_id}`; },
+                detailsSummary() {
+                    return this.summaryFor(this.detailsRows());
+                },
+                hasDetailFilters() {
+                    return Boolean(
+                        this.detailFilters.stage ||
+                        this.detailFilters.exist ||
+                        this.detailFilters.existValue ||
+                        this.detailFilters.duration ||
+                        this.detailFilters.cache ||
+                        this.detailFilters.missingCsv ||
+                        this.detailFilters.reason ||
+                        this.detailFilters.tagName ||
+                        this.detailFilters.tagValue ||
+                        this.activeTagFilters().length
+                    );
+                },
+                detailChartDimensions() {
+                    const summary = this.activeSummary();
+                    const dims = [
+                        {key: 'duration', label: 'Duration'},
+                        {key: 'cache', label: 'Cache'},
+                        {key: 'stage', label: 'Stage'},
+                        {key: 'exist', label: 'Object presence'},
+                    ];
+                    if ((summary.review_reason_distribution || []).length > 0) {
+                        dims.push({key: 'review', label: 'Review'});
+                    }
+                    for (const tag of this.tagSummaryRows(summary)) {
+                        dims.push({key: `tag:${tag.name}`, label: this.humanize(tag.name)});
+                    }
+                    return dims;
+                },
+                selectDetailChart(key) {
+                    this.detailChartDimension = key;
+                },
+                detailChartTitle() {
+                    if (this.detailChartDimension.startsWith('tag:')) {
+                        return `Tag distribution: ${this.detailChartDimension.slice(4)}`;
+                    }
+                    const labels = {
+                        duration: 'Episode duration histogram',
+                        cache: 'CSV cache status',
+                        stage: 'Frame distribution by stage',
+                        exist: this.scalarExistKey(this.activeSummary()) ? 'Episodes by object presence label' : 'Episodes containing each presence label',
+                        review: 'Episodes by review reason',
+                    };
+                    return labels[this.detailChartDimension] || 'Distribution';
+                },
+                isScalarExistKey(key) {
+                    return key === 'exist_label' || key === 'exist_label_0';
+                },
+                scalarExistKey(summary) {
+                    const rows = summary && summary.exist_distribution ? summary.exist_distribution : [];
+                    return rows.length === 1 && this.isScalarExistKey(rows[0].key) ? rows[0].key : '';
+                },
+                existCountsForRow(row, key) {
+                    const counts = row.exist_counts || {};
+                    if (counts[key]) return counts[key];
+                    if (key === 'exist_label' && counts.exist_label_0) return counts.exist_label_0;
+                    if (key === 'exist_label_0' && counts.exist_label) return counts.exist_label;
+                    return null;
+                },
+                scalarExistRows(summary) {
+                    const key = this.scalarExistKey(summary);
+                    if (!key) return null;
+                    const counts = {true: 0, false: 0, missing: 0};
+                    for (const row of this.activeRows()) {
+                        const rowCounts = this.existCountsForRow(row, key);
+                        if (!rowCounts) {
+                            counts.missing += 1;
+                        } else if (Number(rowCounts.true || 0) > 0) {
+                            counts.true += 1;
+                        } else if (Number(rowCounts.false || 0) > 0) {
+                            counts.false += 1;
+                        } else {
+                            counts.missing += 1;
+                        }
+                    }
+                    const total = Math.max(1, this.activeRows().length);
+                    return [
+                        {key: `${key}:true`, label: 'Present (1)', count: counts.true, percent: counts.true / total * 100, filter: {exist: key, existValue: 'true'}},
+                        {key: `${key}:false`, label: 'Absent (0)', count: counts.false, percent: counts.false / total * 100, filter: {exist: key, existValue: 'false'}},
+                        {key: `${key}:missing`, label: 'Label unavailable', count: counts.missing, percent: counts.missing / total * 100, filter: {exist: key, existValue: 'missing'}},
+                    ].filter(row => row.count > 0);
+                },
+                detailChartRows() {
+                    const summary = this.activeSummary();
+                    if (this.detailChartDimension === 'cache') {
+                        return (summary.cache_status_distribution || []).map(row => ({
+                            key: row.key,
+                            label: this.cacheStatusLabel(row.key),
+                            count: row.count,
+                            percent: row.percent,
+                            filter: {cache: row.key},
+                        }));
+                    }
+                    if (this.detailChartDimension === 'stage') {
+                        return (summary.stage_distribution || []).map(row => ({
+                            key: row.key,
+                            label: `Stage index ${row.key}`,
+                            count: row.count,
+                            percent: row.percent,
+                            filter: {stage: row.key},
+                        }));
+                    }
+                    if (this.detailChartDimension === 'exist') {
+                        const scalarRows = this.scalarExistRows(summary);
+                        if (scalarRows) return scalarRows;
+                        return (summary.exist_distribution || []).map(row => ({
+                            key: row.key,
+                            label: row.key,
+                            count: row.episode_true,
+                            percent: row.episode_true_percent,
+                            filter: {exist: row.key},
+                        })).filter(row => row.count > 0);
+                    }
+                    if (this.detailChartDimension === 'review') {
+                        return (summary.review_reason_distribution || []).map(row => ({
+                            key: row.key,
+                            label: row.key,
+                            count: row.count,
+                            percent: row.percent,
+                            filter: {reason: row.key},
+                        }));
+                    }
+                    if (this.detailChartDimension.startsWith('tag:')) {
+                        const tagName = this.detailChartDimension.slice(4);
+                        const tag = this.tagSummaryRows(summary).find(item => item.name === tagName);
+                        return tag ? tag.values.map(row => ({
+                            key: row.key,
+                            label: row.label,
+                            count: row.count,
+                            percent: row.percent,
+                            filter: {tagName, tagValue: row.key},
+                        })) : [];
+                    }
+                    return (summary.duration_distribution || []).filter(row => row.count > 0).map(row => ({
+                        key: row.key,
+                        label: row.key,
+                        count: row.count,
+                        percent: row.percent,
+                        filter: {duration: row.key},
+                    }));
+                },
+                detailChartRowSelected(row) {
+                    const filter = row.filter || {};
+                    if (filter.tagName) return this.isTagFilterActive(filter.tagName, filter.tagValue);
+                    return Object.entries(filter).every(([key, value]) => this.detailFilters[key] === value);
+                },
+                applyDetailChartFilter(row) {
+                    const filter = row.filter || {};
+                    if (filter.tagName) {
+                        this.toggleTagFilter(filter.tagName, filter.tagValue);
+                        return;
+                    }
+                    if (this.detailChartRowSelected(row)) {
+                        for (const key of Object.keys(filter)) {
+                            this.detailFilters[key] = '';
+                        }
+                        if ('tagName' in filter) this.detailFilters.tagValue = '';
+                        if ('exist' in filter) this.detailFilters.existValue = '';
+                        return;
+                    }
+                    for (const key of ['stage', 'exist', 'existValue', 'duration', 'cache', 'reason', 'tagName', 'tagValue']) {
+                        this.detailFilters[key] = '';
+                    }
+                    this.detailFilters.missingCsv = false;
+                    Object.assign(this.detailFilters, filter);
+                },
+                reviewCount(rows) {
+                    return rows.filter(row => (row.review_reasons || []).length > 0).length;
+                },
+                taggingMeta() {
+                    return this.summary.tagging || {status: 'missing', active_variant: null, review_url: ''};
+                },
+                summaryFor(rows) {
+                    const sceneCounts = {};
+                    const targetCounts = {};
+                    const canonicalTaskCounts = {};
+                    const taskTypeCounts = {};
+                    const sideCounts = {};
+                    const referenceCounts = {};
+                    const reviewReasonCounts = {};
+                    const cacheStatusCounts = {};
+                    const stageCounts = {};
+                    const stageSeconds = {};
+                    const existCounts = {};
+                    const existEpisodeTrue = {};
+                    const tagCounts = {};
+                    const tagEpisodeCounts = {};
+                    const durationCounts = {};
+                    let totalFrames = 0;
+                    let totalDuration = 0;
+                    let durationRows = 0;
+                    let taggedEpisodes = 0;
+                    const missingCsv = [];
+                    const sampledCsv = [];
+
+                    for (const row of rows) {
+                        const sceneKey = row.scene_label || row.scene || 'unknown';
+                        const targetKey = row.target || 'unknown';
+                        const canonicalTask = row.canonical_task || row.task || 'unknown';
+                        const taskType = row.task_type || row.scene || 'unknown';
+                        sceneCounts[sceneKey] = (sceneCounts[sceneKey] || 0) + 1;
+                        targetCounts[targetKey] = (targetCounts[targetKey] || 0) + 1;
+                        canonicalTaskCounts[canonicalTask] = (canonicalTaskCounts[canonicalTask] || 0) + 1;
+                        taskTypeCounts[taskType] = (taskTypeCounts[taskType] || 0) + 1;
+                        if (row.side) sideCounts[row.side] = (sideCounts[row.side] || 0) + 1;
+                        if (row.reference) referenceCounts[row.reference] = (referenceCounts[row.reference] || 0) + 1;
+                        const cacheStatus = row.cache_status || 'unknown';
+                        cacheStatusCounts[cacheStatus] = (cacheStatusCounts[cacheStatus] || 0) + 1;
+                        for (const reason of row.review_reasons || []) {
+                            reviewReasonCounts[reason] = (reviewReasonCounts[reason] || 0) + 1;
+                        }
+                        totalFrames += Number(row.frames || 0);
+                        totalDuration += Number(row.duration_seconds || 0);
+                        if (!['cached', 'sampled'].includes(row.cache_status)) missingCsv.push(row.episode_id);
+                        if (row.cache_status === 'sampled') sampledCsv.push(row.episode_id);
+                        if (this.durationAvailable(row)) {
+                            const bucket = row.duration_bucket || this.durationBucket(Number(row.duration_seconds || 0));
+                            durationCounts[bucket] = (durationCounts[bucket] || 0) + 1;
+                            durationRows += 1;
+                        }
+                        let hasAnyTag = false;
+                        for (const [name, value] of Object.entries(row.tags || {})) {
+                            if (value === null || value === undefined || value === '') {
+                                if (name !== 'object_count') continue;
+                            }
+                            hasAnyTag = true;
+                            if (!this.isDiscreteTagValue(value)) continue;
+                            const key = this.normalizedTagKey(name, value);
+                            if (!tagCounts[name]) tagCounts[name] = {};
+                            tagCounts[name][key] = (tagCounts[name][key] || 0) + 1;
+                            tagEpisodeCounts[name] = (tagEpisodeCounts[name] || 0) + 1;
+                        }
+                        if (hasAnyTag) taggedEpisodes += 1;
+
+                        const analyzedFrames = row.analyzed_frames ?? row.frames;
+                        const secondsPerFrame = analyzedFrames ? Number(row.analyzed_duration_seconds ?? row.duration_seconds ?? 0) / Number(analyzedFrames) : 0;
+                        for (const [stage, countValue] of Object.entries(row.stage_counts || {})) {
+                            const count = Number(countValue || 0);
+                            stageCounts[stage] = (stageCounts[stage] || 0) + count;
+                            stageSeconds[stage] = (stageSeconds[stage] || 0) + count * secondsPerFrame;
+                        }
+
+                        for (const [label, counts] of Object.entries(row.exist_counts || {})) {
+                            if (!existCounts[label]) existCounts[label] = {true: 0, false: 0, missing: 0};
+                            existCounts[label].true += Number(counts.true || 0);
+                            existCounts[label].false += Number(counts.false || 0);
+                            existCounts[label].missing += Number(counts.missing || 0);
+                            if (Number(counts.true || 0) > 0) {
+                                existEpisodeTrue[label] = (existEpisodeTrue[label] || 0) + 1;
+                            }
+                        }
+                    }
+
+                    const stageFrameTotal = Object.values(stageCounts).reduce((acc, value) => acc + Number(value || 0), 0);
+                    return {
+                        total_episodes: rows.length,
+                        cached_episodes: rows.length - missingCsv.length,
+                        missing_csv_episodes: missingCsv,
+                        sampled_csv_episodes: sampledCsv,
+                        total_frames: totalFrames,
+                        total_duration_seconds: totalDuration,
+                        scene_distribution: this.counterItems(sceneCounts, rows.length),
+                        target_distribution: this.counterItems(targetCounts, rows.length),
+                        canonical_task_distribution: this.counterItems(canonicalTaskCounts, rows.length),
+                        task_type_distribution: this.counterItems(taskTypeCounts, rows.length),
+                        side_distribution: this.counterItems(sideCounts),
+                        reference_distribution: this.counterItems(referenceCounts),
+                        review_reason_distribution: this.counterItems(reviewReasonCounts, rows.length),
+                        cache_status_distribution: this.cacheStatusItems(cacheStatusCounts),
+                        stage_distribution: this.stageItems(stageCounts, stageFrameTotal),
+                        duration_distribution: this.durationBuckets().map(key => {
+                            const count = Number(durationCounts[key] || 0);
+                            return {
+                                key,
+                                count,
+                                percent: durationRows ? count / durationRows * 100 : 0
+                            };
+                        }),
+                        stage_seconds: Object.entries(stageSeconds)
+                            .sort((a, b) => Number(a[0]) - Number(b[0]))
+                            .map(([key, seconds]) => ({
+                                key,
+                                seconds,
+                                percent: totalDuration ? Number(seconds || 0) / totalDuration * 100 : 0
+                            })),
+                        exist_distribution: Object.entries(existCounts)
+                            .sort((a, b) => a[0].localeCompare(b[0]))
+                            .map(([key, counts]) => {
+                                const total = counts.true + counts.false + counts.missing;
+                                return {
+                                    key,
+                                    true: counts.true,
+                                    false: counts.false,
+                                    missing: counts.missing,
+                                    true_percent: total ? counts.true / total * 100 : 0,
+                                    episode_true: existEpisodeTrue[key] || 0,
+                                    episode_true_percent: rows.length ? (existEpisodeTrue[key] || 0) / rows.length * 100 : 0
+                                };
+                            }),
+                        tagged_episodes: taggedEpisodes,
+                        tag_distribution: Object.entries(tagCounts)
+                            .sort((a, b) => a[0].localeCompare(b[0]))
+                            .map(([name, counts]) => {
+                                const taggedForName = Number(tagEpisodeCounts[name] || 0);
+                                return {
+                                    name,
+                                    tagged_episodes: taggedForName,
+                                    values: Object.entries(counts)
+                                        .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0) || String(a[0]).localeCompare(String(b[0])))
+                                        .map(([key, count]) => ({
+                                            key,
+                                            label: this.normalizedTagLabel(name, key),
+                                            count: Number(count || 0),
+                                            percent: taggedForName ? Number(count || 0) / taggedForName * 100 : 0,
+                                            total_percent: rows.length ? Number(count || 0) / rows.length * 100 : 0
+                                        }))
+                                };
+                            })
+                    };
+                },
+                tagSummaryRows(summary) {
+                    return (summary && summary.tag_distribution ? summary.tag_distribution : [])
+                        .filter(tag => (tag.values || []).length > 0);
+                },
+                tagValueOptions(name, summary) {
+                    if (!name) return [];
+                    const tag = this.tagSummaryRows(summary || this.activeSummary()).find(item => item.name === name);
+                    return tag ? tag.values : [];
+                },
+                setTagName(name) {
+                    this.detailFilters.tagName = name || '';
+                    this.detailFilters.tagValue = '';
+                    this.detailFilters.tagFilters = name ? [{name, value: ''}] : [];
+                },
+                setTagFilter(name, value) {
+                    this.detailFilters.tagName = name || '';
+                    this.detailFilters.tagValue = value || '';
+                    this.upsertTagFilter(name, value || '');
+                },
+                setGlobalTagName(name) {
+                    this.activeScene = 'overview';
+                    this.selectedCell = null;
+                    this.setTagName(name);
+                },
+                setGlobalTagFilter(name, value) {
+                    this.activeScene = 'overview';
+                    this.selectedCell = null;
+                    this.setTagFilter(name, value);
+                },
+                isDiscreteTagValue(value) {
+                    return value === null || value === undefined || ['string', 'number', 'boolean'].includes(typeof value);
+                },
+                tagValueKey(value) {
+                    if (value === null || value === undefined) return '';
+                    if (typeof value === 'boolean') return value ? 'true' : 'false';
+                    return String(value);
+                },
+                tagValueLabel(value) {
+                    const text = this.tagValueKey(value);
+                    return text === '' ? '-' : text;
+                },
+                normalizedTagKey(name, value) {
+                    if (name === 'object_count') {
+                        if (value === null || value === undefined || value === '') return 'missing';
+                        const parsed = Number.parseInt(String(value), 10);
+                        if (Number.isNaN(parsed)) return String(value);
+                        if (parsed <= 0) return '0';
+                        if (parsed === 1) return '1';
+                        if (parsed === 2) return '2';
+                        if (parsed === 3) return '3';
+                        return '4_plus';
+                    }
+                    return this.tagValueKey(value);
+                },
+                normalizedTagLabel(name, value) {
+                    const key = this.normalizedTagKey(name, value);
+                    if (name === 'object_count' && key === '4_plus') return '4+';
+                    if (key === 'missing' || key === '') return 'missing';
+                    return key;
+                },
+                activeTagFilters() {
+                    return (this.detailFilters.tagFilters || []).filter(filter => filter && filter.name);
+                },
+                rowMatchesTagFilter(row, filter) {
+                    const tags = row.tags || {};
+                    if (!filter || !filter.name || !Object.prototype.hasOwnProperty.call(tags, filter.name)) return false;
+                    if (!filter.value) return tags[filter.name] !== null && tags[filter.name] !== undefined && tags[filter.name] !== '';
+                    return this.normalizedTagKey(filter.name, tags[filter.name]) === filter.value;
+                },
+                isTagFilterActive(name, value = '') {
+                    return this.activeTagFilters().some(filter => filter.name === name && (filter.value || '') === (value || ''));
+                },
+                upsertTagFilter(name, value = '') {
+                    if (!name) return;
+                    const next = this.activeTagFilters().filter(filter => filter.name !== name);
+                    next.push({name, value: value || ''});
+                    this.detailFilters.tagFilters = next;
+                    this.detailFilters.tagName = next.length === 1 ? next[0].name : '';
+                    this.detailFilters.tagValue = next.length === 1 ? next[0].value || '' : '';
+                },
+                toggleTagFilter(name, value = '') {
+                    if (this.isTagFilterActive(name, value)) {
+                        this.removeTagFilter(name);
+                    } else {
+                        this.upsertTagFilter(name, value);
+                    }
+                },
+                removeTagFilter(name) {
+                    this.detailFilters.tagFilters = this.activeTagFilters().filter(filter => filter.name !== name);
+                    this.detailFilters.tagName = this.detailFilters.tagFilters.length === 1 ? this.detailFilters.tagFilters[0].name : '';
+                    this.detailFilters.tagValue = this.detailFilters.tagFilters.length === 1 ? this.detailFilters.tagFilters[0].value || '' : '';
+                },
+                clearTagFilters() {
+                    this.detailFilters.tagName = '';
+                    this.detailFilters.tagValue = '';
+                    this.detailFilters.tagFilters = [];
+                },
+                tagFilterLabel(filter) {
+                    if (!filter || !filter.name) return '';
+                    if (!filter.value) return `${filter.name} exists`;
+                    return `${filter.name} = ${this.normalizedTagLabel(filter.name, filter.value)}`;
+                },
+                taggingReviewFilterUrl() {
+                    const base = this.taggingMeta().review_url || '#';
+                    const filters = this.activeTagFilters();
+                    if (!filters.length || base === '#') return base;
+                    const params = new URLSearchParams();
+                    if (this.taggingMeta().active_variant) params.set('variant', this.taggingMeta().active_variant);
+                    const first = filters[0];
+                    params.set('tag', first.name);
+                    if (first.name === 'object_count' && first.value === '4_plus') params.set('bucket', first.value);
+                    else if (first.value) params.set('value', first.value);
+                    if (filters.length > 1) params.set('filters', JSON.stringify(filters));
+                    return `${base.split('?')[0]}?${params.toString()}`;
+                },
+                cohortDistributionGroups() {
+                    const summary = this.detailsSummary();
+                    const activeNames = new Set(this.activeTagFilters().map(filter => filter.name));
+                    const groups = [];
+                    for (const tag of this.tagSummaryRows(summary)) {
+                        if (activeNames.has(tag.name)) continue;
+                        groups.push({
+                            name: `tag:${tag.name}`,
+                            label: tag.name,
+                            total: tag.tagged_episodes,
+                            values: tag.values.map(value => ({
+                                ...value,
+                                filter: {name: tag.name, value: value.key}
+                            }))
+                        });
+                    }
+                    groups.push({
+                        name: 'task_type',
+                        label: 'task type',
+                        total: summary.total_episodes || 0,
+                        values: (summary.task_type_distribution || []).map(row => ({
+                            key: row.key,
+                            label: row.key,
+                            count: row.count,
+                            percent: row.percent
+                        }))
+                    });
+                    groups.push({
+                        name: 'duration',
+                        label: 'duration',
+                        total: summary.total_episodes || 0,
+                        values: (summary.duration_distribution || []).filter(row => row.count > 0).map(row => ({
+                            key: row.key,
+                            label: row.key,
+                            count: row.count,
+                            percent: row.percent
+                        }))
+                    });
+                    return groups.filter(group => (group.values || []).length > 0).slice(0, 6);
+                },
+                tagChips(row) {
+                    return Object.entries(row.tags || {})
+                        .filter(([, value]) => value !== null && value !== undefined && value !== '' && this.isDiscreteTagValue(value))
+                        .sort((a, b) => a[0].localeCompare(b[0]))
+                        .map(([name, value]) => ({
+                            name,
+                            key: this.normalizedTagKey(name, value),
+                            label: this.normalizedTagLabel(name, value)
+                        }));
+                },
+                counterItems(counter, total = null) {
+                    const denominator = total === null
+                        ? Object.values(counter).reduce((acc, value) => acc + Number(value || 0), 0)
+                        : Number(total || 0);
+                    return Object.entries(counter)
+                        .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0) || String(a[0]).localeCompare(String(b[0])))
+                        .map(([key, count]) => ({
+                            key,
+                            count: Number(count || 0),
+                            percent: denominator ? Number(count || 0) / denominator * 100 : 0
+                        }));
+                },
+                stageItems(counter, total = null) {
+                    const denominator = total === null
+                        ? Object.values(counter).reduce((acc, value) => acc + Number(value || 0), 0)
+                        : Number(total || 0);
+                    return Object.entries(counter)
+                        .sort((a, b) => Number(a[0]) - Number(b[0]))
+                        .map(([key, count]) => ({
+                            key,
+                            count: Number(count || 0),
+                            percent: denominator ? Number(count || 0) / denominator * 100 : 0
+                        }));
+                },
+                cacheStatusItems(counter) {
+                    const order = ['cached', 'sampled', 'missing_csv', 'csv_read_error', 'unknown'];
+                    const total = Object.values(counter).reduce((acc, value) => acc + Number(value || 0), 0);
+                    return Object.entries(counter)
+                        .sort((a, b) => {
+                            const left = order.includes(a[0]) ? order.indexOf(a[0]) : order.length;
+                            const right = order.includes(b[0]) ? order.indexOf(b[0]) : order.length;
+                            return left - right || String(a[0]).localeCompare(String(b[0]));
+                        })
+                        .map(([key, count]) => ({
+                            key,
+                            count: Number(count || 0),
+                            percent: total ? Number(count || 0) / total * 100 : 0
+                        }));
+                },
+                cacheStatusLabel(status) {
+                    const labels = {
+                        cached: 'Ready',
+                        sampled: 'Sampled',
+                        missing_csv: 'Not generated',
+                        stale: 'Outdated annotations',
+                        csv_read_error: 'CSV error',
+                        unknown: 'unknown'
+                    };
+                    return labels[status] || String(status || 'unknown');
+                },
+                cacheStatusClass(status) {
+                    if (status === 'cached') return 'border-emerald-800 bg-emerald-950 text-emerald-300';
+                    if (status === 'sampled') return 'border-cyan-800 bg-cyan-950 text-cyan-300';
+                    if (status === 'missing_csv') return 'border-slate-700 bg-slate-950 text-slate-400';
+                    if (status === 'stale') return 'border-amber-800 bg-amber-950 text-amber-300';
+                    if (status === 'csv_read_error') return 'border-amber-800 bg-amber-950 text-amber-300';
+                    return 'border-slate-700 bg-slate-950 text-slate-400';
+                },
+                fmt(value) {
+                    return `${Number(value || 0).toFixed(1)}%`;
+                },
+                formatInt(value) {
+                    return Number(value || 0).toLocaleString();
+                },
+                formatDuration(seconds) {
+                    const total = Math.max(0, Math.round(Number(seconds || 0)));
+                    const hours = Math.floor(total / 3600);
+                    const minutes = Math.floor((total % 3600) / 60);
+                    const secs = total % 60;
+                    if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+                    if (minutes > 0) return `${minutes}m ${String(secs).padStart(2, '0')}s`;
+                    return `${secs}s`;
+                },
+                durationBuckets() {
+                    return this.summary.duration_buckets || ['0-5s', '5-10s', '10-15s', '15-20s', '20-30s', '30-45s', '45-60s', '60s+'];
+                },
+                durationBucket(seconds) {
+                    const value = Number(seconds || 0);
+                    if (value < 5) return '0-5s';
+                    if (value < 10) return '5-10s';
+                    if (value < 15) return '10-15s';
+                    if (value < 20) return '15-20s';
+                    if (value < 30) return '20-30s';
+                    if (value < 45) return '30-45s';
+                    if (value < 60) return '45-60s';
+                    return '60s+';
+                }
+            };
+        }
+    </script>
+</body>
+</html>

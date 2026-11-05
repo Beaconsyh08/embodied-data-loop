@@ -1,0 +1,10 @@
+# CPU-only runtime for the pinned data_laundry Viser renderer.
+viser[urdf]==1.1.0
+numpy>=1.26
+scipy>=1.14
+pyarrow>=15
+pandas>=2.0
+pydantic>=2.7
+Pillow>=10
+PyYAML>=6
+matplotlib>=3.8

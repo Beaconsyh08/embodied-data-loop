@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temporal Caption · {{ page_title }}</title>{% include 'temporal_caption_styles.html' %}</head><body class="review-page">
+<header class="topbar dp-topbar"><div class="dp-topbar-context"><nav class="dp-dataset-nav"><a class="dp-btn" href="{{ home_url }}">Dataset</a><a class="dp-btn" href="{{ annotation_url }}">Annotation</a><span class="dp-btn" aria-current="page">Review</span>{% if assistant_location_id %}<a class="dp-btn" href="/remote/{{ assistant_location_id }}/temporal-caption/evaluation">Human evaluation</a>{% endif %}</nav><h1>Temporal Caption</h1>{% include 'temporal_caption_datasets.html' %}</div><span class="spacer"></span><span class="lang" aria-label="Caption language"><button id="lang-both" class="on">ZH + EN</button><button id="lang-en">EN</button><button id="lang-zh">ZH</button></span>
+</header>
+<div class="selectors"><label>Method<select id="scheme">{% for scheme in caption_schemes %}<option value="{{ scheme.id }}">{{ scheme.name }}</option>{% endfor %}</select></label>
+<div class="episode-picker"><label for="episode">Episode <span id="episode-position"></span></label><div><button id="episode-previous" aria-label="Previous episode" title="Previous episode (↑)" disabled>↑</button><select id="episode" aria-label="Episode" disabled></select><button id="episode-next" aria-label="Next episode" title="Next episode (↓)" disabled>↓</button></div></div><label>Result<select id="variant" disabled></select></label><div><p id="scheme-description" hidden></p><section class="original-instruction" id="original-instruction" aria-label="Original instruction" hidden><div class="sec-title">Original instruction</div><div class="task-line" id="task"></div></section><span id="meta" class="crumb"></span></div></div>
+
+<p id="status" role="status">Loading annotation results…</p>
+<main class="wrap" id="review" hidden>
+<section class="stage">
+<div class="card player"><div class="video-surface"><video id="video" controls playsinline preload="metadata"></video><div id="reward-overlay" class="reward-overlay" hidden></div></div>
+<div class="viewtags"><span>Left wrist</span><span>Head / scene</span><span>Right wrist</span></div>
+<div class="transport"><button id="previous">← Segment</button><button id="next">Segment →</button><span id="clock"></span><span class="spacer"></span>
+<label><input id="loop" type="checkbox"> Loop</label><select id="rate" aria-label="Playback speed" title="Left / right arrow: slower / faster"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="5">5×</option></select><span class="playback-hint">Space: play / pause · ← / →: speed</span></div>
+<div id="current-caption"></div></div>
+<section class="card track-box" aria-label="Aligned video timeline">
+<div class="track-head"><span>Video timeline</span><span id="track-label"></span></div>
+<div class="aligned-timeline">
+<div class="timeline-row"><span class="timeline-label">Time</span><div id="ticks"></div></div>
+<div class="timeline-row"><span class="timeline-label">Segments</span><div class="segs" id="timeline"></div></div>
+<div class="timeline-row"><span class="timeline-label">Events</span><div id="events" class="ev-row"></div></div>
+<section id="reward-review" hidden aria-label="FLORA reward review"><div id="reward-tracks"></div></section>
+<div class="timeline-overlay" aria-hidden="true"><div id="timeline-guides"></div><div id="disagreement-bands"></div><div class="playhead" id="playhead"></div></div>
+</div>
+<div id="reward-details" hidden>
+<div class="sec-title">Window disagreements · click to review</div><div id="reward-conflicts" class="reward-values"></div>
+<details class="dp-help"><summary>Window reasoning &amp; alignment</summary><p class="note">Shared time scale · Window ranges show score coverage, independent of segment boundaries. Amber bands mark disagreeing windows.</p>
+<p class="note">Action scores: 1 failure · 2 suboptimal · 3 normal · gray outside coverage. Model assessment · unreviewed.</p>
+<div id="reward-raw"></div></details>
+</div>
+</section>
+
+</section>
+<section class="panel">
+<section id="reward-summary" class="card block reward-scoreboard" hidden aria-label="Reward scores">
+<div class="reward-overall">
+<div class="reward-score-heading">Overall <span>· whole episode</span></div>
+<div class="reward-number"><strong id="reward-overall-score"></strong><span>/ 5</span></div>
+<p class="reward-scale">1 failure · 5 success</p>
+<details><summary>Why this overall score?</summary><p class="reward-scale">Episode outcome: 1 complete failure · 5 complete success</p><p id="reward-terminal"></p></details>
+</div>
+<div class="reward-current">
+<div class="reward-score-heading">Window scores <span id="reward-score-time"></span></div>
+<p class="reward-scale">At the playhead · 1 failure · 2 suboptimal · 3 normal</p>
+<div id="reward-values" class="reward-values"></div>
+<div class="reward-merged">Merged action score <strong id="reward-merged-score"></strong><span id="reward-merged-source"></span></div>
+<div id="reward-score-conflict" class="reward-score-conflict" hidden>⚠ Windows disagree at this time</div>
+</div>
+</section>
+<div class="review-evidence" id="review-evidence"><div class="review-panel-content" id="caption-panel">
+<p class="note">Model-generated captions · human review required.</p>
+<p id="coverage-repair-status" class="note" hidden></p>
+<details class="card block review-context"><summary>Episode context &amp; diagnostics</summary>
+<div class="card verdict" id="quality"></div>
+<div class="card block">
+<div id="scene-block"><div class="sec-title" style="margin-top:16px">What the model saw</div><div id="scene"></div><div class="objs" id="objects"></div></div>
+<div class="sec-title" style="margin-top:16px">Episode caption</div><div id="summary"></div></div>
+<div id="signal-panel" class="card plot-box"><div class="track-head"><span>End-effector observations</span><span>gripper · position speed</span></div>
+<svg id="plot" class="plot" viewBox="0 0 1000 190" role="img" aria-label="Measured gripper position and motion speed"></svg>
+<div class="legend"><span><i style="background:var(--ph-approach)"></i>Left</span><span><i style="background:var(--ph-release)"></i>Right</span><span>Speed in source position units/s · click to seek</span></div></div>
+<details class="card block"><summary>Method &amp; diagnostics</summary><p id="method"></p><div class="usage" id="usage"></div>
+<div id="cross-modal" hidden></div><div id="fusion-audit" hidden></div><details><summary>Input provenance & limitations</summary><pre id="provenance"></pre></details><p class="note">A second pass is not automatically more accurate.</p></details>
+</details>
+<div><div class="segment-list-heading"><div class="sec-title">Segments & captions · <span id="segcount"></span></div><label class="caption-follow"><input id="follow-caption" type="checkbox" checked>Follow playback</label></div><div id="segments"></div></div>
+</div><aside id="training-memory-panel" class="card training-memory-panel" aria-label="Text memory at playback" hidden>
+<div class="training-memory-heading"><strong>Text memory</strong><a id="training-memory-full" href="#">Full Review →</a></div>
+<p class="note">Model draft · not human approved</p><p id="training-memory-state" class="note"></p><button id="training-memory-jump" type="button" hidden>Jump to needs review</button>
+<div class="sec-title">Memory</div><p id="training-memory-value"></p><div class="sec-title">Next subtask</div><p id="training-memory-subtask"></p>
+<div id="training-memory-problems" hidden><div class="sec-title">Needs review</div><p id="training-memory-issues"></p><div class="sec-title">Last accepted memory</div><p id="training-memory-previous"></p></div>
+</aside></div></section></main>
+<script>
+const api = {{ api_base|tojson }};
+const memoryLocation = {{ assistant_location_id|tojson }};
+let schemes = {{ caption_schemes|tojson }};
+const methodStorageKey = 'dataPlatform.captionMethod';
+let savedMethod = '';
+try { savedMethod = localStorage.getItem(methodStorageKey) || ''; } catch (_) {}
+const requested = new URLSearchParams(location.search);
+const initialMethod = requested.get('scheme') || savedMethod || 'multiview_semantics';
+let initialSelection = true;
+let initialMethodPending = !requested.has('scheme');
+let methodChanged = false, resultWarnings = [];
+const $ = id => document.getElementById(id);
+let artifact = null, active = 0, generation = 0, selectedLoop = 0, runs = [];
+let trainingMemory = null, trainingMemoryKey = '';
+function clearTrainingMemory(){trainingMemory=null;trainingMemoryKey='';$('training-memory-panel').hidden=true;$('review').classList.remove('memory-active');for(const id of ['training-memory-state','training-memory-value','training-memory-subtask','training-memory-issues','training-memory-previous'])$(id).textContent='';$('training-memory-problems').hidden=true;$('training-memory-jump').hidden=true;}
+function updateTrainingMemory(frame){
+    if(!trainingMemory)return;
+    const stopped=trainingMemory.stopped_at!==null && frame>=trainingMemory.stopped_at;
+    let point=null;for(const item of trainingMemory.checkpoints){if(item.frame>frame)break;point=item;}
+    const key=`${point?.frame ?? -1}:${stopped}`;if(key===trainingMemoryKey)return;trainingMemoryKey=key;
+    $('training-memory-state').textContent=stopped?`Needs review · stopped at frame ${trainingMemory.stopped_at}`:point?`Frame ${point.frame} · ${(point.frame/trainingMemory.fps).toFixed(2)} s · model checked`:'No accepted annotation at this time';
+    $('training-memory-value').textContent=stopped?'No accepted memory at or after the stopped checkpoint.':point?.memory||'No memory at this time.';
+    $('training-memory-subtask').textContent=stopped?'No accepted subtask at or after the stopped checkpoint.':point?.subtask||'—';
+    $('training-memory-problems').hidden=!stopped;
+    if(stopped){const issue=trainingMemory.issues||{};$('training-memory-issues').textContent=(issue.revisions||[]).map(r=>`Revision ${r.revision}: ${(r.issues||[]).join(' ')}`).join('\n\n')||(issue.issues||[]).join('\n')||'Review required; no detail recorded.';$('training-memory-previous').textContent=point?.memory||'No events have been confirmed yet.';}
+}
+async function loadTrainingMemory(version,data){
+    clearTrainingMemory();if(!memoryLocation)return;
+    const url=`/api/control/locations/${encodeURIComponent(memoryLocation)}/memory/training-review/${data.episode_index}`;
+    try{
+        const response=await fetch(url);if(response.status===404||response.status===403)return;if(!response.ok)throw new Error(`HTTP ${response.status}`);
+        const value=await response.json();if(version!==generation||artifact!==data)return;
+        const run=$('variant').value.split('/')[0];
+        if(value.episode_index!==data.episode_index||value.frame_count!==data.frame_count||value.fps!==data.fps||(run!==value.caption_run && data.source_fingerprint!==value.source_fingerprint))return;
+        trainingMemory=value;$('training-memory-full').href=`/remote/${encodeURIComponent(memoryLocation)}/memory/training-review?episode=${value.episode_index}`;
+        $('training-memory-jump').hidden=value.stopped_at===null;
+        $('training-memory-jump').textContent=`Jump to needs review · ${(value.stopped_at/value.fps).toFixed(2)} s`;
+        $('training-memory-panel').hidden=false;$('review').classList.add('memory-active');updateTrainingMemory(Math.floor($('video').currentTime*data.fps+0.001));
+    }catch(error){if(version===generation&&artifact===data){$('training-memory-panel').hidden=false;$('review').classList.add('memory-active');$('training-memory-state').textContent=`Text memory unavailable (${error.message}).`;}}
+}
+$('training-memory-jump').onclick=()=>{if(trainingMemory&&trainingMemory.stopped_at!==null){$('loop').checked=false;$('video').currentTime=trainingMemory.stopped_at/trainingMemory.fps;}};
+const phases = {idle:'idle', approach:'approach', reach:'approach', grasp:'grasp', lift:'lift', hold:'hold', transfer:'transfer', release:'release', retreat:'retreat'};
+const palette = ['approach','grasp','transfer','release','retreat','lift','hold'];
+function color(segment, i) { return `var(--ph-${phases[segment.phase] || palette[i % palette.length]})`; }
+function text(tag, value, cls='') { const el=document.createElement(tag); el.textContent=value; el.className=cls; return el; }
+function bilingual(parent, en, zh) { parent.replaceChildren(); if(en===zh && en){parent.append(text("div",en,"cap-shared"));return;} if(en) parent.append(text('div',en,'cap-en')); if(zh) parent.append(text('div',zh,'cap-zh')); }
+async function get(url) { const response=await fetch(url); if(!response.ok) throw new Error(`Unable to load results (HTTP ${response.status})`); return response.json(); }
+function seek(index) {
+    active=index; selectedLoop=index; highlight();
+    const version=generation;
+    const play=()=>{if(version!==generation) return; $('video').currentTime=artifact.result.segments[index].start_frame/artifact.fps; $('video').play().catch(()=>{});};
+    if($('video').readyState>=1) play(); else $('video').addEventListener('loadedmetadata',play,{once:true});
+}
+function highlight() {
+    for(const id of ['segments','timeline']) [...$(id).children].forEach((node,i)=>node.classList.toggle('active',i===active));
+    $('previous').disabled=active===0; $('next').disabled=active===artifact.result.segments.length-1;
+    const s=artifact.result.segments[active];
+    bilingual($('current-caption'),s.caption_en,s.caption);
+    $('track-label').textContent=`${active+1} / ${artifact.result.segments.length}`;
+    requestAnimationFrame(followCaption);
+}
+function followCaption() {
+    if(!artifact || !$('follow-caption').checked)return;
+    const panel=$('caption-panel'),card=$('segments').children[active];
+    // Move only the independent caption pane; never scroll the document or video on mobile.
+    if(!card || !['auto','scroll'].includes(getComputedStyle(panel).overflowY))return;
+    const viewport=panel.getBoundingClientRect(),bounds=card.getBoundingClientRect();
+    const top=viewport.top+panel.clientTop+panel.querySelector('.segment-list-heading').offsetHeight;
+    if(bounds.top<top || bounds.bottom>viewport.top+panel.clientTop+panel.clientHeight)panel.scrollTop+=bounds.top-top;
+}
+$('follow-caption').onchange=followCaption;
+window.addEventListener('resize',()=>requestAnimationFrame(followCaption));
+function svg(tag, attrs) { const el=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const [key,value] of Object.entries(attrs)) el.setAttribute(key,value); return el; }
+function plot(context) {
+    const root=$('plot'); root.replaceChildren(); const rows=context.signals || [];
+    if(!rows.length) { root.append(text('title','No measured signals available')); return; }
+    for(const [kind,top,height] of [['gripper',18,58],['speed',110,58]]) {
+        const values=rows.flatMap(r=>[r[`left_${kind}`],r[`right_${kind}`]]).filter(Number.isFinite);
+        const lo=Math.min(0,...values), hi=Math.max(lo+0.001,...values);
+        const label=svg('text',{x:2,y:top-5,fill:'var(--ink-3)','font-size':11}); label.textContent=`${kind} · ${lo.toFixed(1)}–${hi.toFixed(kind==='speed'?2:1)}`;root.append(label);
+        root.append(svg('line',{x1:0,x2:1000,y1:top+height,y2:top+height,stroke:'var(--line)'}));
+        for(const side of ['left','right']) {
+            let path='',connected=false;
+            for(const row of rows) { const v=row[`${side}_${kind}`]; if(!Number.isFinite(v)){connected=false;continue;} path+=`${connected?'L':'M'}${(row.t/artifact.duration_s*1000).toFixed(2)},${(top+height-(v-lo)/(hi-lo)*height).toFixed(2)} `;connected=true; }
+            root.append(svg('path',{d:path,fill:'none',stroke:side==='left'?'var(--ph-approach)':'var(--ph-release)','stroke-width':1.8}));
+        }
+    }
+    root.append(svg('line',{id:'plot-cursor',x1:0,x2:0,y1:0,y2:190,stroke:'var(--accent)','stroke-width':2}));
+}
+function renderQuality(result) {
+    const box=$('quality'), quality=result.quality;
+    box.replaceChildren(text('div','Task outcome assessment','sec-title'));
+    box.classList.toggle('quality-unknown',!quality || typeof quality.instruction_followed!=='boolean');
+    if(!quality || typeof quality.instruction_followed!=='boolean') { box.append(text('p','Task outcome not assessed. See segment review findings below.')); return; }
+    box.classList.toggle('pass',quality.instruction_followed===true && quality.success===true);
+    const badges=text('div','','verdict-head');
+    for(const [label,value] of [['Instruction followed',quality.instruction_followed],['Task success',quality.success]]) badges.append(text('span',`${label}: ${value===true?'yes':value===false?'no':'unknown'}`,`badge ${value===true?'ok':value===false?'bad':'warn'}`));
+    box.append(badges);
+    if(quality.notes_zh) box.append(text('p',quality.notes_zh,'cap-zh'));
+    const list=document.createElement('ul'); for(const issue of quality.issues || []) list.append(text('li',issue)); box.append(list);
+}
+function renderCrossModal(data) {
+    const box=$('cross-modal'), cross=data.cross_modal;
+    box.replaceChildren(); box.hidden=!cross;
+    if(!cross)return;
+    box.append(text('h3',`Cross-modal evidence · ${data.pipeline_version}`));
+    box.append(text('p',cross.boundary_matrix.meaning));
+    box.append(text('p',`Signals: ${cross.boundary_matrix.signal_status} · local analysis, no API calls`));
+    const scroll=text('div');scroll.style.overflowX='auto';
+    const table=document.createElement('table');table.style.width='100%';
+    const head=document.createElement('tr');
+    for(const label of ['Frame / time','Sources','Temporal assessment','Evidence'])head.append(text('th',label));
+    table.append(head);
+    for(const row of cross.boundary_matrix.rows) {
+        const tr=document.createElement('tr'), td=document.createElement('td');
+        const jump=text('button',`${row.range.join('–')} / ${(row.frame/data.fps).toFixed(2)}s`);
+        jump.onclick=()=>{$('loop').checked=false;$('video').currentTime=row.frame/data.fps;};td.append(jump);tr.append(td);
+        tr.append(text('td',row.sources.join(', ')),text('td',row.status.replaceAll('_',' ')));
+        const detail=document.createElement('td'), disclosure=document.createElement('details');
+        disclosure.append(text('summary',`${row.evidence.length} observations`),text('pre',JSON.stringify(row.evidence,null,2)));
+        detail.append(disclosure);tr.append(detail);table.append(tr);
+    }
+    scroll.append(table);box.append(scroll);
+    const details=document.createElement('details');
+    details.append(text('summary',`Signal audit: ${cross.signal_audit.unmatched_events.length} changes away from segment boundaries`),
+        text('p',cross.signal_audit.meaning),text('pre',JSON.stringify({signal_audit:cross.signal_audit,local_analysis:cross.local_analysis},null,2)));
+    box.append(details);
+}
+{% include 'temporal_caption_reward.js' %}
+function render(data) {
+    artifact=data; active=0; selectedLoop=0;
+    loadTrainingMemory(generation,data);
+    $('status').textContent=[...resultWarnings, ...(data.review_notes || [])].join(' '); $('review').hidden=false;
+    $('video').pause(); $('video').src=data.video_url; $('video').playbackRate=Number($('rate').value);
+    $('meta').textContent=`Episode ${data.episode_index} · ${data.frame_count} frames · ${data.duration_s.toFixed(2)} s · ${data.model}${data.pipeline_version ? ` · ${data.pipeline_version}` : ''}`;
+    $('scheme-description').textContent=data.scheme.description; $('method').textContent=data.scheme.description;
+    $('task').textContent=data.context.task || 'Not supplied'; $('original-instruction').hidden=false;
+    bilingual($('summary'),data.result.summary_en,data.result.summary);
+    const scene=data.result.scene || {}; $('scene-block').hidden=!scene.description_en&&!scene.description_zh;
+    bilingual($('scene'),scene.description_en,scene.description_zh); $('objects').replaceChildren();
+    for(const object of scene.objects || []) $('objects').append(text('span',object,'obj'));
+    renderQuality(data.result);
+    $("quality").hidden=data.scheme_id==="flora";
+    $("signal-panel").hidden=!(data.context.signals || []).length;
+    renderReward(data);
+    renderCrossModal(data);
+    const coverage=data.coverage_repair;
+    $('coverage-repair-status').hidden=!coverage;
+    $('coverage-repair-status').textContent=coverage ? `Coverage repair draft · program-partitioned intervals · ${(coverage.intervals||[]).filter(item=>item.needs_review).length} intervals need review · original run ${coverage.original_run||'retained in provenance'} · no human approval` : '';
+    $('usage').replaceChildren();
+    for(const [label,value] of [['Model',data.model],['Input tokens',data.usage?.prompt_tokens??'—'],['Output tokens',data.usage?.completion_tokens??'—']]) {
+        const cell=text('div','','u');cell.append(text('div',label,'u-k'),text('div',String(value),'u-v'));$('usage').append(cell);
+    }
+    const audit=$('fusion-audit');audit.replaceChildren();audit.hidden=!data.review;
+    if(data.review) {
+        audit.append(text('h3',data.review.status==='draft'?'Fusion draft · see reviewed result':(data.review.status==='unresolved'?'Review: unresolved issues':'Review: no issues detected')),text('p','Model review only · not human approved'));
+        for(const issue of data.review.remaining_issues||[]) audit.append(text('p',`${issue.severity} · frames ${issue.start_frame}–${issue.end_frame}: ${issue.description}`));
+        for(const [i,repair] of (data.review.repairs||[]).entries()) {
+            const details=document.createElement('details');details.append(text('summary',`Repair ${i+1} · ${repair.issues.length} findings · ${repair.before.segments.length} → ${repair.after.segments.length} segments`));
+            details.append(text('pre',JSON.stringify(repair,null,2)));audit.append(details);
+        }
+        const details=document.createElement('details');details.append(text('summary',`Independent evidence & ${data.review.stages.length} stages`),text('pre',JSON.stringify(data.review,null,2)));audit.append(details);
+    }
+    $('provenance').textContent=JSON.stringify({limitations:data.result.limitations,sampled_frames:data.sampled_frames,usage:data.usage,prompt_sha256:data.prompt_sha256,source_digest:data.source_digest,native_segments:data.native_segments,native_segmentation:data.native_segmentation,stage_metrics:data.stage_metrics,model_revisions:data.model_revisions,coverage_repair:coverage},null,2);
+    $('segments').replaceChildren(); $('timeline').replaceChildren(); $('segcount').textContent=data.result.segments.length;
+    data.result.segments.forEach((segment,i)=>{
+        const button=text('button','','segcard');button.style.setProperty('--c',color(segment,i));
+        const body=text('span','','segbody'), header=text('span','','segmeta');
+        header.append(text('span',String(i+1).padStart(2,'0'),'segno'),text('span',`${(segment.start_frame/data.fps).toFixed(2)}–${(segment.end_frame/data.fps).toFixed(2)}s`));
+        if(segment.phase) header.append(text('span',segment.phase,'phase'));
+        if(segment.active_arm) header.append(text('span',segment.active_arm,'arm'));
+        if(segment.confidence!=='not_reported') header.append(text('span',`${segment.confidence} confidence`));
+        const captions=text('div');bilingual(captions,segment.caption_en,segment.caption);body.append(header,captions);
+        const evidence=text('div',segment.evidence,'evidence');body.append(evidence);
+        const support=data.cross_modal?.segment_support?.find(item=>item.start_frame===segment.start_frame);
+        if(support)body.append(text('div',`Boundary evidence: ${support.candidate_ids.join(', ') || 'no nearby local candidate'}`,'note'));
+        if(segment.boundary_interval) body.append(text('div',`Boundary range: frames ${segment.boundary_interval.join('–')}`,'note'));
+        if(segment.uncertainty) body.append(text('div',segment.uncertainty,'note'));
+        const repaired=coverage?.intervals?.find(item=>item.start_frame===segment.start_frame && item.end_frame===segment.end_frame);
+        if(repaired) {
+            body.append(text('div',repaired.reuse ? 'Original caption preserved' : `Qwen coverage repair${repaired.needs_review ? ' · Needs review' : ' · Draft'}`,'note'));
+            for(const issue of repaired.uncertainty||[]) body.append(text('div',issue,'note'));
+            if(!repaired.reuse && repaired.end_frame-repaired.start_frame===1) body.append(text('div','Single frame: motion cannot be established.','note'));
+        }
+        button.append(text('span','','rail'),body);button.onclick=()=>seek(i);$('segments').append(button);
+        const bar=text('button',i+1);bar.style.setProperty('--c',color(segment,i));bar.style.left=`${segment.start_frame/data.frame_count*100}%`;bar.style.width=`${(segment.end_frame-segment.start_frame)/data.frame_count*100}%`;bar.title=`${segment.caption} · ${rewardRange(segment.start_frame,segment.end_frame,data.fps)}`;bar.onclick=()=>seek(i);$('timeline').append(bar);
+    });
+    $('events').replaceChildren();
+    for(const event of data.context.events || []) {
+        const dot=text('button','','event');dot.style.left=`${event.frame/data.frame_count*100}%`;dot.style.background=(event.event.includes('close')||event.event.includes('rise'))?'var(--ph-grasp)':'var(--ph-release)';
+        dot.title=`${event.side} ${event.event} · ${(event.frame/data.fps).toFixed(2)}s`;dot.setAttribute('aria-label',dot.title);dot.onclick=()=>{$('loop').checked=false;$('video').currentTime=event.frame/data.fps;};$('events').append(dot);
+    }
+    $('ticks').replaceChildren();for(let i=0;i<=4;i++) {
+        const tick=text('span',`${(data.frame_count/data.fps*i/4).toFixed(1)}s`);
+        tick.style.left=`${i*25}%`;$('ticks').append(tick);
+    }
+    $('timeline-guides').replaceChildren();
+    for(const boundary of new Set(data.result.segments.flatMap(s=>[s.start_frame,s.end_frame]))) {
+        if(boundary<=0 || boundary>=data.frame_count)continue;
+        const guide=text('span','','segment-guide');guide.style.left=`${boundary/data.frame_count*100}%`;
+        $('timeline-guides').append(guide);
+    }
+    plot(data.context);highlight();syncPlayback();
+}
+async function load() {
+    const url = new URL(location.href);
+    url.searchParams.set('scheme', $('scheme').value); url.searchParams.set('episode', $('episode').value);
+    url.searchParams.set('run', $('variant').value.split('/')[0]);
+    url.searchParams.set('variant', $('variant').value.split('/')[1]); history.replaceState(null, '', url);
+    const version=++generation;clearReward();clearTrainingMemory();artifact=null;$('video').pause();$('review').hidden=true;$('original-instruction').hidden=true;$('task').textContent='';$('status').textContent='Loading result…';
+    window.dispatchEvent(new Event('caption-review-context'));
+    try { const data=await get(`${api}/${$('variant').value}`);if(version===generation) render(data); }
+    catch(error) {if(version===generation) $('status').textContent=error.message;}
+}
+function syncPlayback() {
+    if (!artifact) return;
+    if ($('video').seeking) return;
+    const frame = Math.min(artifact.frame_count-1, Math.floor($('video').currentTime * artifact.fps + 0.001));
+    updateReward(frame);
+    updateTrainingMemory(frame);
+    const segment = artifact.result.segments[selectedLoop];
+    if ($('loop').checked && (frame >= segment.end_frame || frame < segment.start_frame-1)) {
+        $('video').currentTime = segment.start_frame / artifact.fps; return;
+    }
+    const index = artifact.result.segments.findIndex(s => frame >= s.start_frame && frame < s.end_frame);
+    if (index >= 0 && index !== active) { active = index; highlight(); }
+    $('clock').textContent = `${$('video').currentTime.toFixed(2)} / ${artifact.duration_s.toFixed(2)} s`;
+    if($('playhead')) $('playhead').style.left=`${frame/artifact.frame_count*100}%`;
+    const cursor=document.getElementById('plot-cursor');if(cursor){cursor.setAttribute('x1',frame/artifact.frame_count*1000);cursor.setAttribute('x2',frame/artifact.frame_count*1000);}
+}
+$('video').addEventListener('timeupdate', syncPlayback);
+$('video').addEventListener('seeked', syncPlayback);
+$('video').addEventListener('ended',()=>{if($('loop').checked) seek(selectedLoop);});
+$('loop').onchange=()=>{selectedLoop=active;};
+$('previous').onclick=()=>seek(Math.max(0,active-1));$('next').onclick=()=>seek(Math.min(artifact.result.segments.length-1,active+1));
+$('rate').onchange=()=>{$('video').playbackRate=Number($('rate').value);};
+const playbackRates=[0.25,0.5,1,2,3,5];
+function stepPlaybackRate(step) {
+    const current=playbackRates.indexOf($('video').playbackRate);
+    const next=Math.max(0,Math.min(playbackRates.length-1,(current<0?playbackRates.indexOf(1):current)+step));
+    $('rate').value=String(playbackRates[next]);$('rate').onchange();
+}
+$('video').addEventListener('ratechange',()=>{
+    const rate=$('video').playbackRate;if(playbackRates.includes(rate))$('rate').value=String(rate);
+});
+document.addEventListener('keydown',event=>{
+    if(!artifact || event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey)return;
+    if(event.composedPath().some(node=>node.id==='platform-assistant-workspace'))return;
+    if(event.target.closest('#caption-datasets'))return;
+    if(event.target.isContentEditable || event.target.closest('input,textarea,select,[role="textbox"],summary,a'))return;
+    if(event.target.closest('[role="slider"]') && event.key!==' ')return;
+    if(event.key===' ') {
+        event.preventDefault();if(event.repeat)return;
+        if($('video').paused)$('video').play().catch(()=>{});else $('video').pause();
+    } else if(event.key==='ArrowLeft' || event.key==='ArrowRight') {
+        event.preventDefault();stepPlaybackRate(event.key==='ArrowRight'?1:-1);
+    }
+},true);
+$('plot').onclick=e=>{if(!artifact)return;const rect=e.currentTarget.getBoundingClientRect();$('loop').checked=false;$('video').currentTime=Math.max(0,Math.min(artifact.duration_s-.001,(e.clientX-rect.left)/rect.width*artifact.duration_s));};
+$('variant').onchange=load;
+function chooseScheme() {
+    const previousEpisode = $('episode').value !== '' ? Number($('episode').value) : artifact?.episode_index ?? (requested.has('episode') ? Number(requested.get('episode')) : null);
+    const previousResult = $('variant').value;
+    const method = schemes.find(item => item.id === $('scheme').value);
+    if (!method) return;
+    generation++; // Invalidate a pending result load, including when this method has no results.
+    clearReward(); clearTrainingMemory(); $('video').pause(); $('review').hidden = true; $('original-instruction').hidden = true; $('task').textContent = ''; artifact = null; $('meta').textContent = '';
+    $('scheme-description').textContent = method.description;
+    try { localStorage.setItem(methodStorageKey, method.id); } catch (_) {}
+    $('variant').replaceChildren();
+    const available = runs.filter(run => run.scheme.id === method.id).sort((a,b) => b.created_at-a.created_at);
+    const episodes=[...new Set(available.map(run=>run.episode_index))].sort((a,b)=>a-b);
+    $('episode').replaceChildren();
+    for(const ep of episodes){const option=text('option',String(ep));option.value=String(ep);$('episode').append(option);}
+    if(episodes.includes(previousEpisode))$('episode').value=String(previousEpisode);
+    $('episode').disabled=!episodes.length;
+    $('episode-position').textContent=episodes.length ? `· ${$('episode').selectedIndex+1} / ${episodes.length}` : '';
+    $('episode-previous').disabled=$('episode').selectedIndex<=0;
+    $('episode-next').disabled=!episodes.length || $('episode').selectedIndex>=episodes.length-1;
+    const candidates=available.filter(run=>run.episode_index===Number($('episode').value));
+    const labels = {coarse:'Initial segmentation',refined:'Boundary review',caption:'Video annotation',fusion_draft:'Fusion draft',fusion_reviewed:'Reviewed fusion'};
+    for (const run of candidates) {
+        const created = new Date(Number(run.created_at)*1000);
+        const stamp = Number.isFinite(created.getTime()) ? created.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+        const option = text('option',`${labels[run.variant] || run.variant} · ${stamp} · ${run.run.slice(0,8)}`);
+        option.title = run.run;
+        option.value = `${run.run}/${run.variant}`; $('variant').append(option);
+    }
+    const final = run => ['refined','caption','fusion_reviewed'].includes(run.variant);
+    const requestedRun = initialSelection ? requested.get('run') : null;
+    const matching = candidates.find(run => `${run.run}/${run.variant}` === previousResult)
+        || candidates.find(run => requestedRun && run.run === requestedRun && run.variant === requested.get('variant'))
+        || candidates.find(run => requestedRun && run.run === requestedRun && final(run))
+        || candidates.find(run => requestedRun && run.run === requestedRun)
+        || candidates.find(run => run.episode_index === previousEpisode && final(run))
+        || candidates.find(run => run.episode_index === previousEpisode)
+        || candidates.find(final) || candidates[0];
+    if (candidates.length) initialSelection = false;
+    $('variant').disabled = !candidates.length;
+    if (matching) { $('variant').value = `${matching.run}/${matching.variant}`; load(); }
+    else { $('status').textContent = [...resultWarnings, `No saved results for ${method.name} on this dataset.`].join(' '); window.dispatchEvent(new Event('caption-review-context')); }
+}
+$('scheme').onchange = () => {methodChanged = true; initialMethodPending = false; chooseScheme();};
+$('episode').onchange=()=>{$('variant').value='';chooseScheme();};
+function stepEpisode(step) {
+ const select=$('episode'); const next=select.selectedIndex+step;
+ if(next>=0&&next<select.options.length){select.selectedIndex=next;$('variant').value='';chooseScheme();}
+}
+$('episode-previous').onclick=()=>stepEpisode(-1);
+$('episode-next').onclick=()=>stepEpisode(1);
+document.addEventListener('keydown',event=>{
+ if(event.defaultPrevented || event.isComposing || event.composedPath().some(node=>node.id==='platform-assistant-workspace'))return;
+ if(event.target.closest('#caption-datasets'))return;
+ if(!['ArrowUp','ArrowDown'].includes(event.key)||event.altKey||event.ctrlKey||event.metaKey)return;
+ if(event.target.closest('input,textarea,button,video') || (event.target.tagName==='SELECT'&&event.target.id!=='episode'))return;
+ event.preventDefault();stepEpisode(event.key==='ArrowDown'?1:-1);
+});
+if (schemes.some(item => item.id === initialMethod)) $('scheme').value = initialMethod;
+async function refreshRuns() {
+    const data = await get(api);
+    const changed = JSON.stringify(data.runs) !== JSON.stringify(runs);
+    runs = data.runs;
+    resultWarnings = (data.warnings || []).map(item => `Result unavailable: ${item}`);
+    const selected = methodChanged || !initialSelection ? $('scheme').value : initialMethod;
+    const available = [...new Map(runs.map(run => [run.scheme.id, run.scheme])).values()];
+    if (available.length) {
+        const previous = schemes.find(item => item.id === selected);
+        if (!available.some(item => item.id === selected) && (methodChanged || requested.has('scheme'))) {
+            available.push(previous || {id:selected, name:selected, description:'No saved results for this method.'});
+        }
+        schemes = available;
+        $('scheme').replaceChildren();
+        for (const method of schemes) {const option=text('option',method.name);option.value=method.id;$('scheme').append(option);}
+        if (schemes.some(item => item.id === selected)) $('scheme').value = selected;
+    }
+    if (initialMethodPending) {
+        initialMethodPending = false;
+        if (runs.length && !runs.some(run => run.scheme.id === $('scheme').value)) {
+            $('scheme').value = runs[0].scheme.id;
+        }
+    }
+    if (changed || initialSelection) chooseScheme();
+}
+for(const lang of ['both','en','zh']) $(`lang-${lang}`).onclick=()=>{document.body.classList.toggle('hide-en',lang==='zh');document.body.classList.toggle('hide-zh',lang==='en');for(const key of ['both','en','zh']) $(`lang-${key}`).classList.toggle('on',key===lang);};
+
+
+
+
+{% include 'temporal_caption_datasets.js' %}
+chooseScheme();
+refreshRuns().catch(error => {$('status').textContent=error.message;});
+</script>
+{% if g is defined and g.control_plane_user %}{% include 'temporal_caption_assistant.html' %}{% endif %}
+</body></html>

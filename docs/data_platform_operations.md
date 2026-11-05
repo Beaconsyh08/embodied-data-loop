@@ -1,0 +1,961 @@
+# 当前环境构成与日常更新手册
+
+## Agent-local captions in the dataset selector
+
+Upgrade Server and Agent together for the caption selector's additive `caption_output_runs` location
+metadata. No schema migration or Job/caption-read protocol change is required. Keep active executor
+generations until their attempts finish; result discovery needs no compute restart or inference.
+After the updated Agent's ordinary scan/sync (or a bounded Scan of the dataset folder), verify the
+registered count and authenticated `/api/temporal-caption/datasets`, then switch to the dataset through
+the actual Review selector. Accept Agent-only results, mixed published/Agent results without duplicate
+datasets, scope revocation, offline labels and a failed Refresh retaining the last successful list.
+Catalog requests must not invoke Agents or read source videos/Parquet. Counts describe file pairs from
+the last scan; result content validation remains on Review open. Rollback ignores the additive field,
+and direct dataset Review links continue working. Publish the compatible independent CLI only after
+installation and platform acceptance, following the existing immutable artifact workflow.
+
+## Dataset annotation job hierarchy
+
+Annotation monitoring persists a single parent per registered location in `dp_caption_dataset_jobs`,
+with unique child membership in `dp_caption_job_members`. The additive management migration attaches
+historical `caption.annotate` rows under the scheduler lock and audits the attached count. It never
+rewrites `dp_jobs`, attempts, leases, events, options or artifacts; the parent consumes no Agent slot.
+New children join in the same admission transaction. Rollback can leave both new tables in place;
+a subsequent migration also attaches children admitted by an older server and is safe to repeat.
+
+Before promotion, compare child Job/Attempt/artifact identities and status before/after migration,
+verify parent counts with the full authorized database inventory, and test child paging, result links,
+skipped dispositions and account isolation. Explicit `operator_disposition.status=skipped` on an
+error/cancelled child counts as skipped in the parent; it does not rewrite historical failure evidence.
+The console requests `/api/control/jobs?group_caption=1`; existing callers retain the raw child list.
+`caption_only=1&location_id=...` pages the children. Parent detail uses
+`/api/control/caption-dataset-jobs/<location_id>`. Filters apply to whole parents after aggregation;
+time filters use the latest child submission. Parent controls do not bypass individual job authorization.
+The Agent execution, caption publication and recovery protocols are unchanged.
+
+
+流程随 2026-10-26 源码同步更新。主机地址和目录来自既有配置，执行前核对目标环境。
+本次没有重新部署服务或验收远端 Agent、运行任务、维护状态和 TLS；
+当前版本、维护状态以第 2、5 节的现场检查及发行记录为准。
+已完成首次迁移的环境，日常更新不再执行 `init`、`adopt-legacy`、重新建库或重新登记 Agent。
+
+代码、数据库物理目录、数据集、缓存和配置的完整位置清单见
+[开发与生产存储位置说明](data_platform_storage_locations.md)。
+
+## Pipeline coordinator
+
+### Qwen web assistant configuration
+
+The Pipeline AI assistant runs on Server A and reuses the server-side Qwen transport. Set
+`DASHSCOPE_API_KEY` in the selected environment's protected `/etc/data-platform/<env>/server.env`.
+An existing key used by Task setup/Temporal Caption can be reused; no key is exposed to browsers or
+required from individual users. Billing belongs to that platform Qwen account.
+`DASHSCOPE_BASE_URL` selects the compatible endpoint and must match the key's region.
+`DATA_PLATFORM_AI_MODEL` optionally selects a tool-calling Qwen model (default `qwen3.6-plus`);
+`DATA_PLATFORM_AI_ENABLED=0` disables the assistant without affecting the other Qwen features.
+Apply environment changes through the existing environment/service deployment procedure.
+
+`DATA_PLATFORM_AI_BACKEND=legacy` remains the default. After installing the additive control schema and
+the new release's `data-platform-assistant@<env>.service`, `langgraph` enables asynchronous admission for
+new requests. POST `/api/ai-assistant/turns` returns 202 and the existing authenticated GET endpoint polls
+`running/done/error`; Web and CLI retain the same request ID through retries. Start/verify the Runner
+before enabling admission. It shares the protected environment file and Qwen key, but never submits a
+Pipeline: explicit confirmation still goes through the original API.
+
+The Runner supports four concurrent generations, 30-second leases and five-second heartbeats. Requests
+queue for at most 120 seconds; generation has a persistent 75-second wall deadline and eight model-call
+budget, with at most 30 seconds per model call. A reserved model request without a durable response ends as outcome unknown instead of being
+automatically resent. Monitor error rates and queued requests; process `active` alone is not acceptance.
+For acceptance, submit an authenticated S3 request, reload during pending, verify exactly one completed
+answer and no task, then explicitly confirm and verify the single Pipeline plus its final acknowledged result.
+Keep the Runner running when switching new admissions back to legacy so accepted requests can finish.
+Before rolling back to an older release without the Runner, drain accepted graph requests. The systemd
+unit stops claiming on SIGTERM and drains current generations with a 100-second stop timeout.
+See [the runtime contract and local acceptance](data_platform_assistant_langgraph.md) for tables, graph
+version compatibility, recovery limits and tests.
+
+Explicit memory and completion followups add `dp_ai_memory` and `dp_ai_followups` through the existing
+additive management migration. Back up both with the control database; memory notes remain until users
+delete them, independently of conversation expiry. Notes are account/environment private, capped at 20
+notes of 500 characters; prompts use at most eight currently authorized notes (current dataset first).
+The memory API uses optimistic revisions and the existing audit outbox without recording note text.
+Viewer accounts can edit their own memory, but gain no task submission permission.
+
+Shared environment banners wrap long release/account labels within narrow viewports without hiding the
+release identity or changing deployment approval controls.
+
+Optional Hindsight background experience adds `dp_ai_experiences` and a separate
+`data-platform-experience@<env>.service`. Verified plans, submitted parameters, bounded final metrics and explicit failure classes are retained verbatim;
+comparable recipes/recovery observations include counterexamples and never establish optimality or causality. Source
+completeness is checked before consolidation, and UI guidance/operator review flags are excluded.
+Foreground reads use only revalidated SQL cache; no network
+recall or reflect runs in the interactive request. Explicit note/settings edits immediately invalidate
+derived history and exclude older Runs from future derivation. Existing explicit memory and mem0 remain
+unchanged. Provisioning, provenance checks, source retention, bounded retries and installed acceptance
+are defined in [the Hindsight operations contract](data_platform_hindsight.md).
+
+The Runner has a separate SQL-only observation loop (no model or compute slot). Explicit assistant
+confirmation atomically stores a followup with its receipt; retrying a lost confirmation response recovers
+that same registration. Each cycle checks at most 20 due records, deferring unfinished records 30 seconds.
+The loop runs every five seconds, also in legacy mode, and pauses when AI is disabled. It checks current
+account, source identity, input/output scopes, terminal Run and final Job/Attempt acknowledgement before
+publishing one deterministic summary. Reads recheck access and run revision; a manual retry hides the
+previous summary. Revoked contexts stop following; restoring access does not restart stopped observations.
+Completed/muted/unavailable records expire after 30 days; pending long jobs survive conversation expiry.
+Turning off task updates mutes pending observations, and turning it back on only follows new confirmations.
+Already ready summaries remain stored for their retention window and are hidden while updates are off.
+No automatic retry, follow-on operation, review approval, email or external notification is performed.
+Only new assistant action confirmations are tracked; direct forms, editor runs and pre-upgrade tasks are
+not backfilled. A reused single Job without a Pipeline receipt continues to use the existing status UI.
+
+Acceptance must exercise memory CAS conflicts, account/dataset isolation, revocation and current identity;
+web and CLI CRUD/disable; disconnect and reconnect after completion; concurrent observer/restart dedup;
+terminal acknowledgement and failed/cancelled outcomes; unchanged confirmation and conversation revisions.
+Run the private MySQL acceptance command and real Chrome gate before development installation. Rollback
+to the prior Runner pauses observations without deleting notes or affecting business tasks. Publish a new
+compatible immutable CLI installer/wheel/CA only after installation, normal TLS login, `/memory`, `/updates`,
+`--web` and authorized `/open` acceptance, then advance latest. Local source validation is not online acceptance.
+
+Without a key, or when disabled, the assistant explains its unavailable state and the manual Pipeline
+editor continues to work. The additive `dp_ai_conversations` and `dp_ai_turns` tables hold private
+conversation state and request receipts; the additive `dp_ai_preferences` table stores explicit personal
+settings with optimistic revisions, shared by web and CLI within the environment; no Agent capability or compute-slot change is required.
+Verify an authenticated operator's draft generation, restore, explicit save/run and Viewer restrictions.
+Also verify Enter/IME behavior and action preparation without side effects, explicit confirmation,
+repeat-confirmation recovery, then acknowledged Viewer output. For an already published Viewer, verify the
+authorized Open prepared Viewer link creates no job, then explicitly expand Rebuild Viewer to test confirmation. CLI acceptance must verify normal TLS,
+password login, CSRF, conversation restoration and confirmation using an isolated fixture.
+For unified operation cards, accept the same Quality new/running/published states in web and CLI, including concurrent confirmations, stale configuration, missing artifacts, revoked roles and result navigation. Verify exact run/Job/Attempt acknowledgement. Failed/uploading attempts must retain existing recovery links. CLI 0.3.0 adds `/open` and `/confirm again`; update the immutable public installer/wheel with verified hashes. No database or Agent protocol migration is required; the Server submission service coalesces equivalent assistant operations, while normal Pipeline execution and Agent recovery remain unchanged.
+The default hourly AI quota is disabled; per-user/global concurrency and request budgets remain active.
+The standalone client is packaged separately under `clients/data-platform-cli`; installing it does not
+install LeRobot or GPU dependencies. Its [README](../clients/data-platform-cli/README.md) contains a
+complete HTTPS download/install/login command; users do not need to download the wheel or CA manually.
+Configure a dedicated download bucket for public client
+distribution objects under immutable `cli/<client-version>/` paths, plus the mutable
+`cli/latest/install.py` installer entry point. The bucket ACL remains private
+(no anonymous listing); only the wheel, installer and public CA objects have `public-read` ACLs.
+Public Access Block is disabled only for this dedicated download bucket; the data archive bucket
+retains its existing protection. Do not upload server bundles, credentials, data or acceptance reports.
+The installer pins wheel/CA hashes and uses normal HTTPS verification. Before publishing a client,
+verify anonymous downloads and hashes, denied anonymous bucket listing, installation under a normal
+account, password login, and archive protection. Never replace an existing versioned object with
+different bytes. Client distribution changes do not allocate a new server release: production promotion
+continues to use the exact accepted development package.
+FLORA temporal annotation additionally requires the offline GPU runtime on the actual dataset executor;
+see [FLORA executor configuration](temporal_caption_trial.md#executor-configuration). Upgrade Server and
+Agent together, check `caption_flora_protocol=1` and configured readiness, and accept a full queued
+segmentation/caption/terminal/dense job plus review seeking and cancellation. Existing Qwen execution
+and protocol 1 publication remain supported. Native full-pipeline inference requires a reserved 80 GB GPU;
+installing the website alone does not provision models or enroll an A100 node.
+
+Text memory annotation requires Server/Agent `memory_annotation_protocol=1` and, for dataset batch Jobs,
+`memory_batch_protocol=1`. Set `DATA_PLATFORM_MEMORY_MAX_PARALLEL_EPISODES` on the Agent (default 3, range 1–32).
+Batch concurrency is also bounded to one worker per 8 GiB of execution memory (minimum one). Configure sufficient service and parent-slice
+memory for image-backed datasets. Set concurrency from your own resource budget; model service quotas may further limit throughput.
+Annotation also requires the configured
+multimodal Qwen credential/model on the dataset Agent, and registered writable sibling output.
+Use the [memory rollout and acceptance contract](memory_annotation.md#acceptance-and-rollout);
+never substitute model approval for a human or launch the EE3 pilot before its explicit start confirmation.
+
+Single-view FLORA support requires the updated shared adapter on the dataset executor and in the
+standalone API dependency snapshot. Verify one-camera admission plus all four native stages; keep
+the existing two/three-view tests and shared GPU locks. Existing API releases retain their adapter
+snapshots, so a platform upgrade alone does not update the independent API.
+
+The independently deployed [FLORA HTTP API](flora_http_api.md) can share this runtime and its GPU locks
+without replacing Server/Agent services. It supports scoped API keys and asynchronous whole-dataset work;
+its service version is independent, and installing it alone does not upgrade the platform or CLI.
+
+Every platform release must also publish a new compatible CLI release, even for browser-only platform
+changes. Increment the independent CLI version, build/test the wheel, update the installer's
+pinned SHA-256, publish all immutable versioned objects and verify anonymous readback before updating
+`cli/latest/install.py` to the exact verified installer bytes. Set the latest entry's cache control to
+`no-cache`; keep versioned objects immutable. Verify `latest` installation, `--version`, `--web`, normal
+TLS login and `/open` against the accepted server. For CLI 0.3.4, verify Server V0.3.5
+on both environments, including saved Episode handoff, complete result URLs, no duplicate cards on follow-up,
+explicit link questions without a model turn or Job, and read-only roles. Record both client and server identities in release
+acceptance. The platform upgrade is incomplete until CLI publication and acceptance both finish;
+report platform and CLI versions plus the latest installation command together. Users upgrade by
+running `data-platform update` (CLI 0.3.2+) and restarting the CLI; older clients need the latest
+installation command once. Old versioned install URLs stay pinned. The managed launcher exports its
+installation bin directory so updates retain custom paths, and the installer atomically replaces the
+launcher only after validating the new environment. Accept current-version no-op, failed update
+preservation and pending-response exit as part of CLI checks.
+CLI 0.3.1 prints the console URL before login and supports `/web` for saved conversation handoff with
+encoded dataset/report context. Browser login remains separate. No Server/Agent deployment or protocol
+change is required for this client-only release.
+Automated browser acceptance uses a deterministic fake provider; a separate live Qwen check should use
+synthetic schema and no production rows. See [the assistant contract](data_platform_operators.md#qwen-draft-assistant)
+for data sent to Qwen, quotas, request recovery and retention.
+
+### Coordinator service
+
+含统一算子功能的发行包增加 `data-platform-pipeline-coordinator@dev.service` / `@prod.service`。
+安装器随 Web 安装此轻量协调进程，使用相同环境配置与管理数据库；每个计算步骤仍由原有 Agent 执行。
+管理库仅新增流程表，旧执行器可继续收尾旧任务。维护期间协调器暂停推进。
+
+滚动切换停止 Web 和协调器，保留尚有任务的旧本地执行器代际。回退到不含协调模块的发行包时，
+安装器停用协调服务，健康检查只检查旧版本原有服务；流程状态留在管理库供之后恢复。
+开发验收需同时检查协调器、原有服务、维护开关、新 Agent 心跳/算子版本，以及实际受保护页面中的
+本地和远端多步骤流程。模型算子还需对应后端运行时验收；仅列出能力不代表推理通过。
+
+详情与 API 见 [算子与流程](data_platform_operators.md)。生产推广仍复用完成开发验收且得到批准的同一发行包。
+
+## 1. 现在由哪些部分组成
+
+Server A 承载两套独立控制服务，H100 与 Server B 按注册环境运行 Agent；不是两个 Git 分支直接启动。
+浏览器使用管理员提供的当前稳定域名/IP；下图用 `<server-address>` 表示，旧 DHCP 地址不作为固定入口。
+
+```text
+浏览器
+  ├─ https://<server-address>       → Server A：Nginx 443  → prod Web 9091
+  └─ https://<server-address>:8443  → Server A：Nginx 8443 → dev  Web 9092
+
+Server A（control-node）
+  ├─ prod：Web、本地任务执行器、生产业务库/日志库、生产控制台状态
+  ├─ dev ：Web、本地任务执行器、开发业务库/日志库、开发控制台状态
+  └─ 发布桥接服务：接受开发管理员的发布请求，执行生产升级
+
+H100（gpu-node，通过 SSH 连接）
+  ├─ prod Agent（gpu-node）：访问原生产数据，独立程序与运行状态
+  └─ dev  Agent（dev-node）：访问开发样本副本，独立程序与运行状态
+
+Additional GPU node (configured by the deployment owner)
+  └─ 已登记 Agent（GPU node）：访问授权数据根，环境以登记与 agent.env 为准
+```
+
+H100 的 Agent 经现有 SSH 隧道连接 Server A：生产使用 H100 本地 `9443 → Server A 443`，
+开发使用 `9444 → Server A 8443`。这些是 Agent 内部连接端口，浏览器使用上面的网页地址。
+
+| 项目 | 生产 prod | 开发 dev |
+| --- | --- | --- |
+| 网页入口 | `https://<server-address>` | `https://<server-address>:8443` |
+| Web 内部端口 | `127.0.0.1:9091` | `127.0.0.1:9092` |
+| Server 当前程序 | `/opt/data-platform/prod/current` | `/opt/data-platform/dev/current` |
+| Server 配置 | `/etc/data-platform/prod/server.env` | `/etc/data-platform/dev/server.env` |
+| 控制台状态父目录 | `/srv/data-platform` | `/srv/data-platform-dev` |
+| 业务 MySQL 库 | `data_platform` | `data_platform_dev` |
+| 审计 MySQL 库 | `data_platform_logs` | `data_platform_logs_dev` |
+| H100 Agent 当前程序 | `/opt/data-platform-agent/prod/current` | `/opt/data-platform-agent/dev/current` |
+| H100 Agent 配置 | `/etc/data-platform/prod/agent.env` | `/etc/data-platform/dev/agent.env` |
+| H100 Agent 私有状态 | `/var/lib/data-platform-agent-prod` | `/var/lib/data-platform-agent-dev` |
+| H100 数据 | 保留原生产目录，具体见生产 Agent 配置 | `/srv/data-platform-dev/datasets` 中的独立副本 |
+| 页面账号 | 原生产账号 | 独立开发账号；管理员可切换测试角色 |
+
+两套环境共用 MySQL 服务，但使用四个逻辑库及各自数据库账号。Server、执行器、Agent 和隧道的
+自启状态需分别用 systemd 核对。开发的 8443 是当前配置，不随普通发行升级自动变化。
+
+Nginx 的开发和生产配置均须启用 `application/json` 的 gzip 压缩，并保留
+`Vary: Accept-Encoding`。数据集列表包含 Episode 元数据，任务列表包含执行结果；随着登记数量
+增加，完整响应可达数十 MB。Nginx 默认仅压缩 HTML，不能依赖全局 `gzip on` 来压缩这些 API。
+控制台列表与任务进度轮询使用 `summary=1`：`/api/control/locations?summary=1`、
+`/api/control/jobs?limit=200&summary=1` 和 `/api/control/jobs/<job_id>?summary=1`。
+摘要保留权限、操作能力、进度、队列控制和输出链接，省略逐 episode 元数据、执行快照、
+MCAP 逐文件报告和预处理 lineage。持久化记录不变，省略 `summary=1` 的原 API 仍返回完整内容。
+验证时测量登录后的实际列表耗时与大小，同时检查请求 `Accept-Encoding: gzip`、响应
+`Content-Encoding: gzip` 和 Nginx access log；200 也可能是客户端取消前已开始发送的部分响应。
+摘要需要正常升级应用发行版，不能只靠延长页面超时或 Nginx 压缩替代。
+修正现有配置后先执行 `nginx -t`，再热加载 Nginx，不需重启 Web、Agent 或中断运行任务。
+
+主源码工作区是 Server A 上的 `/path/to/embodied-data-loop`，功能也可能位于独立 worktree。
+用 `git worktree list` 和 `git log --all` 查明实际发布来源；主目录 HEAD 不代表最新安装版本。
+修改源码不会立即改变网站；需要提交、构建发行包，再部署。
+发行包统一保存于 `/var/lib/data-platform-releases/版本名`，同一名称对应一份不可变安装包。
+
+**“同步更新”指把同一份程序版本部署到两套环境，不是同步数据库、账号或数据集。**
+更新可能在各自数据库上执行表结构迁移；不会把开发库覆盖到生产库。
+
+## 2. 每次更新前
+
+以下命令全部在 **Server A** 上执行，不需要另开 H100 终端手动安装 Agent。
+
+### Agent host configuration
+
+Configure SSH hosts, management accounts and deployment keys for your own environment.
+Keep tunnel and management credentials separate, retain host-key verification, and run the
+registered Agent preflight before a release. DNS names, access controls and connectivity
+must be verified on each client; this repository does not publish deployment inventories.
+
+```bash
+cd /path/to/embodied-data-loop
+git status --short --untracked-files=all
+readlink -f /opt/data-platform/dev/current
+readlink -f /opt/data-platform/prod/current
+ls -1 /var/lib/data-platform-releases
+ls -1 /opt/data-platform/dev/releases
+ls -1 /opt/data-platform/prod/releases
+git tag --list 'V*' --sort=version:refname
+```
+
+如果 Git 状态有输出，先审查差异、完成相关测试，只提交本次发布涉及的明确文件路径。
+不要删除或暂存隐藏无关改动，也不要把配置、密码或数据加入 Git；无关工作阻碍发布时，准备独立、
+干净且已提交的 release worktree。发布命令的 `cd` 必须指向该工作区。提交后再次检查
+`git status --porcelain --untracked-files=all`，要求无输出。
+
+构建脚本要求工作区干净。先核对两套环境的 `current`、`releases`、
+`/var/lib/data-platform-releases` 以及 Git 标签，按数字比较版本，再统一分配本批次的发行号。
+命名使用 `V<major>.<minor>.<patch>_<FeatureName>_<YYYYMMDD>`：兼容修复与安全加固增加 patch，
+完整新功能批次增加 minor，明确破坏兼容性的升级增加 major。历史发行号保持原样，不追溯改名。
+
+日常调试用 Git 提交追踪，完成一批相关修复和测试后再构建发行包，不为每个提交分配正式版本。
+同一个不可变包从开发推广到生产、重新安装或恢复上传，均保持原版本号；只有包内源码变化才需新包。
+已构建版本不得覆盖，也不能给相同数字换后缀重用；新版本必须高于已部署或已构建的版本。
+这些是发布操作规则，当前工具仍允许历史名称，不宣称已自动执行语义化版本分配。
+
+每批升级必须在构建前同步源码中的文档，不能仅在聊天回复中说明：
+
+- 在 [发行变更](data_platform_changelog.md) 记录本批功能、兼容性与 Server/Agent/CLI 影响范围。
+- 更新受影响的 README、用户指南、权限或运维契约；交互名称、快捷键和命令必须与代码一致。
+- 架构、调度或存储能力变化时，同步 [当前情况说明](distributed_data_platform_current_status.md)，
+  删除已经失效的限制，不将历史快照继续标为当前能力。
+- 若改动节点执行、任务协议、能力上报或恢复逻辑，同步 Agent 部署说明、兼容契约与验收案例；
+  纯浏览器改动也要明确注明 Agent 协议无变化。CLI 版本独立递增；每次平台升级必须同步发布兼容的 CLI 新版本、更新 `latest` 并完成两端验收，不能只更新网页。
+页面上下文助手升级需验收 Episode 切换、Instruction 与 Viewer 显示一致、固定/恢复历史及迟到响应隔离，检查 Viewer 账号只读与范围撤销；操作卡片必须归属原消息，收起不会取消任务。Server 的 episode/page 上下文及 history 消息扩展兼容 CLI 0.3.0，无数据库迁移或 Agent 协议变更。
+- 源码文档记录能力和变更；实际部署状态、源码 commit、测试与已登录验收证据保存在对应发行包。
+  不提前把“已实现”写成“已部署”，不在源码加入运行日志、账号凭据或私有数据。
+
+在同一个终端输入已核验的未使用版本，后续命令复用该值：
+
+```bash
+read -r -p 'Verified new release version: ' RELEASE
+: "${RELEASE:?A verified release version is required}"
+```
+
+只有创建新包使用 `--version`；已有包一律按实际环境和健康状态决定是否使用 `--release`。
+
+## 2.1 多个功能并行开发，统一合并发布
+
+每个功能使用独立的 Git 分支和 worktree，分别修改、测试并提交，互不改动其他功能的工作目录。
+开发工作区不直接运行在 `/opt/data-platform` 下；线上环境继续使用不可变发行包。
+
+发布时使用独立、干净的集成工作区，按以下顺序处理：
+
+1. 核对 `dev/current`、`prod/current`、发行包记录的 Git commit，以及全部已构建版本和 Git 标签。
+   集成代码必须包含已部署的最新功能；默认源码目录或旧功能工作区的 HEAD 不代表当前线上代码。
+2. 从已核验的最新源码提交建立集成分支，使用 `git merge --no-ff` 合入准备发布的功能分支。
+   保留原功能分支和未提交修改；不通过覆盖文件或部署旧工作区来“合并”功能。
+3. 检查合并差异，解决冲突，并在集成工作区运行各功能及公共流程的联合测试。
+   没有文本冲突也需要验证功能组合；确认各功能提交和当前发行包源码提交都是集成 HEAD 的祖先。
+4. 在集成阶段统一选择高于当前已部署、已构建版本的未使用编号，提交集成结果，检查工作区干净，
+   并验证该工作区自己的 `.venv/bin/python` 可以运行测试及发行包构建工具。
+5. 从集成工作区构建一次并部署 dev。验收通过后，按第 4 节批准并将同一份包提升到 prod；
+   发布前若其他功能已升级线上，先重新核对基线、合并与测试，再确定发布编号。
+
+`build_release()` 只打包选定工作区已提交的 HEAD，不会自动合并其他分支。
+每个环境的升级有部署锁，但该锁不负责代码合并或版本编号分配。功能开发可以并行，
+同一环境的发布由一个集成工作区串行执行；已生成发行包时，失败重试复用原包的 `--release`，
+不重新使用 `--version`。
+
+若停在 `Validating` 阶段，尚未安装或切换服务。测试失败日志保存在
+`/var/lib/data-platform-releases/.failed-<版本>-*/validation.txt`，旁边的 `failure.json`
+记录提交和退出码；终端会显示确切日志路径，日志目录仅构建账号可读。检查并修复失败项后，
+确认该版本发行包尚未生成且编号仍未占用，才可使用原 `--version` 重新构建。
+
+在实际发布源码目录检查解释器，不依赖 wrapper 回退到已安装版本的 Python：
+
+```bash
+test -x .venv/bin/python
+.venv/bin/python -c 'import pytest; import lerobot.data_platform.releases; import scripts.build_data_platform_agent_bundle'
+```
+
+使用这个解释器运行相关验证。只有文档或源码同步时不需要构建或部署发行包。
+
+发行验证对同一份完整的测试模块列表使用 `pytest-xdist` 按文件并行，默认最多 8 个进程，并为每个
+进程隔离 Hugging Face 和 uv 缓存。浏览器验收仍单独执行；任何进程失败都会阻止发行。日志保留最慢
+20 项，便于定位瓶颈。需要串行排查时可设置 `DATA_PLATFORM_RELEASE_TEST_WORKERS=1`；允许范围为
+1–8。该依赖属于 `test` extra；若当前工作区虚拟环境尚未安装 `pytest-xdist`，发行工具会明确提示并
+回退为完整串行验证，不跳过测试。并行效果和隔离性须在目标环境验证，不能把一次单元测试替代环境验收。
+
+## 3. 一条命令同步更新开发和生产（硬升级）
+
+完成第 2 节后执行：
+
+```bash
+bash deploy/data-platform/update-all.sh --env both --hard --version "$RELEASE" \
+  --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+实际顺序为：
+
+1. 从已提交的源码构建一次 Server/Agent 包，并执行构建回归测试。
+2. 更新开发 Server，再更新开发 Agent，验证开发健康状态。
+3. 更新生产 Server，再更新生产 Agent，验证生产健康状态。
+4. 两套环境最终使用同一个发行包，各自保留数据库与数据集。
+
+这是依次升级，不是两个环境同时切换，也不是跨环境的原子事务。各环境切换时会短暂维护。
+`--hard` 跳过人工验收批准，但仍保留包校验、环境身份校验、备份、任务排空及健康检查。
+开发失败时不会继续更新生产；生产失败时，开发可能已经是新版本。
+
+使用已核对的源码工作区脚本；不要假定系统全局命令与该工作区具有相同版本或参数行为。
+
+如果构建已经成功、部署中途失败，应复用原包，不要重新构建同名版本：
+
+```bash
+bash deploy/data-platform/update-all.sh --env both --hard --release "$RELEASE"
+```
+
+先查看第 5 节的部署状态与日志，解决报错后再重试。失败后可能保留维护状态，不能仅看到进程运行
+就认定升级完成，也不要在 Server/Agent 版本不一致时手动解除维护。
+
+## 4. 先开发测试，再更新生产（常规发布）
+
+与第 3 节二选一。先按第 2 节准备一个新版本名，再执行：
+
+```bash
+bash deploy/data-platform/update-all.sh --env dev --version "$RELEASE" \
+  --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+打开 `https://<server-address>:8443`，验证功能、角色权限、环境隔离、本地任务、远端 Viewer、远端预处理和回退。
+生产在这期间保持原版本。已有构建包需要重试时使用
+`bash deploy/data-platform/update-all.sh --env dev --release "$RELEASE"`，不要同名重建。
+
+完成测试后记录验收结果。下面先生成默认未通过的检查表，**不要未经测试就把全部值改为 true**：
+
+```bash
+cat > /tmp/data-platform-release-evidence.json <<EOF_ACCEPTANCE
+{
+  "release": "$RELEASE",
+  "role_permissions": false,
+  "environment_isolation": false,
+  "local_job": false,
+  "remote_viewer": false,
+  "remote_preprocess": false,
+  "rollback_drill": false
+}
+EOF_ACCEPTANCE
+nano /tmp/data-platform-release-evidence.json
+```
+
+网页的 **Approve this release** 同时要求自动检查通过及六项人工确认全部勾选。
+若显示自动检查失败，核对开发 Web、本地执行器与配置的 Agent 是否属于当前发行版、心跳是否在
+60 秒内更新，并完成当前版本的代表性本地任务。`active (running)` 不能证明执行器仍正常轮询。
+若本地执行器日志出现 `Too many open files`，先确认没有活动任务，再重启开发本地执行器恢复心跳；
+旧版执行器每次轮询新建 Agent 会累积后台读取线程和连接，重启只能暂时恢复。修复版复用 Agent，
+配置或节点身份变化时关闭旧读取线程及连接再重建。恢复后关闭并重新打开验收窗口，重新执行自动检查；
+人工确认仍须基于该发行版实际完成的场景。批准只记录验收，不会发布生产。
+
+若本地提交返回 `Expected the registered local executor`，检查本地节点心跳中的 `local_requests`。
+本地执行器必须在每次心跳中保留此标记；仅注册时设置会被后续心跳覆盖。修复版本为本地执行器
+显式启用此能力，远端 Agent 默认关闭。更新后等待新心跳，再通过本地任务提交与完成确认验收。
+
+只将实际通过的项目改为 `true`。若发布负责人明确豁免本次回退演练，保留 `rollback_drill: false`，
+并在本次证据中记录 `rollback_drill_waiver` 的 `authorized_by` 和 `reason`；其余验收要求不变。
+全部要求满足后批准当前安装包：
+
+```bash
+bash deploy/data-platform/release.sh approve --env dev --release "$RELEASE" \
+  --evidence /tmp/data-platform-release-evidence.json
+```
+
+然后选择一种方式发布生产：
+
+- 在开发页面以管理员身份点击 **Deploy to production** 并确认；切换到测试角色时不能发布。
+- 或在 Server A 执行：
+
+```bash
+bash deploy/data-platform/update-all.sh --env prod --release "$RELEASE"
+```
+
+生产安装的是已经测试并批准的原包，不会重新构建当前工作区。
+`Same release` 表示两边版本相同，按钮禁用正常。不同版本但按钮禁用时，查看横幅提示的未批准、维护中
+或部署进行中等原因。这里比较部署版本，不比较每条数据库记录或数据集内容。
+
+## 5. 怎么确认更新完成
+
+### 任务运行期间升级
+
+首次安装支持滚动部署的版本，或现有 Agent 尚未报告 `rolling_deploy_protocol=1` 时，仍会等待所有活动任务
+结束，默认等待上限 5 分钟；超时保留维护状态，任务完成后复用同一个发行包重试。
+
+Server、Agent、本地执行器均已安装这套机制后，`update-all.sh` 和网页的生产发布会自动检查兼容性。
+管理数据库版本、任务协议和滚动兼容契约完全一致，且 Agent 心跳有效、没有 interrupted 任务时，
+升级保留旧版执行服务及其计算进程。旧任务继续原有 attempt 的心跳、事件上传、结果发布与完成确认，
+完成后旧执行服务自动退出；新版本恢复接收新任务。部署期间暂停用户写入和新任务领取，网页仍有短暂维护。
+旧版本的节点心跳不会覆盖新版能力；新旧版本共享节点/用户配额、任务槽和数据路径锁。
+
+生产仍须完成第 4 节的开发验收和批准；兼容检查不通过会自动等待任务结束。需要强制使用等待流程时：
+
+```bash
+bash deploy/data-platform/update-all.sh --env dev --release "$RELEASE" --wait-for-jobs
+```
+
+正在使用或仍有未确认本地任务的发行目录不会被历史清理删除。执行服务固定到发行目录，不从 `current`
+动态加载任务代码。保持管理员的开发验收、生产批准、Server 先于 Agent 升级的流程。
+
+滚动升级的备份记录 `quiescent: false`，表示备份期间任务仍在写入；只能用于诊断，自动数据库/状态恢复
+会拒绝这类快照。需要可直接恢复的完整备份，应使用 `--wait-for-jobs`。程序回退和显式数据库恢复都会
+等待活动任务结束。升级失败仍保留维护状态和任务产物，需要核对部署进度后恢复；不得直接停止旧执行服务。
+
+核对当前别名与各版执行服务：
+
+```bash
+systemctl status data-platform-local-worker@dev.service
+systemctl list-units --all 'data-platform-local-worker-*@dev.service'
+# 在对应 Agent 主机检查：
+systemctl status data-platform-agent@dev.service
+systemctl list-units --all 'data-platform-agent-*@dev.service'
+```
+
+`@prod.service` 对应生产环境。当前别名指向新版本，旧服务运行中表示还有任务收尾；完整部署成功仍需
+新版 Server/Agent 心跳、维护关闭以及受影响功能验证，不能仅凭旧任务仍在运行就认定升级完成。
+
+不要通过取消无关队列来绕过部署前置检查。
+
+### 更新后的检查
+
+```bash
+bash deploy/data-platform/release.sh status --env dev
+bash deploy/data-platform/release.sh status --env prod
+curl -fsS http://127.0.0.1:9092/healthz
+curl -fsS http://127.0.0.1:9091/healthz
+```
+
+上面的 HTTP 地址只供 Server A 本机检查。最终应看到两边 `release` 为预期版本、`maintenance: false`，
+部署状态为 `installed`；完整升级命令还会验证 Agent 的新版本心跳。核对 Server/Agent 的实际
+`current` 链接与预期发行包，并检查本次功能需要的 capability，例如 `mutation.trim_episode`、
+`result_sync_protocol=1` 或 `caption_signal_options`。浏览器刷新后，用对应角色验证实际操作。
+进程 `active` 或 `/healthz` 成功不能单独证明新功能已上线；准备好命令也不等于已经部署。
+只执行 `update-server.sh` 会保留维护状态，因此日常完整更新应使用 `update-all.sh`。
+
+命令行执行失败时保留终端错误输出。页面发起的生产升级可查看：
+
+```bash
+sudo journalctl -u data-platform-production-promotion --no-pager -n 100
+sudo journalctl -u data-platform-web@prod.service --no-pager -n 100
+sudo journalctl -u data-platform-promotion.service --no-pager -n 50
+```
+
+备份位于 `/opt/data-platform/dev/backups/` 和 `/opt/data-platform/prod/backups/`；
+首次生产迁移的额外备份位于 `/var/lib/data-platform-deployment/`。
+完整升级成功后，每套环境自动保留当前程序、另外两个最近的完整安装版本和最近三份完整部署备份；
+失败或仅 Server 更新不会触发清理。未完成的安装、备份及链接目录留待人工检查。
+发行包清理须保留两套环境的当前版本和需要用于回退的包，不能仅按目录名称或磁盘大小删除。
+
+Server A 的 MySQL binlog 保留策略为 3 天，使用 `MINIMAL` 行记录、`PARTIAL_JSON` 和事务压缩；
+修改这项主机配置不会自动由代码部署完成。首次收紧期限前应完成可校验的数据库备份，并检查复制及恢复需求，
+旧 binlog 通过 MySQL 的 `PURGE BINARY LOGS` 清理，不能直接删除文件。
+文件操作日志每份达到 32 MiB 时轮转，当前文件保持 JSONL，四份历史文件采用 gzip 无损压缩；
+审计查询兼容新旧格式并包含这些近期文件，
+数据库审计记录不随文件轮转删除。
+网页使用 `/api/operation_log?limit=200&summary=1`，展开详情使用同一路径的 `event_id` 查询；
+不带 `summary` 的旧请求仍返回完整记录。
+读取按新到旧满足数量即停止，解析/解压在释放轮转锁后进行；历史筛选仍在保留文件范围内工作。
+Usage log 使用 `/api/admin/usage-events?summary=1`，展开时读取 `/api/admin/usage-events/<event_id>`；
+两个入口均仅管理员可用。列表按时间和事件 ID 同向倒序使用已有索引；旧完整列表接口保持兼容。
+页面统计调用 `/api/admin/usage-summary?sample_limit=1000`，明确显示最近匹配结果的数量、时间范围；
+这是有限样本，不能作为全部历史总量。省略该参数保留原全量统计语义，大库上应使用有界模式。
+列表与统计独立请求，失败保留上次成功结果。任务列表摘要去除执行快照，版本列表通过 `summary=1`
+只传 episode 数量；详情和执行记录不变。本地任务在 SQL 筛选后限量，避免读取远端任务报告。
+数据集周期同步的审计保留登记身份和脱敏元信息摘要，不重复保存完整目录。
+元信息没有变化时不逐轮更新数据集登记表，存在时间最多每五分钟刷新一次；真正的元信息变化仍立即保存。
+Agent 心跳请求与两分钟离线判定保持原有频率；数据库心跳快照最多每 30 秒刷新一次，
+磁盘空间快照随心跳刷新，节点状态、协议、版本及权限能力变化立即保存。
+成功的节点心跳、空闲任务领取、普通租约续期和无登记变化的目录同步不逐条写操作审计；
+失败、实际领取任务、停止指令、新登记和元信息变化仍保留审计，任务事件和结果同步不受影响。
+MySQL 调度使用事务行锁，避免空闲轮询递增锁记录；SQLite 仍保留写锁保护并发。
+程序回退与数据库恢复是不同操作，具体参见 [双环境详细教程](data_platform_environments.md#查看重启与故障恢复)。
+
+## 6. 构建遇到之前的 PyPI TLS 错误
+
+仅当出现此前同样的 PyPI 代理/TLS 下载错误时，可以在 Server A 使用已验证可直连的镜像重新构建：
+
+```bash
+sudo env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY \
+  -u https_proxy -u http_proxy -u all_proxy \
+  UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
+  bash deploy/data-platform/release.sh build --env dev --release "$RELEASE" --source "$PWD"
+```
+
+构建成功后，根据所选流程使用 `--release "$RELEASE"` 部署已有包。
+这是依赖下载方式的调整，不会关闭 TLS 校验，也不需要修改锁文件。
+
+## 7. Viewer 缓存与结果同步排障
+
+显式标记 `data_platform_mixed_episode_viewer=1` 的评测数据集按每个 episode 的相机和信号元数据生成 Viewer 缓存。相机不齐全属于正常情况，但元数据声明的文件必须存在；信号保留来源字段及维度，不混合解释机器人语义。Viewer 准备要求 Agent 上报 `mixed_episode_viewer_protocol=1`。FLORA 标注要求 `mixed_episode_flora_protocol=1`，读取并验证 `native/` 中每条原始相机视频、帧率及 `provenance/` 记录，任务和来源帧数必须一致，来源指纹覆盖这些输入。允许只读 Curation Snapshot 为 FLORA Pipeline 绑定来源；该格式不支持其他 Temporal Caption 方法、普通源数据修改或通用训练。升级时验收单、双、三视角和原始帧率、FLORA 结果及 Review，并按常规流程完成 CLI 发布。
+
+先核对环境、注册的 location ID、Agent、源根与 `output_dir`，再按
+[存储位置说明](data_platform_storage_locations.md) 区分四类目录：
+
+| 所在位置 | 用途 | 检查重点 |
+| --- | --- | --- |
+| Agent 的 `vis/.dp-<job_id>-<attempt_id>/cache` | 执行暂存 | 任务是否仍在计算或发布 |
+| Agent 登记的 `output_dir`，默认 `vis/local_vis_<dataset>` | 已发布缓存 | manifest、源身份、旧缓存备份 |
+| Server A 的 `remote-cache/<location_id>/static/` | 网页结果主副本 | 保存后的结果及同步 revision |
+| Server A 的 `.jobs/<job_id>/<attempt_id>/` | 上传暂存 | 不应当作已完成结果的长期目录 |
+
+网页保存成功与 Agent 同步成功是两个状态。只有对应 revision 获得 Agent 写入确认，才能认定
+`Results synced`；待同步或失败时检查 Agent 在线状态、`result_sync_protocol=1`、摘要和身份匹配，
+以及实际服务账号的目录/文件权限。检查父目录遍历权限、ACL mask、allowed/writable roots 和备份目录，
+不能靠切换网页管理员解决 Linux 权限错误。详见[权限说明](data_platform_permissions.md)。
+
+重建缓存会保留兼容的人工结果；episode 布局或阶段配置变化时，不兼容结果留在备份中。
+结果回传只同步受支持的标注和编辑产物，不会把源 Parquet、视频或 `meta/` 改成网页标注。
+不要为消除同步错误直接删除旧缓存或强行套用不兼容标注。
+
+## 8. 远程任务停滞与恢复
+
+页面长时间停在 `Checking existing video/CSV cache` 或发布步骤，不足以证明任务挂起。
+先核对同一 job/attempt 的事件时间、执行 lease、进程、输出大小/修改时间，以及 Agent 执行目录中的：
+
+- `marker.json`：执行身份、staging、publishing 和 acknowledged 状态；
+- `result.json`：计算是否已结束、是否成功；
+- `published.json`：发布阶段产物；存在此文件仍不等于 Server 已确认完成；
+- `stop.json` 与上传记录：是否请求停止、哪些产物尚待上传或确认。
+
+`result.json` 为 done、计算进程已退出但尚未 acknowledged 时，应先排查发布/上传/确认与 lease，
+不要直接重跑 Merge 或再次调用模型。遇到目标缓存已存在，先验证归属和 manifest 并保留恢复备份。
+恢复应使用现有执行协议完成 lease、finalizing、上传与确认，不直接篡改数据库状态来“标记成功”。
+完成后核对控制台终态、acknowledged、注册输出、manifest 中的最终路径和 Viewer 是否可打开。
+报告时分别说明“本次任务已恢复”和“防复发修改是否已验证、部署”。
+
+查询日志用明确时间范围，例如在目标 Agent 主机执行（按实际服务名和时间替换）：
+
+```bash
+journalctl -u data-platform-agent@dev.service \
+  --since '2026-09-22 09:00:00' --until '2026-09-22 09:30:00' --no-pager
+```
+
+## Agent 任务并发与资源预算
+
+Agent 按 `--sync-seconds` 定期扫描 `allowed_roots` 并上报数据集目录（默认 300 秒，最短 10 秒），
+有任务运行或全部槽位占满时也继续扫描；计算与任务续租由执行线程独立处理。
+扫描只读取数据集元数据，不自动准备 Viewer。Viewer 标注结果由独立后台线程回传，任务运行及
+槽位占满时也继续执行；网络传输不占用计算槽位，也不阻塞主循环心跳和任务领取。
+同一数据集的源修改任务未确认完成、或缓存正在发布时，只推迟该位置的写入并自动重试；
+其他位置继续同步。远端页面的 `Scan` 向选中 Agent 提交即时目录扫描，由下一次心跳领取，
+不等待自动扫描周期或计算任务槽位；`Refresh` 只重新读取已登记目录。扫描请求持久化保存，
+每节点最多一个未完成请求；同一账号重复提交相同路径复用该请求。状态依次为等待、扫描中、
+完成或失败，只有源目录读取、登记同步及最终确认都成功才显示完成。最终确认暂时失败时优先重试
+确认，不重复扫盘；Agent 重启后可重新执行未完成的只读扫描。
+
+即时扫描要求节点心跳能力 `dataset_scan_protocol=1`，Server 先迁移到管理 schema 5 并升级，
+然后升级 Agent。旧 Agent 的 Scan 禁用并提示升级，Refresh 仍可使用。请求在 Server 和 Agent
+两端检查 `allowed_roots`，Agent 解析真实路径以拒绝越界软链接；读取仍受服务账号的 Linux 权限限制。
+首页 **Known directory** 按所选 Agent 的实际 `allowed_roots` 显示下拉选项；也可输入其下的自定义路径，
+不会通过网页增加授权。修改 Agent 环境配置中的根目录后，需安全重启或随正常滚动升级启动新版 Agent；
+新版 Agent 在心跳中同步实际的 `allowed_roots` / `writable_roots`，无需重新注册或轮换节点令牌。
+旧版本执行器的心跳不能覆盖当前发行版的目录配置；旧 Agent 未上报目录时保留原登记。
+只有 Admin、Data Manager 和具有全数据集读取范围的 Operator 可发起发现，Viewer 保持只读。
+权限在提交和开始扫描时复核，扫描中的任务不因范围撤销而取消。请求与结果沿用 `dataset.scan`
+操作审计，不新增独立日志系统。
+
+`workers` / `prepare_workers` 是请求值。Agent 在启动任务时结合节点上限、CPU affinity、
+cpuset 和所有父级 cgroup 限制计算实际值，并通过 Jobs 的 `resources` 事件记录请求值、
+生效值和截断原因。显式 `1` 保持串行；支持 `0` 的预处理操作继续将其解释为自动选择。
+普通节点未配置时保留最多 4 worker 和原有 CPU/内存比例。
+
+管理员可在目标环境的 `agent.env` 中设置：
+
+| 配置 | 含义 |
+| --- | --- |
+| `DATA_PLATFORM_COMPUTE_MAX_WORKERS` | 单任务 worker 上限，正整数，默认 4 |
+| `DATA_PLATFORM_COMPUTE_CPU_LIMIT` | 单任务 CPU 核数预算，优先于 CPU fraction |
+| `DATA_PLATFORM_COMPUTE_MEMORY_LIMIT_GIB` | 单任务内存 GiB，优先于 memory fraction |
+| `DATA_PLATFORM_COMPUTE_NATIVE_THREADS` | 每个计算进程的 BLAS/OpenMP/OpenCV/Arrow 线程数 |
+| `DATA_PLATFORM_VIDEO_THREADS` | 每个视频编码、解码和滤镜的线程上限 |
+| `DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS` | Agent 同时执行的远程 Job 槽位，默认 1，当前最多 8；CPU 和扣除 Agent 预留量后的内存按槽位数固定均分（例如父配额 32 核/64 GiB，双槽各 16 核/30 GiB） |
+| `DATA_PLATFORM_CAPTION_RUNNING_LIMIT` | 旧 Agent 的 Temporal Caption 双任务兼容上限；新 Agent 使用通用 Job 槽位 |
+
+Viewer 的并发单位是一个相机视频或一份 episode CSV；单 episode 的多相机也可并行。
+所有输出共用一个有界队列，episode 的全部工作成功才增加完成计数，文件完成数单独显示在事件中。
+保持编码器、时间边界及 Stage 语义；失败/取消不发布不完整的新缓存。
+Merge、标准化、平滑和转换继续沿用既有算法及线程/进程池，通过相同预算限制并发。
+
+提高应用配置不能突破 systemd 配额。开发 Agent 的通用默认值仍是 2 核/4 GiB。
+需要提高时，排空开发任务后使用 `deploy/data-platform/agent-resources.conf.example`
+建立 `data-platform-agent@dev.service.d/50-resources.conf`，再执行 `systemctl daemon-reload`
+并重启开发 Agent。该 drop-in 与生成的 unit 分开保存，升级不会覆盖；生产配置不随之变化。
+修改前备份目标 `agent.env` 及 drop-in（记录原先不存在的情况），回退时在任务排空后一起恢复。
+保留原有 GPU 隔离、CPUWeight/IOWeight 和文件系统保护设置。
+
+基准脚本 `scripts/benchmark_data_platform_compute.py` 仅处理指定开发样本，将结果写入全新的
+输出目录，并核对输入指纹。`--sample single|v21|v3` 分别匹配三相机的 1/48 episode v2.1、
+451 episode v3.0（Viewer 取前 64 个 episode）；不匹配或匹配不唯一时拒绝执行。
+使用同一服务账号、独立 systemd cgroup 和相同输入比较旧/新版本，原配额与提高后的配额分开记录。
+该脚本测量计算与本地结果写入，不模拟上传；线上验收另外记录完整 Jobs 生命周期。
+
+```bash
+python scripts/benchmark_data_platform_compute.py \
+  --datasets /path/to/development-datasets \
+  --output /path/to/new-benchmark-output \
+  --sample v21 --workers 16 --operation viewer
+```
+
+高并发测试从 32 核/64 GiB 开始，再测试 64 核/128 GiB；native threads 设为 1，
+video threads 测试 1/2。每次输出目录必须唯一，不清理全机页缓存。结果 JSON 不保存源数据路径。
+H100 开发节点可将 Server 的 `DATA_PLATFORM_NODE_RUNNING_LIMIT` 和
+`DATA_PLATFORM_USER_RUNNING_LIMIT` 都设为 `2`，Agent 设 `DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS=2`。
+实际节点并发取 Server 上限与 Agent 心跳能力中的较小者；旧 Agent 未上报通用槽位时按 1 槽处理，
+并保留旧 Caption 专用双任务兼容逻辑。Viewer、预处理、Temporal Caption、Curation、MCAP 导入
+共用配置的槽位；不同任务只有在所有输入数据集和输出路径互不重叠时并行，路径相同或互为父子时排队。
+同一数据集的 Caption 可以并行标注不同 episode，同一 episode 不会重复执行；直接修改源数据的
+任务独占节点。Agent 启动前以解析后的真实路径再次检查，持有资源锁至结果确认；等待锁位时续租。
+Jobs 显示 `queue_wait_reason` 与 `node_slots`，以区分节点容量、用户容量与路径冲突。
+Agent 通用槽位上限为 8；默认仍为 1，现有 2/4 槽配置不变。FLORA 多卡批处理须同时检查
+Server 节点/用户额度、Agent 槽位和 GPU 池，按 4 卡验收后再扩到 8 卡。
+新旧执行器共享 GPU 锁但使用各自的运行配置文件；保持旧执行器直到原任务完成，不为扩容重启
+正在工作的 Agent。前处理优化与资源预算、分阶段验收见 [FLORA 执行配置](temporal_caption_trial.md#executor-configuration)。
+
+原始 MCAP location 不设置 Viewer `output_dir`；`import.mcap.inspect` 只保留源路径占用，
+`import.mcap.convert` 保留源路径及最终输出路径。对已完成计算、但上传中断的 `viewer.prepare`
+任务，同一任务的安全 Retry 会在源数据指纹、发布凭据、任务配置和全部缓存文件均吻合时复用
+Agent 上的已发布缓存，仅重新上传文件并完成 Server 注册。上传期间持续续租；任一校验不符时
+停止复用，不覆盖既有缓存。确认 Server 端 Viewer 已注册后才将任务视为恢复完成。
+
+开发父配额 32 核/64 GiB、双槽时，无论只运行一个还是两个任务，每个任务最多 16 核/30 GiB，余下约 4 GiB 留给 Agent 与系统；
+`workers` 仍受每槽 CPU 和节点 worker 上限约束，原生与视频线程单独限制。超过 30 GiB 的任务应
+在排空后改为单槽运行，不能临时借用第二槽内存。API 标注并发可能受供应商限流约束。
+生产 H100 可将 Server 的 `DATA_PLATFORM_NODE_RUNNING_LIMIT=4`、
+`DATA_PLATFORM_USER_RUNNING_LIMIT=2` 与 Agent 的 `DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS=4` 配套设置。
+同一用户最多运行两个任务，多个用户合计最多四个；资源按四槽固定均分，单任务不借用空闲槽配额。
+保留既有节点总资源预算；Server A 本地执行器仍为单槽。配置变更须在运行任务完成或确认取消后
+重启对应服务，运行中任务不热改配额；排队任务保留。
+
+完整基准矩阵可由 `scripts/benchmark_data_platform_matrix.py` 顺序执行。该驱动需要测试节点的
+root 权限来创建临时 systemd 服务，计算进程使用 `--user` 指定的开发服务账号。
+对相同参数依次运行 `--stage baseline`、`--stage screen`、`--stage repeat`；已完成结果可复用，
+未完成目录会阻止重跑，以免覆盖失败证据。`--operation` 可选 viewer/smooth/standardize/merge/convert；
+Merge 自动选择另一份兼容的开发数据集，找不到时停止，不复制或修改源数据。
+
+```bash
+python scripts/benchmark_data_platform_matrix.py \
+  --old-python /path/to/baseline/.venv/bin/python \
+  --new-python /path/to/candidate/.venv/bin/python \
+  --datasets /path/to/development-datasets \
+  --output /path/to/benchmark-matrix \
+  --user data-platform-agent-dev --operation viewer --stage baseline
+```
+
+`screen` 对 32/64 核分别测试 4/8/16/32（以及 64 核下的 64）worker；Viewer/转换测试
+每视频 1/2 线程，其余预处理使用 1 线程。`repeat` 将基线及筛选出的最快两组补足三次。
+源代码验证可附加 `--new-source /path/to/checkout`；正式部署验收应使用安装后的解释器。
+
+## 任务进度与日志接入约定
+
+新增或修改任务必须沿用 `job_progress.py`、`RouteContext.update_job()` 和 Agent 的事件通道，
+不要在模板里从最后一条日志重新计算总体百分比，也不要建立另一套日志或进度状态。
+
+- `phase`（或已有 `step`）表示稳定的阶段；`current/total` 表示该阶段已完成的工作量。
+  多阶段任务应显式提供 `progress`（0–100 的总体估计），在调用子流程时映射到预留区间；
+  不能把每个 episode、文件、子流程各自的 0–100 当成整个任务的百分比。
+- 不知道总量时只报告阶段和消息，不编造计数或 ETA。Server 保留已知进度；旧回调的计数只作为
+  单调的历史最高估计，不保证线性时间。100% 由最终成功确认设置，计算结束仍可能有发布和上传。
+- 当前状态与日志摘要分离：每条事件更新快照；摘要保留阶段切换、约 10% 里程碑和不同的普通提示。
+  警告/错误不采样。高频逐帧/文件事件应使用计数与稳定阶段；不能靠不断改变阶段名绕过摘要规则。
+- 上传计数只能在真实上传成功后递增。离线计算把 artifact 加入 spool 不是上传完成；由 supervisor
+  上报真实传输进度。事件按生产序号补发，完成前排空积压；同一个事件重送保留 delivery ID。
+- 重试清空当前进度、错误和计时，保留历史 attempt；旧 attempt 不得更新新 attempt。
+  同一执行的百分比采用单调保护，晚到的页面请求不能覆盖更近的任务状态。
+
+`tests/datasets/test_job_progress.py` 已列入发行包必跑验证。接入多阶段或并发任务时补充行为测试，
+覆盖阶段切换、文本事件、真实完成计数、重试、事件顺序和最终确认；UI 改动还需浏览器验证。
+
+
+## 源目录删除与缓存回收
+
+Server 与 Agent 均需支持 `source_cleanup_protocol=1`，且执行器发行身份须与当前环境一致。
+控制面在维护模式暂停检查与确认；普通 Refresh 不进行目录扫描。节点后台以 15 秒间隔分页检查
+已登记路径，两次一致的缺失证据后清理。大量数据集按页轮转，不能用 30 秒作为完成时限。
+`dp_source_cleanups` 保存 location、令牌、阶段、错误、任务页游标及短租约；重启会续清理。
+MySQL 的确认/更新时间及租约使用双精度列，避免 epoch 秒被普通 FLOAT 舍入。升级自动扩宽旧清理表并重新计时未确认的缺失证据。
+`dataset.source_cleanup` 事件写入现有审计。`deleting`/`deleted` 不允许新 Job 或 Pipeline 输入，
+普通位置列表隐藏它们；历史查询仍保留原 location 和 Job 外键。
+历史 Job 的手动重试和 MCAP 自动恢复也校验全部输入；已删除输入不会重新排队，Jobs 显示不可重试原因。
+
+若清理停留在 waiting，先查看该位置及缓存别名的运行、取消确认和 interrupted 任务；不要强制删除缓存。
+node/server 阶段失败时检查登记 output_dir 的归属、可写根、文件系统身份、共享缓存和独立数据保护。
+错误可修复后自动重试。服务器不依据心跳丢失或扫描未发现就删除数据。手动 unregister 仍仅移除登记，
+不删除文件。范围与保留规则见[存储说明](data_platform_storage_locations.md#原始目录删除后的清理)。
+
+## HTTPS 地址与证书
+
+网页可访问、TLS 建连、证书受信任和名称匹配需要分别检查。`curl -k` 会跳过证书验证，
+不能作为证书修复成功的证据。以浏览器实际使用的域名/IP 和端口做正常验证，并检查证书
+issuer、有效期和 SAN；自签证书不受信任与访问 IP 不在 SAN 中可以同时存在。
+
+长期使用稳定域名和客户端信任的 CA；保留 IP 访问时证书也需要相应 IP SAN。
+证书与 Nginx 修改按实际授权执行，修改后先 `nginx -t` 再 reload，并重新正常验证。
+不要输出私钥、令牌或完整环境配置来排障。
+
+Use your own HTTPS hostname and trusted CA. Validate the certificate chain and SAN against
+that hostname, then check authenticated user flows and Agent connections after a reload.
+Never distribute private keys or bypass TLS verification as an acceptance check.
+
+### Bounded lists and optional OSS archive
+
+List clients may request `page_size` (1–200, default 50) and `cursor`. Jobs and pipeline runs
+accept `location_id`, `status`, `created_from` and `created_to` (ISO 8601, exclusive upper bound).
+Responses retain their original arrays and add `next_cursor` and `has_more`. A cursor belongs to
+its account and filters; changing either restarts pagination. Summary queries remove large report
+fields in the database; full detail reads preserve the original contract.
+
+Release builds require `--browser-executable /usr/bin/google-chrome` (the deployment CLI default).
+Browser tests execute separately, produce JUnit evidence included in the package checksum manifest,
+and must execute every required scenario without skips. Installed development acceptance remains
+separate from these fixture-backed browser tests. For deterministic fixture tests, set
+`DATA_PLATFORM_BROWSER_ASSETS` to a directory containing `ui-tailwind.js` and `ui-alpine.js`;
+the gate records their SHA-256 values and rejects files changed during testing. This does not
+replace installed acceptance against the served application.
+
+OSS is optional and independent of compute publication. The Server bundle includes the pinned official
+OSS SDK. Configure a private service-owned JSON file through `DATA_PLATFORM_ARCHIVE_CONFIG`; credentials
+come from the SDK environment provider or `DATA_PLATFORM_OSS_CREDENTIALS_FILE` (a protected ossutil
+INI file). Never put credentials in the repository or command-line arguments. The configuration
+contains bucket, region, environment (`dev`/`prod`), local `root`, `enabled` and `unlimited`.
+`unlimited: true` explicitly permits uncapped cloud use; local quotas remain enforced. Defaults are
+2 GiB read cache, 5 GiB pending uploads, and free space of at least 10 GiB and 10 percent.
+
+Server A keeps per-environment settings in `/etc/data-platform/<env>/archive.json` and
+`/etc/data-platform/<env>/ossutil.ini`, owned by root and readable only by that service group (0640).
+The environment file points to these paths; it contains no copied OSS keys. Local archive roots are
+`/srv/data-platform-dev/archive` and `/srv/data-platform/archive`, owned by the corresponding service
+account with mode 0700. This keeps development writes inside its existing systemd sandbox.
+`data-platform-archive@<env>.service` runs the bounded uploader using the installed `current` release;
+restart it after upgrading that environment. The service does not enable historical migration.
+Storage layout and retention are defined in [storage locations](data_platform_storage_locations.md#optional-object-archive).
+
+Use `python -m lerobot.data_platform.archive_cli --config /path/to/archive.json probe`, `enqueue`,
+`flush`, `backup` and `cleanup --protected-keys /path/to/protected.json`. Backup accepts only a
+completed quiescent deployment backup; it checks inventory hashes and excludes environment files
+and management credentials. Source datasets and active database files are not archive inputs.
+For a continuously bounded uploader, run `python -m lerobot.data_platform.archive_worker --config /path/to/archive.json`
+under the existing service account/environment. Each minute it handles at most 20 pending files.
+It never scans the database or migrates history. `archive.dev.json.example` starts disabled;
+copy it to protected service configuration, choose the environment's own prefix and credentials,
+and verify the Bucket's region, ACL, versioning and lifecycle before enabling. The supplied
+configuration explicitly permits unlimited cloud storage, as requested; finite quotas fail closed
+until an account billing gate is provided. Local quotas remain mandatory.
+
+Use separate RAM credentials scoped to each prefix to enforce cloud-side environment isolation.
+A prefix check in the platform does not restrict the underlying credential. The existing shared
+credential has OSS full access and RAM read-only access; replacing it with scoped credentials requires
+a RAM administrator. Keep that limitation explicit in deployment acceptance until replacement.
+`cleanup` unions the supplied protected keys with evidence from all retained release packages and
+removes expired object versions and delete markers, not only the current object. It never deletes
+reports. `abort-expired-uploads` inspects at most 1,000 multipart sessions under this environment's
+prefix and aborts sessions older than seven days. Existing Bucket lifecycle rules are left intact.
+The [OSS version listing API](https://www.alibabacloud.com/help/en/oss/developer-reference/listobjectversions)
+includes both historical versions and delete markers.
+
+### Historical reports: reader first, migration second
+
+Deploy and accept the reader release before enabling `migration_enabled`. That accepted package is
+the minimum compatible rollback release. Keep its package and acceptance evidence protected.
+`archive_cli --config ... migrate --records 20 --bytes 67108864 --cursor <previous-next-cursor>`
+performs one bounded batch. Omit the cursor on the first batch. Save the returned cursor outside the
+database and invoke subsequent batches at the desired interval; interrupting a batch is safe to retry.
+`restore <job-id>` restores the inline JSON using its compact migration journal and verified OSS object.
+No production backfill is triggered by deployment or worker startup.
+
+Only acknowledged successful Jobs with finished Attempts and no active pipeline dependency qualify.
+The only externalized fields are `precompute`, `mcap_import.files` and `mcap_import.rejected`, each above
+256 KiB. Records exceeding the 64 MiB batch safety envelope are skipped for separate handling.
+All other result fields, options, progress, output locations, lineage and error summaries stay in place.
+Uploads and downloads occur outside DB transactions; the final transaction locks and checks the result,
+update timestamp, control revision and options before replacement. Job/Attempt copies reuse one object.
+MySQL updates only the archive fields in its binary JSON, preserving unrelated metadata. Both migration
+and restoration re-read the stored values inside the transaction and require exact canonical checksums.
+If MySQL's JSON parser changes a floating-point value, the affected numeric leaves are written through
+SQL DOUBLE parameters and checked again; any remaining mismatch rolls back the entire transaction.
+Journals contain hashes and references, never another copy of report payloads. Keep journals backed up
+until the migration is retired; do not prune them with acceptance attachments. A changed record makes
+restore fail explicitly. The deployment CLI checks both Jobs and Attempts and refuses a reader-incompatible
+rollback while references exist, including `--hard`. Restore inline reports before using an older toolchain.
+
+### Installed acceptance and real operators
+
+Build-time browser validation does not establish installed acceptance. Run:
+
+```bash
+python -m lerobot.data_platform.acceptance browser \
+  --origin https://data-platform.example:8443 \
+  --release-root /var/lib/data-platform-releases/RELEASE \
+  --browser-executable /usr/bin/google-chrome --username ACCEPTANCE_USER \
+  --output /var/lib/data-platform-releases/RELEASE/installed-browser.json
+```
+
+The command prompts for the platform password without saving it, uses normal TLS verification,
+checks the installed development release, logs in through the form and visits protected lists and
+Pipelines. Include that JSON as `installed_browser` in the existing approval evidence. Approval for
+new reader releases also requires `operator_matrix`; neither check is replaced by fixture tests.
+
+Real executions use saved pipelines and the existing coordinator/Job/Attempt records. The optional
+`acceptance submit --pipeline-id ID --revision N --location-id ID --owner USER_ID --delivery STABLE_KEY
+--output /path/to/run.json` checks free disk space before starting the existing saved workflow.
+Review gates and permissions continue to apply. No second execution table is created.
+
+To collect a matrix, supply JSON with `changed_operators` and `cases`. Each case identifies `operator`,
+`version`, `node_id`, `format`, `scenario`, `job_id`, `attempt_id`, plus optional verified OSS `attachments`.
+Run `acceptance matrix --input /path/to/cases.json --release RELEASE --output /path/to/operator-matrix.json`.
+It verifies successful acknowledgement and the pinned execution identity, and retains `source_release`
+and `reused` for historical cases. Changed operators cannot reuse older evidence. Use both v2.1/v3.0
+where supported and each affected node; include input/permission failures, retry/publication and nominal
+scenarios in the acceptance plan. Shared scheduling, permission, IO or publishing changes require the
+full affected matrix. Execute failure/recovery scenarios through the normal task flow, then record the
+successfully recovered Attempt. Keep detailed logs/attachments in OSS and only references in approval.
+
+Before enabling backfill, inspect database/binlog/temp-directory/OSS sizes together, check actual MySQL
+`binlog_expire_logs_seconds`, and preserve existing heartbeat throttling and no-change write suppression.
+Do not run automatic VACUUM, OPTIMIZE TABLE or table rebuilds to reclaim physical space.
+
+
+Performance spot check (2026-10-19, isolated SQLite fixture; 16 Jobs, 2 MiB report each):
+
+| Query | Elapsed | Peak Python allocations | JSON response | Database + file growth |
+|---|---:|---:|---:|---:|
+| Full detail list | 103.0 ms | 67,290,916 B | 33,563,952 B | 0 B |
+| SQL summary list | 72.9 ms | 205,595 B | 9,072 B | 0 B |
+
+These are single local measurements, not production latency guarantees or total process RSS.
+MySQL parity runs use disposable databases; they do not write into development or production data.
+Server A preflight found a 259,200-second binlog retention setting (3 days); this change preserves it.
+
+## Opt-in strategy experiments
+
+[Shared data-processing strategies](data_platform_strategies.md) add a dev-only independent worker,
+`data-platform-strategy@dev.service`, and default-off `DATA_PLATFORM_STRATEGIES_ENABLED`. Setup requires a
+dedicated restricted operator, generated synthetic fixtures visible to Server A, explicit budgets and
+administrator-reviewed evaluation cases. Do not equate unit tests, a gate result or dev approval with
+production strategy availability. Private Hindsight and ordinary Jobs are unchanged. Release the compatible
+CLI 0.3.17 with verified immutable installer/wheel/CA objects and normal TLS acceptance; only then advance latest.
+
+### External assistant MCP
+
+See [MCP access and acceptance](data_platform_mcp.md) for per-account credentials, TLS trust,
+model-independent tools and explicit browser confirmation. `/mcp` exclusively uses bearer credentials;
+all other routes retain browser session/CSRF protection. Additive credential storage requires Server
+startup migration, with no Agent protocol change. Publish compatible CLI 0.3.18 with the platform.
+
+## Continuous learning worker
+
+See [usage-learning operations and acceptance](data_platform_continuous_learning.md).
+The release installs `data-platform-learning@<env>.service`, pinned to the release interpreter. It is idle
+until an administrator enables collection; new analysis/verification budgets default independently to zero.
+It uses the existing MySQL migration and audit mechanisms, durable leases and unknown-call receipts.
+Never apply an earlier strategy-evaluation budget as authorization for learning calls. Check the account
+opt-in, environment configuration, lease, cursor and usage ledger when diagnosing a delayed analysis.
+A zero budget is a waiting state, not a model failure. Do not delete an unknown-call ledger row to retry it.
+Disabling collection does not disable audit or stop submitted Jobs; retention continues. Strategy promotion
+and production deployment remain separate approvals. Source-only delivery must not advance CLI latest.
+
+### Original UMI visualization runtime
+
+`umi.replay` / `umi.cosmos_id` 1.1.0 publish the pinned laundry visualizations with their Job artifacts.
+For a fresh checkout, follow the [pinned source and runtime setup guide](data_laundry_setup.md).
+The opt-in installer prepares external CPU dependencies and configuration files only; GPU runtimes,
+model releases and service activation are explicit separate steps.
+The setup guide installs the pinned source's CPU environment from its `uv.lock`. Existing manually
+provisioned viewer environments may continue using `deploy/data-platform/umi-viewer-requirements.lock`
+with the same pinned laundry source. Configure each Server A environment's
+`DATA_PLATFORM_UMI_VIEWER_RUNTIME` with the generated JSON or [the runtime example](umi_viewer_runtime.example.json).
+This environment does not need CUDA.
+The generated Nginx configuration forwards authenticated same-origin WebSocket upgrades for
+`/api/umi-viewer-sessions/<id>/socket`. Retain a single web worker (the deployment default) because
+viewer sessions belong to that worker. Each environment allows four viewers, at most two per user;
+idle sessions expire after 30 minutes. Logs live under lifecycle state `umi-viewer-sessions/` until
+session close. The viewer exits if its web worker exits. Opening a saved replay performs no GPU work.
+
+Agent runtime configuration and fingerprint-bound reuse of historical trial evidence are documented
+in [UMI support](umi_dataset_support.md#original-laundry-visualizations). Update Server A and Agents
+together; preserve independently versioned CLI publication and installed browser acceptance.

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Text memory · Annotation & Review</title>
+<style>
+*{box-sizing:border-box}select,input{min-width:0;max-width:100%}.actions>*{min-width:0;max-width:100%}fieldset{min-width:0}:root{color-scheme:dark;font:15px system-ui;background:#0c1421;color:#e4eaf4}body{max-width:1180px;margin:24px auto;padding:0 20px}a{color:#90caff}h1{font-size:28px}h2{font-size:19px}section{border:1px solid #334155;border-radius:12px;padding:20px;margin:18px 0}button,input,select,textarea{font:inherit;color:inherit;background:#172436;border:1px solid #566782;border-radius:6px;padding:8px}button{cursor:pointer}button:disabled{opacity:.45;cursor:default}label{display:block;margin:10px 0}textarea{width:calc(100% - 18px);min-height:72px}input[type=text]{width:min(650px,90%)}input[type=checkbox]{margin-right:8px}table{width:100%;border-collapse:collapse}td,th{text-align:left;border-bottom:1px solid #334155;padding:8px}img{max-width:100%;height:auto}#history{display:flex;overflow:auto;gap:12px}#history figure{min-width:260px;margin:0}#history img{width:336px}pre{white-space:pre-wrap;overflow-wrap:anywhere}.muted{color:#a4b3c9}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{padding:12px;background:#192a40;border-radius:6px;white-space:pre-wrap}#review[hidden]{display:none}.scroll{overflow:auto}fieldset{border:0;padding:0;margin:0}details{margin:14px 0}figcaption{color:#a4b3c9;font-size:13px}#current{display:block;width:672px}.error{color:#ffb7a9}button.primary{background:#244b76}@media(max-width:600px){body{padding:0 10px}section{padding:12px}td,th{padding:5px}}
+</style></head><body>
+<a href="/?page=annotation&tab=text_memory">← Annotation</a> · <a id="jobs-link" href="/?page=jobs">Jobs & progress</a>
+<h1>Text memory</h1><p class="muted">Draft → human Review → approved export. Model checks never count as human approval.</p>
+{% if training_review_available %}<p><a href="/remote/{{ location_id }}/memory/training-review">View frozen training annotations →</a></p>{% endif %}
+<div id="status" role="status" class="status">Loading registered dataset…</div>
+<section><h2>1. Source audit & selection</h2>
+<p>Choose one FLORA run per episode. Verify the task and original recording group. Audit all episodes before freezing the 10-episode pilot.</p>
+<label>Total task <input id="task" type="text" placeholder="Explicit task, not an outcome caption"></label>
+<div class="scroll"><table><thead><tr><th>Episode</th><th>FLORA run</th><th>Original recording group</th><th>Preflight</th></tr></thead><tbody id="episodes"></tbody></table></div>
+<div class="actions"><button id="audit">Audit all episodes</button><button id="freeze" disabled>Freeze 10-episode pilot · seed 42</button><button id="submit" disabled class="primary">Confirm and run dataset Job</button></div>
+<pre id="selection"></pre></section>
+<section><h2>2. Review</h2><p>One dataset Job processes episodes concurrently. A pending episode pauses independently. Choose a completed episode draft here to review its causal evidence.</p>
+<div class="actions"><select id="runs" aria-label="Memory run"></select><button id="open">Open Review</button><button id="refresh">Refresh jobs</button></div>
+<div id="review" hidden><p id="revision"></p><label>Checkpoint <select id="checkpoint"></select></label><p id="issues" class="status"></p>
+<figure><img id="current" alt="Current main, left wrist, right wrist views"><figcaption>Main → left wrist → right wrist. Same 224 px letterboxed panels as training export.</figcaption></figure>
+<details open><summary>Past 2 seconds, 4 Hz · never after this cutoff</summary><button id="play" type="button">Play history</button><img id="playback" alt="Causal history playback" hidden><div id="history"></div></details>
+<label>Previous memory <pre id="previous"></pre></label><details><summary>Fact ledger through this cutoff</summary><pre id="ledger"></pre></details>
+<fieldset id="editor"><label>New memory <textarea id="memory"></textarea></label><label>Next subtask <textarea id="subtask"></textarea></label>
+<details><summary>Facts & evidence at this cutoff (JSON)</summary><textarea id="facts" rows="8"></textarea><label>Checkpoint contract (JSON; memory/subtask above take precedence)<textarea id="point" rows="8"></textarea></label></details>
+<label>Reason for correction <input id="reason" type="text"></label><div class="actions"><button id="save">Save correction</button><button id="pending">Mark needs review</button><input id="extra" type="number" min="0" aria-label="Earlier checkpoint frame" placeholder="Frame"><button id="add">Add checkpoint</button><button id="regenerate">Confirm and regenerate from revision</button></div>
+</fieldset>
+<details><summary>FLORA auxiliary candidates · not confirmed facts</summary><button id="flora">Load captions ending by this cutoff</button><pre id="flora-text"></pre></details>
+<fieldset id="approval"><label><input id="source-confirmed" type="checkbox">Source and original recording lineage checked</label><label><input id="goal-confirmed" type="checkbox">Task goal checked</label><label><input id="causal-confirmed" type="checkbox">Every checkpoint and causal evidence reviewed</label><div class="actions"><button id="approve">Approve episode</button><button id="independent">Independent review & adjudicate</button></div></fieldset>
+</div></section>
+<section><h2>3. Export</h2><p>Uses the frozen pilot and latest completed reviewed run per episode. Test requires a different reviewer. The package stays on the Agent data disk; high-level tool validation remains a separate acceptance step.</p><button id="export">Prepare reviewed export</button><button id="export-submit" hidden>Confirm and run export</button><pre id="export-result"></pre></section>
+<script>
+const MEMORY_CONFIG = {{ {'location_id': location_id, 'can_edit': can_edit}|tojson }};
+{% include "memory.js" %}
+</script></body></html>

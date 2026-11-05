@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "laundry_commit": "fd752156895c83ec75fde84796faea2513c626c7",
+  "host_python": "/opt/umi/host/bin/python",
+  "laundry_root": "/opt/umi/laundry-fd75215",
+  "lock_dir": "/var/lib/flora-h100-gpu-locks",
+  "converter_python": "/opt/umi/converter/bin/python",
+  "converter_root": "/opt/umi/openpi-74b73a0",
+  "converter_lerobot_root": "/opt/umi/lerobot",
+  "urdf_path": "/opt/umi/calibration/H10W_DVT2_TekkenD_with_Camera_2_TrackerF_Ry90.urdf",
+  "calibration_profile": "h10w_tracker_rx90_rz180",
+  "cumotion_python": "/opt/umi/laundry-fd75215/.venv_cumotion/bin/python",
+  "model_python": "/opt/umi/cosmos/bin/python",
+  "framework_root": "/opt/umi/cosmos-framework",
+  "checkpoint_path": "/models/cosmos/umi/checkpoint",
+  "processor_path": "/models/cosmos/processor",
+  "vae_path": "/models/cosmos/vae.pth",
+  "gpus": [
+    7
+  ],
+  "timeout_seconds": 3600
+}

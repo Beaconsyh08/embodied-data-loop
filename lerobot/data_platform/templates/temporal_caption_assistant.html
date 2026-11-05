@@ -1,0 +1,28 @@
+{% include 'assistant_workspace.html' %}
+<script>
+{% include 'pipeline_assistant.js' %}
+{% include 'assistant_launcher.js' %}
+(() => {
+  const account = {owner: {{ g.control_plane_user.user_id|tojson }}, role: {{ g.control_plane_user.role|tojson }}};
+  const datasetKey = {{ assistant_dataset_key|tojson }};
+  let locationId = {{ assistant_location_id|tojson }}, disposed = false;
+  const sync = () => {
+    if (disposed) return;
+    const episode = document.getElementById('episode')?.value || '';
+    const hasEpisode = /^(0|[1-9][0-9]{0,8})$/.test(episode);
+    window.syncPlatformAssistant({...account, locationId: locationId || '', label: {{ page_title|tojson }},
+      type: hasEpisode ? 'episode' : 'dataset', targetId: hasEpisode ? episode : locationId,
+      page:{{ assistant_page|tojson }}});
+  };
+  const start = () => {if (!disposed) {window.addEventListener('caption-review-context', sync); sync();}};
+  window.addEventListener('pagehide', () => {disposed = true; window.removeEventListener('caption-review-context', sync);});
+  if (locationId) start();
+  else {
+    // Local URL aliases resolve through the existing authorized registration lookup.
+    fetch('/api/ai-assistant/page-context?' + new URLSearchParams({dataset_key:datasetKey, episode_index:'0'}), {credentials:'same-origin'})
+      .then(response => {if (!response.ok) throw new Error('Unregistered dataset'); return response.json();})
+      .then(reference => {locationId = reference.location_id; start();})
+      .catch(() => start());
+  }
+})();
+</script>

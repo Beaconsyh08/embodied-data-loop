@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Learning</title>
+<style>body{font:16px system-ui;max-width:1000px;margin:24px auto;padding:16px;background:#0f172a;color:#e2e8f0}a{color:#7dd3fc}label{display:block;margin:16px 0}button,input,select{font:inherit;margin:5px;padding:7px}article{border:1px solid #475569;border-radius:8px;padding:16px;margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}#status{min-height:24px}</style></head><body>
+<h1>{{ 'Learning administration' if admin else 'My learning settings and materials' }}</h1><a href="/pipelines">Pipelines</a> · <a href="{{ '/learning' if admin else '/admin/learning' }}">{{ 'Personal settings' if admin else 'Administration' }}</a>
+<p id="status" role="status"></p><button id="refresh">Refresh</button>
+{% if admin %}
+<p>Only structural aggregates and synthetic development cases are shown. Manage experiments and activation in <a href="/admin/strategies">Strategies</a>.</p>
+<form id="settings"><label><input type="checkbox" id="enabled">Enable structural collection in this environment</label>
+<label>Daily analysis/verification call limit <input type="number" id="calls" min="0" max="1000" value="0"></label>
+<label>Daily token limit <input type="number" id="tokens" min="0" max="1000000" value="0"></label><button>Save</button></form>
+<div id="backfill"><button data-action="start">Start read-only backfill (30 days)</button><button data-action="pause">Pause</button><button data-action="resume">Resume</button></div>
+<pre id="metrics"></pre><button id="propose">Propose synthetic development cases (no model calls)</button><div id="cases"></div>
+{% else %}
+<p id="collection"></p><form id="settings"><label><input id="chat" type="checkbox">Analyze new conversations after opting in (off by default; no historical chat backfill)</label>
+<label><input id="experience" type="checkbox">Use my verified executions as historical references</label><p>Preference candidates require your confirmation. Tasks retain their existing confirmation and review.</p><button>Save</button></form>
+<h2>My materials</h2><div id="materials"></div>
+{% endif %}
+<script>
+{% include "learning_controls.js" %}
+(()=>{const $=id=>document.getElementById(id),base='/api/ai-assistant/learning',admin={{ admin|tojson }};let state=null,epoch=0;
+async function api(path,method='GET',body){const r=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw Error(v.error||'Request failed');return v;}
+function node(parent,tag,text){const e=document.createElement(tag);e.textContent=text;parent.append(e);return e;}
+function button(parent,text,action){const b=node(parent,'button',text);b.onclick=async()=>{b.disabled=true;try{await action();await refresh();}catch(e){$('status').textContent=e.message;}finally{b.disabled=false;}};}
+async function refresh(){const expected=++epoch;$('status').textContent='Loading…';try{const value=await api(base+(admin?'/admin':''));if(expected!==epoch)return;state=value;
+if(admin){$('enabled').checked=state.enabled;$('calls').value=state.calls;$('tokens').value=state.tokens;$('metrics').textContent=JSON.stringify({coverage:state.coverage,feedback:state.feedback,issues:state.issues,usage:state.usage,backfill:state.backfill,planning:state.planning_correctness},null,2);
+const result=await api(base+'/cases');if(expected!==epoch)return;$('cases').replaceChildren();for(const c of result.cases){const a=node($('cases'),'article',c.status);node(a,'pre',JSON.stringify(c.definition,null,2));node(a,'small','Valid source count: '+c.source_count);if(c.status==='draft')for(const [approve,label] of [[true,'Verify expectations and approve development case'],[false,'Reject']])button(a,label,()=>api(base+'/review-case','POST',{key:c.key,expected_revision:c.revision,approve}));}}
+else{$('collection').textContent='Structural collection: '+(state.collection_enabled?'Enabled':'Disabled');$('chat').checked=state.chat;$('experience').checked=state.experience;
+const result=await api(base+'/materials');if(expected!==epoch)return;$('materials').replaceChildren();
+for(const [kind,rows] of [['episode',result.episodes],['analysis',result.analyses],['feedback',result.feedback.filter(r=>r.valid)],['event',result.events]])for(const row of rows){const a=node($('materials'),'article',kind==='episode'?(row.verified?'Verified experience':'Usage observation'):'Private observation (not an execution fact)'+(row.status?' · '+row.status:''));node(a,'pre',JSON.stringify(row.projection||row.items||{kind:row.kind,target:row.target,verdict:row.verdict,reason:row.reason},null,2));button(a,'Withdraw learning material',()=>api(base+'/revoke','POST',{kind,key:row.key,expected_revision:row.revision}));
+for(const [index,item] of (row.items||[]).entries())if(item.kind==='preference'&&!item.accepted)button(a,'Confirm saved preference: '+item.label,async()=>{const memory=await api('/api/ai-assistant/memory');return api(base+'/accept-preference','POST',{key:row.key,index,expected_revision:row.revision,memory_revision:memory.revision});});}
+const query=new URLSearchParams(location.search),kind=query.get('kind'),id=query.get('id');if(['turn','pipeline','run','job'].includes(kind)&&/^[0-9a-f-]{36}$/.test(id||''))learningFeedback($('materials'),api,{kind,id});}
+$('status').textContent='Ready';}catch(e){$('status').textContent=e.message;}}
+$('refresh').onclick=refresh;$('settings').onsubmit=async e=>{e.preventDefault();if(!state)return;const b=e.submitter;b.disabled=true;$('status').textContent='Saving…';try{await api(base+(admin?'/configure':'/settings'),'POST',{expected_revision:state.revision,...(admin?{enabled:$('enabled').checked,calls:Number($('calls').value),tokens:Number($('tokens').value)}:{chat:$('chat').checked,experience:$('experience').checked})});await refresh();}catch(e){$('status').textContent=e.message;}finally{b.disabled=false;}};
+if(admin){for(const b of $('backfill').querySelectorAll('button'))b.onclick=async()=>{try{await api(base+'/backfill','POST',{expected_revision:state.revision,event_id:crypto.randomUUID(),action:b.dataset.action});await refresh();}catch(e){$('status').textContent=e.message;}};$('propose').onclick=async()=>{try{await api(base+'/propose-cases','POST',{event_id:crypto.randomUUID(),expected_revision:state.revision});await refresh();}catch(e){$('status').textContent=e.message;}};}
+window.addEventListener('pagehide',()=>epoch++);refresh();})();
+</script></body></html>

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Training memory · Review</title><style>
+:root{color-scheme:dark;font:15px system-ui;background:#0c1421;color:#e4eaf4}*{box-sizing:border-box}body{margin:0;padding:20px}a{color:#90caff}h1{margin:8px 0}button,select,input{font:inherit;color:inherit;background:#172436;border:1px solid #566782;border-radius:6px;padding:8px}button{cursor:pointer}.muted{color:#a4b3c9}.warning{background:#503b18;color:#ffdfa0;padding:12px;border-radius:8px}.layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,1fr);gap:20px;max-width:1600px}section{background:#121e2e;border:1px solid #334155;border-radius:12px;padding:16px;min-width:0}video{width:100%;background:#05080c;max-height:65vh}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}#points{display:flex;gap:5px;flex-wrap:wrap;max-height:180px;overflow:auto}#points button.active{background:#32699c}#points button.pending{border-color:#e6a23c}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.card{border-top:1px solid #334155;margin-top:12px;padding-top:10px}#status{white-space:pre-wrap}#issues{color:#ffcc9f}details{margin-top:12px}@media(max-width:800px){.layout{grid-template-columns:1fr}body{padding:10px}}
+</style></head><body>
+<a href="/remote/{{ location_id }}/memory">← Text memory</a> · <a href="/?page=annotation&tab=text_memory">Annotation</a>
+<h1>Training memory · Review</h1><p class="muted">Frozen training labels · read-only · no human approvals</p>
+<p class="warning">Model-generated experimental labels. A model check is not human approval. Episodes that stopped for review have no labels beyond the stopped checkpoint.</p>
+<p id="summary"></p><div class="row"><label>Episode <select id="episodes" aria-label="Episode"></select></label><label>Filter <select id="filter"><option value="all">All episodes</option><option value="stopped">Needs review</option><option value="complete">Complete draft</option></select></label><button id="previous">Previous episode</button><button id="next">Next episode</button></div><p id="status" role="status">Loading…</p>
+<div class="layout"><section><video id="video" controls preload="metadata"></video><p id="cameras" class="muted"></p><p class="muted">Click a checkpoint or seek in the video.</p><div id="points"></div></section>
+<section><h2 id="position">Select a checkpoint</h2><p id="coverage" class="muted"></p><div class="card"><strong>Task</strong><pre id="task"></pre></div><div class="card"><strong>Previous memory</strong><pre id="previous-memory"></pre></div><div class="card"><strong>Memory</strong><pre id="memory"></pre></div><div class="card"><strong>Next subtask</strong><pre id="subtask"></pre></div><div class="card"><strong>Problems at stopped checkpoint</strong><pre id="issues"></pre></div><details><summary>Facts confirmed through this checkpoint</summary><pre id="facts"></pre></details></section></div>
+<script>
+const MEMORY_REVIEW_LOCATION = {{ location_id|tojson }};
+{% include "memory_training_review.js" %}
+</script></body></html>

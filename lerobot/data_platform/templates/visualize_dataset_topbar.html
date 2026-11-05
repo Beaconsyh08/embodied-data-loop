@@ -1,0 +1,13 @@
+<header class="dp-topbar">
+  <div class="dp-topbar-inner">
+    <div class="dp-topbar-context">
+      <div class="dp-section-kicker">{{ page_kind }}</div>
+      <h1>{{ page_title }}</h1>
+      {% if page_subtitle %}<p>{{ page_subtitle }}</p>{% endif %}
+    </div>
+    <div class="dp-topbar-navigation">
+      {% set nav_compact = true %}
+      {% include "visualize_dataset_nav.html" %}
+    </div>
+  </div>
+</header>

@@ -1,0 +1,8 @@
+<div class="space-y-4 px-4 py-4" x-show="activeTab === 'text_memory'">
+  <div class="dp-card p-5">
+    <h3 class="text-lg font-semibold text-slate-100">Text memory</h3>
+    <p class="mt-2 text-sm text-slate-400">Generate causal Qwen drafts from three camera views, review each checkpoint, and export approved episodes.</p>
+    <p class="mt-2 text-xs text-slate-500">Select a dataset registered on an Agent. Original data and FLORA results stay read-only.</p>
+    <a class="dp-btn dp-btn-primary dp-btn-inline mt-4" :href="temporalCaptionUrl().replace('/temporal-caption', '/memory')" x-show="selectedDataset && temporalCaptionUrl().startsWith('/remote/')">Text memory · Annotation &amp; Review →</a>
+  </div>
+</div>

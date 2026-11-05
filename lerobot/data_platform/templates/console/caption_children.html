@@ -1,0 +1,22 @@
+                                <div x-show="selectedJob()?.caption_group" class="mt-3 space-y-2" data-caption-children>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-sm font-semibold">Video subtasks</span>
+                                        <select aria-label="Video subtask status" x-model="captionChildrenStatus" @change="loadCaptionChildren()" class="rounded border border-slate-700 bg-slate-950 p-2 text-xs">
+                                            <option value="">All videos</option><option value="active">Active</option><option value="error">Failed / skipped</option><option value="done">Completed</option>
+                                        </select>
+                                        <button class="dp-btn" @click="loadCaptionChildren()" :disabled="captionChildrenBusy">Refresh videos</button>
+                                    </div>
+                                    <p class="text-xs text-slate-400">Each video keeps its execution history and result. Select a video for logs or retry controls.</p>
+                                    <p role="alert" class="text-xs text-red-300" x-text="captionChildrenError"></p>
+                                    <div class="max-h-64 space-y-1 overflow-auto">
+                                        <template x-for="child in captionChildren" :key="child.job_id">
+                                            <div class="flex items-center justify-between gap-2 rounded border border-slate-800 px-2 py-2 text-xs">
+                                                <button class="text-sky-300" @click="selectCaptionChild(child)" x-text="'Episode ' + child.options?.episode_index + ' · ' + child.options?.scheme"></button>
+                                                <span x-text="captionChildStatus(child)" :title="child.result?.operator_disposition?.reason || child.error || ''"></span>
+                                                <a x-show="child.result?.review_url" :href="child.result?.review_url" class="text-sky-300">Review result</a>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <button class="dp-btn" x-show="captionChildrenMore" :disabled="captionChildrenBusy" @click="loadCaptionChildren(true)">More videos</button>
+                                </div>
+                                <button class="dp-btn mt-2" x-show="selectedJob()?.caption_child &amp;&amp; captionParentId" @click="selectJob(jobs.find(job => job.id === captionParentId))">Back to dataset job</button>

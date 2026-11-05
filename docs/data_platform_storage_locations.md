@@ -1,0 +1,298 @@
+> 本文所有路径和节点名称均为部署示例，不描述任何已安装环境。
+
+# 开发与生产：代码、数据库和文件具体放在哪里
+
+以下展示可选的双环境布局；实际位置由部署配置决定。
+
+## 先回答“是不是放在一起”
+
+**在同一台机器上的不同目录、不同数据库中，不是开发与生产各占一台机器。**
+
+- Server A（`control-node`，网页地址以当前登记的 HTTPS 入口为准）：同时运行生产和开发 Web、本地执行器、MySQL、Nginx。
+- H100（`gpu-node`，可通过 `ssh gpu-node` 登录）：同时运行生产和开发 Agent，并存放各自的数据集文件。
+- 两套环境共用操作系统、硬件、Nginx 和 MySQL 服务，但不共用业务库、日志库、登录会话或运行状态目录。
+- Git 源码工作区用于修改代码。运行网站使用另外安装的发行包，修改源码文件不会立即改变网站。
+
+**相同路径出现在两台机器上，不代表同一个目录。** 例如 Server A 和 H100 都有开发数据根配置
+`/srv/data-platform-dev/datasets`，但它们是各自机器的本地目录，没有因为名字相同而自动同步。
+在这种布局下，Agent 处理后把 Viewer 缓存上传到 Server A。
+
+## 1. 代码在哪里
+
+主 Git 工作区位于 Server A：
+
+```text
+/path/to/embodied-data-loop
+```
+
+功能开发也使用独立 worktree；运行 `git worktree list` 与 `git log --all` 查找实际实现。
+发布从包含最新线上基线和目标功能的干净集成工作区构建，不能因为主目录名称固定就将其视为最新代码。
+Server B 的 Agent 与数据根按该节点的环境配置登记；不要把 H100 的路径套到 Server B。
+
+生产和开发网站都不是直接从这些工作区启动。部署关系是：
+
+```text
+源码工作区 → Git 提交 → 构建一份发行包 → 安装到 dev / prod 各自目录
+```
+
+### Server A 上运行的网站代码
+
+| 内容 | 生产 prod | 开发 dev |
+| --- | --- | --- |
+| 当前程序入口，软链接 | `/opt/data-platform/prod/current` | `/opt/data-platform/dev/current` |
+| 历史 R2 示例目录 | `/opt/data-platform/prod/releases/R2` | `/opt/data-platform/dev/releases/R2` |
+| 应用源码 | `/opt/data-platform/prod/current/lerobot/data_platform` | `/opt/data-platform/dev/current/lerobot/data_platform` |
+| Python 虚拟环境 | `/opt/data-platform/prod/current/.venv` | `/opt/data-platform/dev/current/.venv` |
+| 所有已安装版本 | `/opt/data-platform/prod/releases` | `/opt/data-platform/dev/releases` |
+
+`current` 是指向当前发行版本的软链接。升级时切换这个链接，旧版本目录保留用于回退。
+**不要直接修改 `current` 或 `releases/R2` 下的文件**：修改应回到 Git 工作区，重新构建新版本。
+
+### H100 上运行的 Agent 代码
+
+| 内容 | 生产 prod | 开发 dev |
+| --- | --- | --- |
+| 当前 Agent 入口 | `/opt/data-platform-agent/prod/current` | `/opt/data-platform-agent/dev/current` |
+| 历史 R2 示例目录 | `/opt/data-platform-agent/prod/releases/R2` | `/opt/data-platform-agent/dev/releases/R2` |
+| Python 虚拟环境 | `/opt/data-platform-agent/prod/current/.venv` | `/opt/data-platform-agent/dev/current/.venv` |
+
+Agent 应用安装在该虚拟环境的 `lib/python3.10/site-packages/lerobot/data_platform` 中。
+它由发行包安装，日常也不在这里直接改代码。完整升级命令会自动更新 H100，无需手动复制源码。
+
+### 共用的发行包仓库
+
+Server A 的 `/var/lib/data-platform-releases` 保存构建好的不可变安装包，例如：
+
+```text
+/var/lib/data-platform-releases/R2/release.json     # 版本、提交和安装包校验信息
+/var/lib/data-platform-releases/R2/server.tar.gz    # Server 源码安装包
+/var/lib/data-platform-releases/R2/approval.json    # 该包的开发验收批准记录
+```
+
+同一目录还保存对应 Agent 安装包与构建测试报告。这是供两边安装的包仓库，不是网站的数据目录。
+
+## 2. 数据库在哪里
+
+四个 MySQL 库都在 **Server A 的同一个 MySQL 服务** 中，服务端口为 `3306`。
+生产业务连接使用本地 Unix socket `/var/run/mysqld/mysqld.sock`，其他当前连接使用本机 TCP。
+两种连接方式到达的是同一个 MySQL 服务。
+
+| 用途 | 生产库名 | 开发库名 |
+| --- | --- | --- |
+| 网页账号、权限、节点、数据集位置登记、任务等业务记录 | `data_platform` | `data_platform_dev` |
+| 操作审计日志 | `data_platform_logs` | `data_platform_logs_dev` |
+
+| 数据库连接账号 | 生产 | 开发 |
+| --- | --- | --- |
+| 业务库账号 | `data_platform_prod` | `data_platform_dev` |
+| 日志库账号 | `data_platform_logs` | `data_platform_logs_dev` |
+
+注意：生产业务**库名是 `data_platform`，连接账号名是 `data_platform_prod`**，两者不同。
+这些是程序连接 MySQL 的账号，不是你登录网页所用的账号。开发网页注册或测试的用户保存在开发库中，
+不会自动出现在生产网页。
+
+MySQL 的物理数据目录是 Server A 的 `/var/lib/mysql/`，库目录分别为：
+
+```text
+/var/lib/mysql/data_platform/
+/var/lib/mysql/data_platform_logs/
+/var/lib/mysql/data_platform_dev/
+/var/lib/mysql/data_platform_logs_dev/
+```
+
+这些目录由 MySQL 管理，并不等于每个库都只有一个可复制文件；事务日志等还可能位于共同的数据目录。
+**不要用文件管理器修改这些文件，也不要复制一个库目录来同步环境。** 使用 SQL 或现有备份/恢复工具。
+数据库连接密码只在受权限保护的环境配置及备份中，不写入本手册。
+
+另外，两套控制台各有独立的 Lifecycle SQLite 文件，记录数据集版本与生命周期状态：
+
+| 生产，Server A | 开发，Server A |
+| --- | --- |
+| `/srv/data-platform/console/static/lifecycle/lifecycle.db` | `/srv/data-platform-dev/console/static/lifecycle/lifecycle.db` |
+
+旁边的 `-wal`、`-shm` 文件是 SQLite 运行文件。备份由工具通过数据库接口完成，不应只在运行时拷走 `.db`。
+
+## 3. 视频、Parquet 和数据集文件在哪里
+
+数据库主要保存管理记录，真正的视频、Parquet、`meta/info.json` 等在文件系统中。
+
+### 数据节点路径示例（由部署者配置）
+
+| 内容 | 生产 prod | 开发 dev |
+| --- | --- | --- |
+| Agent 允许读取的数据根目录 | `/srv/datasets` | `/srv/data-platform-dev/datasets` |
+| Agent 允许写入的输出父目录 | `/srv/datasets` | `/srv/data-platform-dev` |
+| Viewer 预处理缓存位置 | 由具体数据集位置记录指定 | 已有开发任务使用 `/srv/data-platform-dev/datasets/vis` |
+
+Agent 的 `viewer.prepare` 执行期间先写入 `vis/.dp-<job_id>-<attempt_id>/cache`，
+成功后发布到数据集登记的 `output_dir`（默认 `vis/local_vis_<dataset_name>`），再上传缓存。
+若该位置已有缓存，旧目录保留在本次 `.dp-…/previous-cache` 中，便于恢复已有标注等文件；
+不会合并或删除旧缓存。发布支持中断后重试，并同步更新上传记录和结果中的路径。
+此行为需要安装包含该修复的 Agent 版本；旧版本完成的任务可能仍将缓存留在隐藏目录中。
+
+网页端也按数据集位置归档：`remote-cache/<location_id>/static/` 是该位置的固定结果目录。
+`.jobs/<job_id>/<attempt_id>/` 只用于上传中的文件，不再作为已完成 Viewer 的长期目录。
+启动 Web 时会迁移仍登记在 `.jobs` 下的旧缓存，更新登记，并保留旧路径的兼容链接；
+被替换的缓存保留备份。重建 Viewer 时保留人工 Flag、阶段、裁剪、待应用 prompt 和 reviewed 标注。
+若 episode 布局或阶段配置发生变化，不会把不兼容的旧标注套到新结果上，旧副本仍在备份中。
+任务配置已过期的完成结果归档到 `.history/<location_id>/<job_id>/<attempt_id>/`，不覆盖当前结果。
+
+网页是这些标注结果的主副本。Agent 约每 10 秒通过独立后台线程检查有变化的 JSON/JSONL 结果文件，
+校验数据集与文件摘要后写到其登记的 `output_dir/static/`（默认上述 `vis/local_vis_…/static/`）。
+任务运行或槽位占满时继续回传，上一轮尚未完成时不会重复启动同步线程。
+仅同一数据集的源修改任务未确认完成、或缓存正在发布时推迟该位置的写入并自动重试，其他位置继续同步；
+下载和确认请求不持有本地写入锁，缓存发布与回传写入使用同一把锁，避免覆盖刚回传的标注。
+只有 Agent 确认写入成功后，Viewer 才显示“Results synced”；离线、权限不足或网络失败会保持待同步
+或显示失败，随后自动重试。旧 Agent 会提示需要升级。回传不修改源 Parquet、视频或 `meta/`；
+将标注应用到源数据仍是独立操作。已同步文件被删除时只删除对应受同步管理的文件，覆盖前保留备份。
+Server A 发布远端 Viewer 缓存时，将 `static/csv/episode_*_ds*.csv` 原子压缩为 `.csv.gz`，
+并逐文件校验解压内容后移除原 CSV。旧 CSV 与 gzip CSV 可以混用；Viewer 的 `data.csv` 和
+`assets/.../csv/*.csv` 地址保持不变，读取、阶段编辑、分析和缓存失效支持两种格式。
+编辑已压缩 CSV 后仍保存为 gzip，阶段编码 `.stages.json`、其他标注及 MP4 保持原格式。
+结果同步沿用逻辑 `.csv` 文件名和解压内容的字节数/SHA-256；仅压缩不改变结果 revision。
+缓存重建保留已有编辑，Agent 应用结果后仍校验内容并确认相同 revision。
+在混合版本部署或回退到不支持 gzip 的版本前，须在结果锁保护下将服务器缓存解压回 CSV；
+旧版 Server 不支持读取 gzip 缓存。
+
+视频和完整 CSV 缓存不重复回传；结果同步覆盖顶层 JSON/JSONL，以及 labeling、tagging、analysis、
+annotations 下的 JSON/JSONL（不含审计日志），并包含网页阶段编辑实际修改过的 CSV 和阶段编码文件。
+单个数据集的结果文件合计上限 64 MiB；超限显示同步异常，不会误报成功。
+Server A 和 Agent 都需安装包含此协议的版本，按先 Server A、后 Agent 的顺序更新。
+
+之前复制过来的开发副本，例如 UMI 样本，位于：
+
+```text
+H100:/srv/data-platform-dev/datasets/dev-sample-umi
+H100:/srv/data-platform-dev/datasets/dev-sample-recording
+H100:/srv/data-platform-dev/datasets/example-dataset
+H100:/srv/data-platform-dev/datasets/example-dataset
+H100:/srv/data-platform-dev/datasets/example-dataset
+```
+
+它们是独立副本，不是指向生产源数据的链接。开发环境对这些副本的修改不会写回原生产数据。
+这里的 `H100:` 只是注明所在机器，并不是目录名称的一部分。
+
+### Server A：本地数据根、控制台和远端缓存
+
+| 内容 | 生产 prod | 开发 dev |
+| --- | --- | --- |
+| 本机配置的数据根目录 | `/path/to/datasets` | `/srv/data-platform-dev/datasets` |
+| 控制台输出目录 | `/srv/data-platform/console` | `/srv/data-platform-dev/console` |
+| 接收 H100 上传的 Viewer 缓存 | `/srv/data-platform/remote-cache` | `/srv/data-platform-dev/remote-cache` |
+| 本地执行器状态 | `/srv/data-platform/console/management` | `/srv/data-platform-dev/console/management` |
+
+这解释了为什么“数据在 H100”但网页仍能在 Server A 显示：Agent 在 H100 读取源数据，
+生成缓存并上传到 Server A 的 `remote-cache`，Web 再提供页面、视频和曲线。
+这里的缓存不等于源数据全集。
+
+`console/static/operation_log.jsonl` 是文件操作审计账本，不是视频或数据集副本。
+它按解压后 32 MiB 阈值轮转，当前账本保持 JSONL，历史账本无损压缩为 `.1.gz` 至 `.4.gz`；
+读取兼容旧的 `.1` 至 `.4`，单条超大事件可能超过轮转阈值。
+网页仍能查询轮转账本中的近期操作，MySQL 中的审计记录独立保留。
+`dp_dataset_locations` 保存数据集位置与元信息；源目录删除后，登记从可用列表移除，数据库仅保留
+删除状态供历史 Job 和 lineage 引用。无变化的周期同步减少存在时间更新，
+避免将相同的大块元信息反复记录到数据库变更流水。数据库和发行历史的保留策略参见
+[运维手册](data_platform_operations.md#5-怎么确认更新完成)。
+
+### 原始目录删除后的清理
+
+当前版本的本机执行器和远端 Agent 在独立后台线程中检查已登记源路径，每批最多 50 个，
+不占计算槽、不扫描数据内容。只有原始目录确实不存在、父目录可读且两次检查的文件系统身份一致时，
+才停止该位置的新任务、取消尚未执行且依赖它的任务，并从可用数据集列表移除。
+节点离线、权限不足、I/O 错误、悬空符号链接、仅缺少 `meta/info.json` 或内容损坏均不能触发清理。
+cache-only 的远端占位路径不当作原始数据检查。
+
+已有运行、取消待确认或 interrupted 任务仍保留其工作缓存；清理等待它们退出并确认。
+随后删除该位置所属的 Agent Viewer 缓存、已确认退出任务的临时计算缓存，以及 Server A 对应的
+`remote-cache/<location_id>`、上传 staging、历史/备份缓存和计算报告。历史 Job、版本身份、
+Curation 决策与 lineage 数据库记录保留；独立派生数据集不随输入删除。
+共享缓存、未知归属、越出可写根或包含独立登记数据的目录会延后并记录原因，不递归删除源目录。
+单数据集控制台与 Viewer 共用目录时，只删除数据缓存及其辅助备份，保留管理数据库、身份配置和平台审计。
+自定义缓存的归属验证记录目录 inode/device，部分删除后可重试，目录被替换时不沿用旧证明。
+清理进度写入 `dp_source_cleanups`，节点/服务重启或磁盘失败后可重试；已清理部分不要求重新计算。
+源路径在清理前恢复会撤销待清理状态；清理后重新加入需要重新扫描，缓存需重新准备。
+
+## 4. 配置、运行状态和备份在哪里
+
+### Server A
+
+| 内容 | 生产 prod | 开发 dev |
+| --- | --- | --- |
+| 环境配置 | `/etc/data-platform/prod/server.env` | `/etc/data-platform/dev/server.env` |
+| 最近一次部署状态 | `/opt/data-platform/prod/deployment.json` | `/opt/data-platform/dev/deployment.json` |
+| 成功升级历史 | `/opt/data-platform/prod/update-history.jsonl` | `/opt/data-platform/dev/update-history.jsonl` |
+| 升级前备份 | `/opt/data-platform/prod/backups` | `/opt/data-platform/dev/backups` |
+| Python 依赖下载缓存 | `/var/cache/data-platform-uv/prod` | `/var/cache/data-platform-uv/dev` |
+| Nginx 配置 | `/etc/nginx/sites-available/data-platform-prod` | `/etc/nginx/sites-available/data-platform-dev` |
+
+额外的首次迁移备份在 `/var/lib/data-platform-deployment/`。配置和备份可能包含凭据，
+不要提交进 Git，也不要直接发到聊天或共享文档中。
+
+### H100
+
+| 内容 | 生产 prod | 开发 dev |
+| --- | --- | --- |
+| Agent 环境配置 | `/etc/data-platform/prod/agent.env` | `/etc/data-platform/dev/agent.env` |
+| Agent 身份文件 | `/var/lib/data-platform-agent-prod/agent.json` | `/var/lib/data-platform-agent-dev/agent.json` |
+| Agent 执行状态父目录 | `/var/lib/data-platform-agent-prod` | `/var/lib/data-platform-agent-dev` |
+| Python 依赖下载缓存 | `/var/cache/data-platform-agent/prod/uv` | `/var/cache/data-platform-agent/dev/uv` |
+
+Agent 身份文件含节点令牌，不应把生产的身份文件复制给开发。旧的非分环境安装目录和配置作为迁移恢复资料
+保留；迁移后核实服务使用按环境分离的发行目录。
+
+## 5. 怎么自己查
+
+在 Server A 看当前实际运行版本：
+
+```bash
+readlink -f /opt/data-platform/prod/current
+readlink -f /opt/data-platform/dev/current
+```
+
+进入 H100 查 Agent 和开发样本：
+
+```bash
+ssh gpu-node
+readlink -f /opt/data-platform-agent/prod/current
+readlink -f /opt/data-platform-agent/dev/current
+ls /srv/data-platform-dev/datasets
+exit
+```
+
+后续更新命令请看 [当前环境构成与更新手册](data_platform_operations.md)。
+记住三个动作的区别：**改工作区代码 → 构建发行包 → 部署到指定环境**。
+这三个动作都不会自动把开发数据库或样本复制覆盖到生产。
+
+## 算子与流程新增状态
+
+流程定义、不可变 revision、运行与步骤状态使用现有管理数据库中的 `dp_pipeline*` 表。
+检测报告继续进入 lifecycle 目录旁的 `curation/runs/`；普通新算子的报告位于 `operator-results/<job_id>/`。
+上传仍先进入 `curation/.jobs/<job_id>/<attempt_id>/`，校验后发布。计算节点的 `operator-work/`
+保存按 Job/Attempt 隔离的工作文件与版本快照。数据转换输出是已登记源目录的独立 sibling，
+不在原始数据根内存放控制面状态。详见 [算子与流程](data_platform_operators.md)。
+
+### Optional object archive
+
+OSS artifacts live only under `data-platform/dev/` or `data-platform/prod/` in the configured Bucket.
+Content-addressed gzip objects are checked against both compressed and original SHA-256 before
+publication. References reuse existing result records or file manifests; no additional database
+is introduced. Original datasets, hot Viewer caches, permissions, leases and recovery state stay
+on their current storage. The archive's `pending`, `cache`, `receipts` and `migrations` directories
+belong outside all dataset roots. On Server A these are under `/srv/data-platform-dev/archive`
+and `/srv/data-platform/archive`, respectively. Failed uploads remain pending within the configured
+byte limit. Configuration and service ownership are documented in
+[operations](data_platform_operations.md#bounded-lists-and-optional-oss-archive).
+
+[Offline MEM exports](mem_export.md) remain on the source host at the explicitly chosen sibling
+output path. Their raw PNG views can exceed compressed video size; they are not automatically
+queued for OSS or stored in the control database.
+
+Owned success/failure acceptance attachments expire after 30/90 days; database backups retain
+30 days and at least the newest three. Cleanup requires a protected-object inventory for current
+and rollback release evidence. Referenced reports never expire automatically. Bucket lifecycle
+rules must not expire the reports prefix; incomplete multipart uploads may expire after seven days.
+The cleanup worker lists and deletes the expired owned object's versions and delete markers.
+Multipart cleanup is explicit and bounded. No lifecycle rule may change
+other applications' prefixes. OSS download traffic and requests can incur charges even when local
+storage usage is bounded. Database page reuse is not the same as reducing its physical file size;
+this workflow never automatically rebuilds tables or vacuums a live database.

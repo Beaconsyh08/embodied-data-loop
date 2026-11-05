@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UMI · 轨迹版本对比</title>
+<link rel="stylesheet" href="review.css">
+</head>
+<body>
+<header><div><span class="eyebrow">UMI TRACKER REVIEW</span><h1>原始数据与试修复对比</h1></div><div id="batch-summary" class="batch-summary">正在加载结果…</div></header>
+<nav id="evidence-links" class="evidence-links" aria-label="诊断与试点报告" hidden></nav>
+<div class="layout">
+<aside><label for="filter">示范列表</label><select id="filter"><option value="all">全部 episode</option><option value="regression">数值指标恶化</option><option value="residual">存在残余跳变</option><option value="clean">未检出严重残余跳变</option></select><div class="legend-small">红：残余跳变　橙：部分指标恶化</div><nav id="episodes" aria-label="Episode 列表"></nav><p class="aside-note">所有 episode 均保留。数值检查通过不代表已恢复真实动作。</p></aside>
+<main>
+<section class="episode-header"><div><h2 id="episode-title">选择 episode</h2><p id="episode-info"></p></div><a id="download" class="button" download>下载完整对比视频</a></section>
+<p id="task" class="task"></p>
+<div id="status" class="notice">正在加载…</div>
+<div id="replay-result" class="notice" hidden></div>
+<section class="card video-card"><video id="video" controls preload="metadata" playsinline aria-label="完整三视角与前后轨迹对比视频"></video><div class="video-caption">三路图像为前后共同保留的原始画面；下方分别显示原始与修复后 Tracker。两侧坐标尺度一致，原速播放。</div></section>
+<section class="card scrubber"><div class="transport"><button id="previous" aria-label="上一帧">← 上一帧</button><button id="play">播放</button><button id="next" aria-label="下一帧">下一帧 →</button><button id="next-anomaly">下个异常</button><label>帧号 <input id="frame-number" type="number" min="0" value="0"></label><strong id="time-label"></strong></div><input id="scrub" type="range" min="0" max="1" value="0" step="1" aria-label="同步帧游标"></section>
+<section class="card details"><div class="toolbar"><label>修复方法 <select id="method"><option value="openpi">已有试修复</option><option value="cosmos" disabled>Cosmos ID 试点候选</option></select></label><label>Tracker <select id="part"><option value="left_arm">左手</option><option value="right_arm">右手</option><option value="head">头部</option></select></label><label>曲线 <select id="metric"><option value="position">XYZ 位置（m）</option><option value="rotation">相对首帧旋转向量（°）</option><option value="speed">线速度（m/s）</option><option value="angular_speed">角速度（°/s）</option></select></label><label>起始帧 <input id="range-start" type="number" value="0" min="0"></label><label>结束帧 <input id="range-end" type="number" value="0" min="0"></label><button id="reset-range">显示整条</button></div><div class="curve-legend"><span>── 修复后</span><span>┄┄ 原始</span><span class="xyz">X / Y / Z 使用不同颜色</span></div><canvas id="chart" height="300" role="img" aria-label="共享坐标的原始与修复曲线，点击可跳转帧"></canvas><div class="chart-caption">底部黄色带：采集标记为 false；紫色带：位姿数值被修改。点击曲线可跳转到对应帧。</div><div id="cursor-values" class="cursor-values"></div></section>
+<section class="card"><div class="section-title"><h3>当前帧三路 Tracker</h3><span>位置修正量为原始与修复后位置的距离</span></div><div class="table-wrap"><table><thead><tr><th>部位</th><th>采集标记</th><th>位姿被修改</th><th>位置修正量</th><th>原始位置步长</th><th>修复后位置步长</th></tr></thead><tbody id="frame-table"></tbody></table></div></section>
+<section class="card"><h3>本条数值检查</h3><div class="table-wrap"><table><thead><tr><th>部位</th><th>位置步长 &gt;100 mm</th><th>旋转步长 &gt;10°</th><th>最大位置步长</th><th>修改帧数</th></tr></thead><tbody id="metrics-table"></tbody></table></div><p class="footnote">表中“原始 → 修复后”。采集有效性标记和轨迹数值异常是两种独立证据；false 不等于这一帧必然需要修复。</p></section>
+<section class="card"><h3>修复区间</h3><div id="segments"></div></section>
+<footer>本页显示所选数据版本的观测与候选轨迹；数值检查、机器人回放和人工验收分别记录。</footer>
+</main></div>
+<script src="manifest.js"></script><script src="review.js"></script>
+</body></html>

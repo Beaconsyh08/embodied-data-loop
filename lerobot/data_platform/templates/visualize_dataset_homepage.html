@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embodied Data Loop Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>{% include "data_platform_interactions.js" %}</script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {% include "data_platform_workspace_styles.html" %}
+    <style>
+        .dp-app-header {
+            background: rgba(2, 6, 23, 0.94);
+            border: 1px solid rgba(51, 65, 85, 0.82);
+            border-radius: 0.75rem;
+            box-shadow: 0 12px 35px rgba(2, 6, 23, 0.28);
+        }
+        .dp-header-grid {
+            display: grid;
+            gap: 0.75rem;
+            grid-template-areas:
+                "brand jobs"
+                "workspace workspace"
+                "dataset dataset";
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+        .dp-header-brand { grid-area: brand; }
+        .dp-header-workspace { grid-area: workspace; }
+        .dp-header-dataset { grid-area: dataset; }
+        .dp-header-utilities { grid-area: jobs; }
+        .dp-header-grid-import { grid-template-areas: "brand jobs" "workspace workspace"; }
+        .dp-workspace-nav button {
+            flex: 1 1 0;
+        }
+        .dp-section-block {
+            border-bottom: 1px solid #1e293b;
+            padding: 1rem 1.25rem;
+        }
+        .dp-empty-state {
+            align-items: center;
+            background: rgba(2, 6, 23, 0.48);
+            border: 1px dashed #334155;
+            border-radius: 0.625rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 9rem;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .dp-context-card {
+            background: rgba(2, 6, 23, 0.48);
+            border: 1px solid #1e293b;
+            border-radius: 0.625rem;
+        }
+        .dp-mono,
+        pre,
+        [x-ref="jobLogBox"] {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        }
+        .dp-main-canvas .dp-btn, .dp-main-canvas .dp-link-btn { width: 100%; }
+        .dp-main-canvas .dp-btn-inline, .dp-main-canvas .dp-btn-compact { width: auto; }
+        .dp-action-row,
+        .dp-open-grid {
+            display: grid;
+            gap: 0.5rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .dp-full {
+            grid-column: 1 / -1;
+        }
+        [x-cloak] {
+            display: none !important;
+        }
+        .dp-main-canvas > section {
+            min-width: 0;
+            overflow: hidden;
+        }
+        .dp-main-canvas input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .dp-main-canvas select,
+        .dp-main-canvas textarea {
+            border-radius: 0.5rem;
+            transition: border-color 120ms ease, box-shadow 120ms ease;
+        }
+        .dp-main-canvas input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+        .dp-main-canvas select:focus,
+        .dp-main-canvas textarea:focus {
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1);
+        }
+        .dp-main-canvas .rounded {
+            border-radius: 0.5rem;
+        }
+        .dp-page-nav {
+            scrollbar-width: none;
+        }
+        .dp-page-nav::-webkit-scrollbar {
+            display: none;
+        }
+        @media (min-width: 1024px) {
+            .dp-header-grid {
+                align-items: center;
+                grid-template-areas: "brand workspace dataset jobs";
+                grid-template-columns: auto auto minmax(16rem, 1fr) auto;
+            }
+            .dp-header-grid-import {
+                grid-template-areas: "brand workspace jobs";
+                grid-template-columns: auto minmax(0, 1fr) auto;
+            }
+            .dp-header-dataset {
+                justify-self: end;
+                max-width: 24rem;
+                width: 100%;
+            }
+            .dp-workspace-nav button {
+                flex: none;
+            }
+        }
+        @media (max-width: 768px) {
+            .dp-action-row,
+            .dp-open-grid {
+                grid-template-columns: 1fr;
+            }
+            .dp-page-header,
+            .dp-section-block {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+        @media (max-width: 640px) {
+            body .dp-app-header { position: static; }
+            .dp-header-grid {
+                grid-template-areas: "brand" "workspace" "dataset" "jobs";
+                grid-template-columns: minmax(0, 1fr);
+            }
+            .dp-header-grid-import { grid-template-areas: "brand" "workspace" "jobs"; }
+            .dp-header-utilities { flex-wrap: wrap; justify-content: flex-start; }
+        }
+        {% include "curation.css" %}
+    </style>
+</head>
+<body class="min-h-screen text-sm text-slate-200 antialiased"
+      x-data="precomputeConsole()"
+      x-effect="syncOptionRules()">
+    <a class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:bg-slate-900 focus:p-3" href="#console-main">Skip to content</a>
+    <div class="fixed bottom-4 right-4 z-50 max-w-xl rounded-lg border border-slate-600 bg-slate-900 p-4 shadow-xl"
+         x-cloak x-show="error || remoteError || submissionNotice" role="status" aria-live="polite">
+        <p :class="error || remoteError ? 'text-red-200' : 'text-sky-200'"
+           x-text="error || remoteError || submissionNotice"></p>
+        <button class="mt-2 text-xs underline" @click="error = ''; remoteError = ''; submissionNotice = ''">Dismiss</button>
+    </div>
+    <div class="dp-console-shell mx-auto max-w-[1680px] px-3 py-3 sm:px-5 sm:py-4">
+        <header class="dp-app-header sticky top-2 z-30 mb-5 backdrop-blur">
+            <div class="dp-header-grid px-3 py-3 sm:px-4" :class="{'dp-header-grid-import': activePage === 'mcap_import'}">
+                <div class="dp-header-brand flex min-w-0 items-center gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sky-800/80 bg-sky-950/70 text-sm font-bold text-sky-200">ED</div>
+                    <div class="min-w-0">
+                        <h1 class="truncate text-base font-semibold tracking-tight text-slate-50">
+                            <span class="sm:hidden">Data Loop</span>
+                            <span class="hidden sm:inline">Embodied Data Loop</span>
+                        </h1>
+                    </div>
+                    <span class="rounded-full border border-sky-800 bg-sky-950/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300"
+                          x-show="consoleMode !== 'full'"
+                          x-text="`${consoleMode}`"></span>
+                </div>
+                <nav class="dp-header-workspace dp-workspace-nav flex rounded-lg border border-slate-800 bg-slate-950/70 p-1 text-xs" aria-label="Workspace">
+                        <template x-for="group in availableGroups()" :key="group.key">
+                            <button class="whitespace-nowrap rounded-md px-3 py-2 font-medium"
+                                    :class="activeWorkspace === group.key ? 'bg-sky-900/70 text-sky-100 shadow-sm' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'"
+                                    :aria-current="activeWorkspace === group.key ? 'page' : null"
+                                    @click="selectWorkspace(group.key)">
+                                <span x-text="group.label"></span>
+                            </button>
+                        </template>
+                </nav>
+                <div class="dp-header-dataset relative min-w-0 text-xs" x-show="activePage !== 'mcap_import'" @click.outside="datasetPickerOpen = false" @keydown.escape.stop="closeDatasetPicker()">
+                        <button class="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-2 text-left hover:border-sky-600"
+                                @click="toggleDatasetPicker()" x-ref="datasetPickerTrigger"
+                                :aria-expanded="datasetPickerOpen" aria-controls="dataset-picker"
+                                aria-label="Select current dataset">
+                            <span class="min-w-0">
+                                <span class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Working dataset</span>
+                                <span class="block truncate font-medium text-slate-100"
+                                      x-text="selectedDataset ? `${datasetName(selectedDataset)} · ${datasetServerName(selectedDataset)}` : 'Select a dataset'"></span>
+                            </span>
+                            <span class="flex items-center gap-2">
+                                <span class="h-2 w-2 rounded-full" :class="selectedDataset ? 'bg-emerald-400' : 'bg-slate-600'"></span>
+                                <span class="text-slate-500">▾</span>
+                            </span>
+                        </button>
+                        <div class="absolute inset-x-0 z-40 mt-2 min-w-0 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-2xl sm:min-w-[20rem]"
+                             id="dataset-picker" x-cloak x-show="datasetPickerOpen">
+                            <input class="mb-2 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-sky-500"
+                                   x-ref="datasetPickerSearch" aria-label="Search all datasets"
+                                   x-model.debounce.150ms="datasetPickerSearch"
+                                   placeholder="Search datasets">
+                            <div class="max-h-72 space-y-1 overflow-y-auto">
+                                <template x-if="pickerDatasets().length === 0">
+                                    <div class="px-2 py-3 text-slate-400" role="status"><p>No dataset matches.</p><button class="mt-2 text-sky-300" x-show="datasetPickerSearch" @click="datasetPickerSearch = ''; $refs.datasetPickerSearch.focus()">Clear search</button></div>
+                                </template>
+                                <template x-for="dataset in pickerDatasets()" :key="dataset.key">
+                                    <button class="flex w-full items-center justify-between gap-3 rounded px-2 py-2 text-left hover:bg-slate-800"
+                                            :class="selectedDatasetKey === dataset.key ? 'bg-sky-950/50 text-sky-200' : 'text-slate-300'"
+                                            @click="selectDatasetFromPicker(dataset)">
+                                        <span class="min-w-0">
+                                            <span class="flex min-w-0 items-center gap-2">
+                                                <span class="truncate" x-text="datasetName(dataset)"></span>
+                                                <span class="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400"
+                                                      x-text="datasetServerName(dataset)"></span>
+                                            </span>
+                                            <span class="block truncate text-[10px] text-slate-500" x-text="dataset.root"></span>
+                                        </span>
+                                        <span class="shrink-0 text-[10px]" x-text="datasetStatusText(dataset)"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <button class="mt-2 w-full border-t border-slate-800 px-2 pt-3 text-left text-sky-300 hover:text-sky-200"
+                                    @click="datasetPickerOpen = false; selectPage('datasets')">Manage datasets</button>
+                        </div>
+                </div>
+                <div class="dp-header-utilities flex items-center justify-end gap-2 text-xs"
+                     @click.outside="adminMenuOpen = false">
+                    {% if control_plane_enabled %}
+                    <a href="/?page=preprocessing&tab=pipelines" @click.prevent="selectTab('pipelines')"
+                       class="flex min-h-[2.75rem] items-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-semibold text-sky-200 hover:border-sky-700">Pipelines</a>
+                    <a href="/control-plane"
+                       class="flex min-h-[2.75rem] items-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-semibold text-sky-200 hover:border-sky-700">
+                        Platform management
+                    </a>
+                    {% endif %}
+                    <div class="relative">
+                        <button class="flex min-h-[2.75rem] items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 font-semibold"
+                                :class="adminModeEnabled ? 'border-red-700 bg-red-950/60 text-red-100' : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-red-800 hover:text-red-200'"
+                                @click="toggleAdminMode()"
+                                :title="controlPlaneEnabled ? 'Central platform account' : 'Administrator access for legacy in-place operations'">
+                            <span class="h-2 w-2 rounded-full"
+                                  :class="adminModeEnabled ? 'bg-red-400' : 'bg-slate-600'"></span>
+                            <span x-text="accountButtonLabel()"></span>
+                        </button>
+                        <div class="absolute right-0 z-50 mt-2 w-72 rounded-lg border border-red-900/70 bg-slate-900 p-3 shadow-2xl"
+                             x-cloak x-show="adminMenuOpen && (controlPlaneEnabled || adminModeEnabled)">
+                            <template x-if="controlPlaneEnabled">
+                                <div>
+                                    <div class="text-xs font-semibold text-red-200"
+                                         x-text="adminModeEnabled ? 'Administrator account' : 'Platform account'"></div>
+                                    <p class="mt-1 text-[11px] leading-5 text-slate-400"
+                                       x-text="adminModeEnabled ? 'Manage jobs, users and platform activity from Platform management in the header.' : 'Your role controls which platform actions are available.'"></p>
+                                    <div class="mt-3 flex gap-2">
+                                        <button class="dp-btn dp-btn-secondary dp-btn-compact"
+                                                @click="signOutAccount()">Sign out</button>
+                                        <a class="dp-btn dp-btn-secondary dp-btn-compact" href="/account/password">Change password</a>
+                                    </div>
+                                </div>
+                            </template>
+                            <template x-if="!controlPlaneEnabled">
+                                <div>
+                                    <div class="text-xs font-semibold text-red-200">Admin Mode enabled</div>
+                                    <p class="mt-1 text-[11px] leading-5 text-slate-400">
+                                        Legacy in-place controls are unlocked. Source-protected datasets remain blocked.
+                                    </p>
+                                    <div class="mt-3 grid grid-cols-2 gap-2">
+                                        <button class="dp-btn dp-btn-secondary dp-btn-compact"
+                                                @click="adminMenuOpen = false; openAdminDialog('change')">Change password</button>
+                                        <button class="dp-btn dp-btn-danger dp-btn-compact"
+                                                @click="adminMenuOpen = false; disableAdminMode()">Exit Admin</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <button class="flex min-h-[2.75rem] min-w-[7.5rem] items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                                :class="failedJobs().length ? 'border-red-800 bg-red-950/30 text-red-200' : 'border-slate-700 bg-slate-900 text-slate-200 hover:border-sky-700'"
+                                @click="openJobDrawer()" aria-label="Open jobs" aria-haspopup="dialog" :aria-expanded="jobDrawerOpen">
+                        <span class="flex items-center gap-2 font-medium">
+                            <span class="h-2 w-2 rounded-full" :class="runningJobs().length ? 'animate-pulse bg-sky-400' : failedJobs().length ? 'bg-red-400' : 'bg-slate-600'"></span>
+                            Jobs
+                        </span>
+                        <span class="text-slate-400" x-text="jobButtonSummary()"></span>
+                    </button>
+                </div>
+            </div>
+            <nav class="dp-page-nav flex gap-1 overflow-x-auto border-t border-slate-800 px-2 py-2 text-xs sm:px-3" aria-label="Feature pages">
+                <template x-for="page in currentPages()" :key="page.key">
+                    <button class="shrink-0 rounded-md border px-3 py-2 font-medium"
+                            :class="activePage === page.key ? 'border-sky-800/70 bg-sky-950/70 text-sky-100' : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'"
+                            :aria-current="activePage === page.key ? 'page' : null"
+                            @click="selectPage(page.key)">
+                        <span x-text="page.label"></span>
+                    </button>
+                </template>
+            </nav>
+<div x-effect="window.syncPlatformAssistant?.({
+    owner:controlPlaneUser?.user_id, role:controlPlaneUser?.role,
+    locationId:selectedRemoteLocation?.location_id || selectedDataset?.remote_location_id,
+    label:selectedRemoteLocation?.dataset_key || selectedDataset?.name, page:activePage,
+    ...(activePage === 'runs' && selectedJob()?.remote && !selectedJob()?.caption_group ? {
+        type:'job', targetId:selectedJob().id,
+        locationId:selectedJob().dataset_key?.replace(/^remote:/,''),
+        label:selectedJob().dataset_name || selectedJob().dataset_key
+    } : {})
+})"></div>
+</header>
+
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm"
+             x-cloak x-show="adminDialogOpen && !controlPlaneEnabled"
+             x-effect="window.syncConsoleDialog($el, adminDialogOpen && !controlPlaneEnabled)"
+             @keydown.escape.window="closeAdminDialog()">
+            <form class="w-full max-w-md rounded-xl border border-red-900/70 bg-slate-900 p-5 shadow-2xl"
+                  role="dialog" aria-modal="true" :aria-label="adminDialogTitle()" tabindex="-1"
+                  @submit.prevent="submitAdminDialog()" @click.outside="closeAdminDialog()">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-red-300">Admin Mode</div>
+                        <h2 class="mt-1 text-lg font-semibold text-slate-50" x-text="adminDialogTitle()"></h2>
+                    </div>
+                    <button type="button" class="text-slate-500 hover:text-slate-200" @click="closeAdminDialog()">✕</button>
+                </div>
+                <p class="mt-3 text-xs leading-5 text-slate-400" x-text="adminDialogDescription()"></p>
+                <label class="mt-4 block" x-show="adminDialogMode === 'change'">
+                    <span class="mb-1 block text-xs text-slate-400">current password</span>
+                    <input type="password" autocomplete="current-password"
+                           class="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-red-600"
+                           x-model="adminForm.currentPassword">
+                </label>
+                <label class="mt-4 block">
+                    <span class="mb-1 block text-xs text-slate-400"
+                          x-text="adminDialogMode === 'login' ? 'password' : 'new password'"></span>
+                    <input type="password" :autocomplete="adminDialogMode === 'login' ? 'current-password' : 'new-password'"
+                           class="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-red-600"
+                           x-model="adminForm.password" minlength="8" maxlength="256" autofocus>
+                </label>
+                <label class="mt-3 block" x-show="adminDialogMode !== 'login'">
+                    <span class="mb-1 block text-xs text-slate-400">confirm password</span>
+                    <input type="password" autocomplete="new-password"
+                           class="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-red-600"
+                           x-model="adminForm.confirmPassword" minlength="8" maxlength="256">
+                </label>
+                <p class="mt-3 rounded border border-red-900/60 bg-red-950/30 px-3 py-2 text-xs text-red-200"
+                   x-show="adminDialogError" x-text="adminDialogError"></p>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button type="button" class="dp-btn dp-btn-secondary" @click="closeAdminDialog()">Cancel</button>
+                    <button type="submit" class="dp-btn dp-btn-danger" :disabled="adminDialogBusy"
+                            x-text="adminDialogBusy ? 'Saving...' : adminDialogSubmitLabel()"></button>
+                </div>
+            </form>
+        </div>
+
+        <main id="console-main" tabindex="-1" class="dp-main-canvas space-y-4">
+            {% include 'mcap_import.html' %}
+            <section class="dp-page-surface flex flex-col"
+                     x-cloak x-show="activePage === 'datasets'">
+                <div class="dp-page-header">
+                    <div class="dp-page-kicker">Data Platform</div>
+                    <h2 class="dp-page-title mt-1">Datasets</h2>
+                    <p class="dp-page-description">Find and select a dataset to start working.</p>
+                </div>
+
+                <div class="dp-section-block" x-show="selectedDataset" aria-label="Continue with working dataset">
+                    <p class="font-medium text-slate-100">Continue with <span x-text="selectedDataset ? datasetName(selectedDataset) : ''"></span></p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button class="dp-btn dp-btn-primary dp-btn-inline" x-show="tabEnabled('explore_overview')" @click="selectTab('explore_overview')">Explore &amp; Viewer</button>
+                        <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="tabEnabled('quality_flags')" @click="selectTab('quality_flags')">Quality review</button>
+                        <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="controlPlaneEnabled && tabEnabled('quality_report')" @click="selectTab('quality_report')">Data report</button>
+                        <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="tabEnabled('temporal_caption')" @click="selectTab('temporal_caption')">Temporal Caption</button>
+                        <button class="dp-btn dp-btn-secondary dp-btn-inline" @click="openJobDrawer(true)">Jobs for this dataset</button>
+                    </div>
+                </div>
+                <section class="dp-section-block" aria-labelledby="dataset-scan-heading">
+                    <h3 id="dataset-scan-heading" class="text-sm font-medium text-sky-200">Change server or scan a folder</h3>
+                    <div class="mb-3 mt-3">
+                        <div class="dp-section-kicker">Discover</div>
+                        <h4 class="mt-1 font-semibold text-slate-100">Scan a path on one server</h4>
+                        <p class="mt-1 text-xs text-slate-400">Choose a server and directory, or enter a custom path.</p>
+                    </div>
+                    <div class="grid gap-3 lg:grid-cols-[minmax(12rem,0.35fr)_minmax(0,1fr)]">
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-medium text-slate-300">Server</span>
+                            <select class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-sky-500"
+                                    x-model="datasetServerFilter"
+                                    @change="onDatasetServerChange()">
+                                <option value="local">Server A (local)</option>
+                                <template x-for="node in controlPlaneNodes" :key="`dataset-server-${node.node_id}`">
+                                    <option :value="node.node_id" x-text="`${node.name} (${node.status})`"></option>
+                                </template>
+                            </select>
+                        </label>
+                        <div class="space-y-3">
+                            <label class="block">
+                                <span class="mb-1.5 block text-xs font-medium text-slate-300">Known directory</span>
+                                <select class="dp-mono w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-sky-500"
+                                        :value="scanPathPreset()"
+                                        @change="selectScanPath($event.target.value)">
+                                    <option value="">Custom path…</option>
+                                    <template x-for="path in knownScanPaths()" :key="path">
+                                        <option :value="path" x-text="path"></option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label class="block">
+                                <span class="mb-1.5 block text-xs font-medium text-slate-300">Scan path / custom subdirectory</span>
+                                <div class="flex flex-col gap-2 sm:flex-row">
+                                    <input class="dp-mono min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500"
+                                           x-ref="customScanPath"
+                                           x-model="scanPath"
+                                           @input="onScanPathInput()"
+                                           @keydown.enter.prevent="scanSelectedServer()"
+                                           :placeholder="datasetServerFilter === 'local' ? '/path/on/server-a' : '/path/on/selected-agent'">
+                                    <button class="dp-btn dp-btn-primary dp-btn-inline shrink-0 sm:min-w-[7rem]"
+                                            @click="scanSelectedServer()"
+                                            :disabled="scanBusy || busy || !scanPath || Boolean(remoteScanDisabledReason())"
+                                            :title="remoteScanDisabledReason()"
+                                            x-text="scanBusy ? 'Scanning...' : 'Scan'">Scan</button>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-[11px] text-slate-500" x-show="datasetServerFilter !== 'local'">
+                        Scan searches within the Agent’s allowed folders. Refresh updates the saved list.
+                    </p>
+                    <div class="mt-3 flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                         :class="rootProtected ? 'border-amber-800/70 bg-amber-950/20' : 'border-slate-800 bg-slate-950/60'"
+                         x-show="datasetServerFilter === 'local' && rootDir">
+                        <div class="min-w-0">
+                            <div class="text-xs font-medium" :class="rootProtected ? 'text-amber-200' : 'text-slate-300'"
+                                 x-text="rootProtected ? 'Protected source root' : 'Managed dataset root'"></div>
+                            <p class="mt-0.5 text-[11px] text-slate-500">Protected roots reject in-place deletion and repair. Sibling outputs remain available.</p>
+                        </div>
+                        <button class="dp-btn dp-btn-secondary dp-btn-inline shrink-0"
+                                @click="setSourceRootProtection(!rootProtected)"
+                                :disabled="busy || scanBusy || !rootDir"
+                                x-text="rootProtected ? 'Remove root protection' : 'Mark root as source'"></button>
+                    </div>
+                    <p class="mt-2 text-xs text-sky-300" x-show="scanBusy"
+                       x-text="datasetServerFilter === 'local' ? 'Scanning Server A folders and lightweight cache status…' : (scanMessage || 'Waiting for the Agent to scan…')"></p>
+                    <p class="mt-2 text-xs text-sky-300" x-show="!scanBusy && scanMessage" x-text="scanMessage"></p>
+                    <p class="mt-2 text-xs text-amber-200" x-show="datasetServerFilter !== 'local' && remoteScanDisabledReason()" x-text="remoteScanDisabledReason()"></p>
+                    <p class="mt-2 rounded-lg border border-red-900/70 bg-red-950/30 px-3 py-2 text-xs text-red-200"
+                       x-show="error || remoteError" x-text="remoteError || error"></p>
+                </section>
+
+                <div class="min-h-0 flex-1 px-4 py-3 sm:px-5"
+                     x-cloak x-show="datasetServerFilter !== 'local'">
+                    <div class="mb-3 flex items-center justify-between gap-3 text-xs">
+                        <div>
+                            <span class="font-semibold text-slate-200">Datasets</span>
+                            <span class="ml-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px]"
+                                  x-text="remoteLocationsForSelectedServer().length"></span>
+                            <p class="mt-0.5 text-[11px] text-slate-500">Changing directories shows registered datasets immediately. Scan discovers new datasets; Refresh reloads the list.</p>
+                            <p class="dp-mono mt-1 break-all text-[11px] text-slate-400" x-text="remoteScanPath || 'All registered directories on this server'"></p>
+                        </div>
+                        <button class="text-sky-300 hover:text-sky-200"
+                                @click="refreshSelectedServer()">Refresh</button>
+                    </div>
+                    <div class="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <div class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">
+                            <span class="text-slate-500" aria-hidden="true">⌕</span>
+                            <input class="min-w-0 flex-1 bg-transparent text-xs text-slate-100 outline-none placeholder:text-slate-600"
+                                   x-model.debounce.150ms="datasetSearch"
+                                   placeholder="Search by name or path">
+                            <button class="text-xs text-slate-500 hover:text-slate-300"
+                                    x-show="datasetSearch"
+                                    @click="datasetSearch = ''">Clear</button>
+                        </div>
+                        <label class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-400">
+                            <span>Sort</span>
+                            <select class="bg-transparent text-slate-200 outline-none" x-model="datasetSort">
+                                <option value="cache">Cache readiness</option>
+                                <option value="name">Name A–Z</option>
+                                <option value="path">Path A–Z</option>
+                            </select>
+                        </label>
+                    </div>
+                    <p class="mb-3 text-[11px] text-slate-500" x-show="datasetSearch"
+                       x-text="`${filteredRemoteLocations().length} matching datasets`"></p>
+                    <div class="dp-empty-state" x-show="remoteLocationsForSelectedServer().length === 0">
+                        <p class="font-medium text-slate-200">No datasets found under this folder</p>
+                        <p class="mt-1 max-w-lg text-xs text-slate-500">Check that the path is inside this server's allowed roots, then scan again.</p>
+                    </div>
+                    <p class="rounded border border-slate-800 bg-slate-950 px-3 py-3 text-xs text-slate-500"
+                       x-show="datasetSearch && remoteLocationsForSelectedServer().length > 0 && filteredRemoteLocations().length === 0">
+                        No dataset matches the keyword.
+                    </p>
+                    <div class="grid grid-cols-1 max-h-[640px] gap-2 overflow-y-auto pr-1 xl:grid-cols-2">
+                        <template x-for="location in filteredRemoteLocations()" :key="location.location_id">
+                            <article class="rounded-lg border px-3 py-3 transition-colors hover:border-sky-700"
+                                     :class="selectedDataset?.remote_location_id === location.location_id || selectedRemoteLocation?.location_id === location.location_id ? 'border-sky-700 bg-sky-950/30' : 'border-slate-800 bg-slate-950'">
+                                <div class="flex items-start gap-2">
+                                    <button class="min-w-0 flex-1 text-left"
+                                            @click="useRemoteDataset(location)"
+                                            :aria-pressed="selectedDatasetKey === `remote:${location.location_id}`">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="truncate font-semibold text-slate-100"
+                                                  x-text="remoteDatasetName(location)"></span>
+                                            <span class="rounded px-2 py-0.5 text-[11px]"
+                                                  :class="location.metadata?.viewer_url ? 'border border-emerald-800 bg-emerald-950 text-emerald-300' : 'border border-amber-800 bg-amber-950 text-amber-200'"
+                                                  x-text="location.metadata?.viewer_url ? 'cached' : 'cache missing'"></span>
+                                            <span class="rounded px-2 py-0.5 text-[11px]"
+                                                  :class="dataVersionClass(remoteDatasetRecord(location))"
+                                                  x-text="dataProfileLabel(remoteDatasetRecord(location))"></span>
+                                            <span class="rounded border border-emerald-800 bg-emerald-950 px-2 py-0.5 text-[11px] text-emerald-300"
+                                                  x-show="datasetIsV3(remoteDatasetRecord(location))">v3.0</span>
+                                            <span class="rounded border px-2 py-0.5 text-[11px]"
+                                                  :class="datasetStageClass(remoteDatasetRecord(location))"
+                                                  x-text="datasetStageLabel(remoteDatasetRecord(location))"></span>
+                                        </div>
+                                        <p class="dp-mono mt-1 truncate text-[11px] text-slate-500" x-text="location.root"></p>
+                                        <p class="mt-2 text-xs text-slate-400"
+                                           x-text="`${location.metadata?.total_episodes ?? '?'} episodes`"></p>
+                                    </button>
+                                    <div class="flex shrink-0 flex-col gap-2">
+                                        <a class="dp-link-btn dp-btn-secondary dp-btn-compact"
+                                           :href="remoteDatasetRecord(location).analysis_url">analysis</a>
+                                        <button class="dp-btn dp-btn-secondary dp-btn-compact"
+                                                x-show="canOperateRemote()"
+                                                @click.stop="openDatasetTab(location, 'standardize')"
+                                                x-text="selectedDataset?.remote_location_id === location.location_id ? 'preprocessing' : 'select & preprocess'">
+                                        </button>
+                                        <a class="dp-link-btn dp-btn-primary dp-btn-compact"
+                                           x-show="location.metadata?.viewer_url"
+                                           :href="location.metadata?.viewer_url || '#'">viewer</a>
+                                        <button class="dp-btn dp-btn-primary dp-btn-compact"
+                                                x-show="!location.metadata?.viewer_url && canOperateRemote()"
+                                                @click.stop="openDatasetTab(location, 'cache')">prepare viewer</button>
+                                    </div>
+                                </div>
+                                <div class="mt-2" x-show="latestRemoteViewerJob(location)">
+                                    <div class="flex items-center gap-2 text-[11px]">
+                                        <span class="rounded border px-2 py-0.5"
+                                              :class="jobStatusClass(latestRemoteViewerJob(location)?.status)"
+                                              x-text="latestRemoteViewerJob(location)?.status"></span>
+                                        <span class="truncate text-slate-400" x-text="remoteViewerMessage(location)"></span>
+                                    </div>
+                                    <div class="mt-2 h-1.5 overflow-hidden rounded bg-slate-800">
+                                        <div class="h-full bg-sky-500 transition-all"
+                                             :style="`width: ${remoteViewerProgress(location)}%`"></div>
+                                    </div>
+                                    <p class="mt-1 break-all text-[11px] text-red-300"
+                                       x-show="latestRemoteViewerJob(location)?.error"
+                                       x-text="latestRemoteViewerJob(location)?.error"></p>
+                                </div>
+                                <p class="mt-2 text-[11px] text-amber-200" x-show="!canOperateRemote()">
+                                    Read-only · ask an Operator to prepare missing Viewer data.
+                                </p>
+                            </article>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="min-h-0 flex-1 px-4 py-3" x-show="datasetServerFilter === 'local'">
+                    <div class="mb-3 flex items-center justify-between gap-3 text-xs">
+                        <div>
+                            <span class="font-semibold text-slate-200">Datasets</span>
+                            <span class="ml-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px]"
+                                  x-text="localDatasetCount()"></span>
+                        </div>
+                        <button class="text-sky-300 hover:text-sky-200"
+                                @click="loadDatasetRoots(true)">Rescan</button>
+                    </div>
+                    <div class="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <div class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">
+                            <span class="text-slate-500" aria-hidden="true">⌕</span>
+                            <input class="min-w-0 flex-1 bg-transparent text-xs text-slate-100 outline-none placeholder:text-slate-600"
+                                   x-model.debounce.150ms="datasetSearch"
+                                   aria-label="Search datasets by name, path, or tag" placeholder="Search by name, path, or tag">
+                            <button class="text-xs text-slate-500 hover:text-slate-300"
+                                    x-show="datasetSearch"
+                                    @click="datasetSearch = ''">Clear</button>
+                        </div>
+                        <label class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-400">
+                            <span>Sort</span>
+                            <select class="bg-transparent text-slate-200 outline-none" x-model="datasetSort">
+                                <option value="cache">Cache readiness</option>
+                                <option value="name">Name A–Z</option>
+                                <option value="path">Path A–Z</option>
+                            </select>
+                        </label>
+                    </div>
+                    <p class="mb-3 text-[11px] text-slate-500" x-show="datasetSearch" x-text="datasetSearchSummary()"></p>
+                    <template x-if="localDatasetCount() === 0">
+                        <div class="dp-empty-state">
+                            <p class="font-medium text-slate-200">No datasets found under this folder</p>
+                            <p class="mt-1 max-w-lg text-xs text-slate-500">Check the path and scan again. A complete dataset needs <span class="dp-mono text-slate-400">meta/info.json</span>.</p>
+                        </div>
+                    </template>
+                    <template x-if="datasetSearch && localDatasetCount() > 0 && visibleLocalDatasetCount() === 0">
+                        <p class="rounded border border-slate-800 bg-slate-950 px-3 py-3 text-xs text-slate-500">No dataset matches the keyword.</p>
+                    </template>
+
+                    <div class="grid grid-cols-1 max-h-[640px] gap-2 overflow-y-auto pr-1 xl:grid-cols-2">
+                        <template x-for="dataset in localRegisteredDatasets()" :key="dataset.key">
+                            <article class="rounded-lg border px-3 py-3 transition-colors hover:border-sky-700"
+                                     :class="selectedDatasetKey === dataset.key ? 'border-sky-700 bg-sky-950/30' : 'border-slate-800 bg-slate-950'">
+                                <div class="flex items-start gap-2">
+                                    <button class="min-w-0 flex-1 text-left"
+                                            @click="selectDataset(dataset)"
+                                            :aria-pressed="selectedDatasetKey === dataset.key"
+                                            :disabled="loadingDatasetKey === dataset.key">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="truncate font-semibold text-slate-100" x-text="datasetName(dataset)"></span>
+                                            <span class="rounded px-2 py-0.5 text-[11px]"
+                                                  :class="datasetStatusClass(dataset)"
+                                                  x-text="loadingDatasetKey === dataset.key ? 'loading' : datasetStatusText(dataset)"></span>
+                                            <span class="rounded px-2 py-0.5 text-[11px]"
+                                                  :class="dataVersionClass(dataset)"
+                                                  x-text="dataProfileLabel(dataset)"></span>
+                                            <span class="rounded border border-emerald-800 bg-emerald-950 px-2 py-0.5 text-[11px] text-emerald-300"
+                                                  x-show="datasetIsV3(dataset)">v3.0</span>
+                                            <span class="rounded border px-2 py-0.5 text-[11px]"
+                                                  :class="datasetStageClass(dataset)"
+                                                  :title="datasetStageHint(dataset)"
+                                                  x-text="datasetStageLabel(dataset)"></span>
+                                            <span class="rounded border border-amber-800 bg-amber-950 px-2 py-0.5 text-[11px] text-amber-200"
+                                                  x-show="dataset.source_protected">source protected</span>
+                                        </div>
+                                        <p class="dp-mono mt-1 truncate text-[11px] text-slate-500" x-text="dataset.root"></p>
+                                        <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-400" x-show="dataset.episode_count !== undefined || hasCacheStatus(dataset)">
+                                            <span x-show="dataset.episode_count !== undefined" x-text="`${dataset.episode_count || 0} episodes`"></span>
+                                            <span x-text="`video ${dataset.cache.videos.cached}/${dataset.cache.videos.total}`"></span>
+                                            <span x-text="`csv ${dataset.cache.csv.cached}/${dataset.cache.csv.total}`"></span>
+                                        </div>
+                                    </button>
+                                    <div class="flex shrink-0 flex-col gap-2">
+                                        <button class="dp-btn dp-btn-secondary dp-btn-compact"
+                                                @click.stop="openDatasetTab(dataset, 'standardize')"
+                                                x-text="selectedDatasetKey === dataset.key ? 'preprocessing' : 'select & preprocess'">
+                                        </button>
+                                        <a class="dp-link-btn dp-btn-primary dp-btn-compact"
+                                           x-show="dataset.cache?.status === 'cached'"
+                                           :href="dataset.viewer_url || '#'">viewer</a>
+                                        <button class="dp-btn dp-btn-primary dp-btn-compact"
+                                                x-show="dataset.cache?.status !== 'cached'"
+                                                @click.stop="openDatasetTab(dataset, 'cache')">prepare viewer</button>
+                                        <button class="dp-btn dp-btn-secondary dp-btn-compact"
+                                                x-show="!dataset.source_protected || (dataset.protection && dataset.protection.manual_source)"
+                                                @click.stop="setDatasetProtection(dataset, !(dataset.protection && dataset.protection.manual_source))"
+                                                :disabled="busy"
+                                                x-text="dataset.protection && dataset.protection.manual_source ? 'unprotect' : 'protect'"></button>
+                                        <button class="dp-btn dp-btn-danger dp-btn-compact"
+                                                x-show="adminModeEnabled"
+                                                @click.stop="deleteDataset(dataset)"
+                                                :disabled="busy">
+                                            unregister
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        </template>
+                        <template x-for="candidate in localUncatalogedDatasets()" :key="candidate.root">
+                            <article class="w-full rounded-lg border px-3 py-3 text-left transition-colors hover:border-sky-700"
+                                     :class="registration.root === candidate.root ? 'border-sky-700 bg-sky-950/30' : 'border-slate-800 bg-slate-950'">
+                                <div class="flex items-start gap-2">
+                                    <button class="min-w-0 flex-1 text-left"
+                                            @click="selectCandidate(candidate)"
+                                            :disabled="busy || !canAutoCatalog()">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="truncate font-semibold text-slate-100" x-text="candidate.name"></span>
+                                            <span class="rounded px-2 py-0.5 text-[11px]"
+                                                  :class="datasetStatusClass(candidate)"
+                                                  x-text="datasetStatusText(candidate)"></span>
+                                            <span class="rounded px-2 py-0.5 text-[11px]"
+                                                  :class="dataVersionClass(candidate)"
+                                                  x-text="dataProfileLabel(candidate)"></span>
+                                            <span class="rounded border border-emerald-800 bg-emerald-950 px-2 py-0.5 text-[11px] text-emerald-300"
+                                                  x-show="datasetIsV3(candidate)">v3.0</span>
+                                            <span class="rounded border px-2 py-0.5 text-[11px]"
+                                                  :class="datasetStageClass(candidate)"
+                                                  :title="datasetStageHint(candidate)"
+                                                  x-text="datasetStageLabel(candidate)"></span>
+                                            <span class="rounded border border-amber-800 bg-amber-950 px-2 py-0.5 text-[11px] text-amber-200"
+                                                  x-show="candidate.source_protected">source protected</span>
+                                        </div>
+                                        <p class="dp-mono mt-1 truncate text-[11px] text-slate-500" x-text="candidate.root"></p>
+                                        <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-400" x-show="hasCacheStatus(candidate)">
+                                            <span x-text="`video ${candidate.cache.videos.cached}/${candidate.cache.videos.total}`"></span>
+                                            <span x-text="`csv ${candidate.cache.csv.cached}/${candidate.cache.csv.total}`"></span>
+                                        </div>
+                                        <p class="mt-2 text-xs text-amber-200" x-show="!canAutoCatalog()">Ask an Operator or Admin to add this dataset.</p>
+                                    </button>
+                                </div>
+                            </article>
+                        </template>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dp-page-surface"
+                     x-cloak x-show="isOperationPage()">
+                <div class="dp-page-header">
+                    <div class="space-y-2">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <div class="dp-page-kicker" x-text="activeWorkspaceLabel()"></div>
+                                <h2 class="dp-page-title mt-1" x-text="activePageLabel()"></h2>
+                                <p class="dp-page-description" x-text="activePageDescription()"></p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 text-xs" x-show="selectedDataset">
+                                <a class="dp-link-btn dp-btn-secondary dp-btn-inline"
+                                   x-show="pageOpenLinkEnabled('viewer') && activeTab !== 'explore_overview'"
+                                   :class="canOpenViewer() ? '' : 'is-disabled'"
+                                   :href="viewerUrl() || '#'"
+                                   x-text="openViewerText()"></a>
+                                <a class="dp-link-btn dp-btn-secondary dp-btn-inline"
+                                   x-show="pageOpenLinkEnabled('analysis') && activeTab !== 'explore_overview'"
+                                   :class="selectedDataset ? '' : 'is-disabled'"
+                                   :href="analysisUrl() || '#'">Analysis</a>
+                                <a class="dp-link-btn dp-btn-inline"
+                                   x-show="activeTab === 'labeling' && canOpenReview()"
+                                   :href="reviewUrl() || '#'">Label review</a>
+                                <a class="dp-link-btn dp-btn-inline"
+                                   x-show="activeTab === 'construction' && constructionReviewUrl()"
+                                   :href="constructionReviewUrl() || '#'">Construction result</a>
+                                <a class="dp-link-btn dp-btn-inline"
+                                   x-show="activeTab === 'tagging' && taggingReviewUrl()"
+                                   :href="taggingReviewUrl() || '#'">Tag review</a>
+                                <a class="dp-link-btn dp-btn-inline"
+                                   x-show="activeTab === 'embedding' && embeddingUrl()"
+                                   :href="embeddingUrl() || '#'">Embedding result</a>
+                                <a class="dp-link-btn dp-btn-inline"
+                                   x-show="activeTab === 'compare' && compareUrl()"
+                                   :href="compareUrl() || '#'">Compare result</a>
+                                <a class="dp-link-btn dp-btn-inline"
+                                   x-show="activeTab === 'transform' && smoothingReportUrl()"
+                                   :href="smoothingReportUrl() || '#'">Smoothing report</a>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                             x-show="selectedDataset">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400"></span>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Working dataset</div>
+                                    <div class="truncate text-xs font-medium text-slate-100" x-text="selectedDataset ? datasetName(selectedDataset) : ''"></div>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                                <span class="rounded-full border border-slate-700 bg-slate-900 px-2 py-1" x-show="selectedDataset && selectedDataset.loaded"
+                                      x-text="selectedDataset ? `${selectedDataset.episode_count || 0} episodes` : ''"></span>
+                                <span class="rounded-full border border-cyan-900 bg-cyan-950/40 px-2 py-1 text-cyan-200"
+                                      x-show="selectedDataset"
+                                      x-text="selectedDataset ? dataProfileLabel(selectedDataset) : ''"></span>
+                                <span class="rounded-full border border-sky-800 bg-sky-950/50 px-2 py-1 text-sky-200"
+                                      x-show="selectedDataset && selectedDataset.remote"
+                                      x-text="selectedDataset ? selectedDataset.server_name : ''"></span>
+                                <span class="rounded-full border px-2 py-1"
+                                      :class="selectedDataset ? datasetStageClass(selectedDataset) : ''"
+                                      :title="selectedDataset ? datasetStageHint(selectedDataset) : ''"
+                                      x-show="selectedDataset"
+                                      x-text="selectedDataset ? datasetStageLabel(selectedDataset) : ''"></span>
+                                <span class="rounded-full border border-amber-800 bg-amber-950/50 px-2 py-1 text-amber-200"
+                                      x-show="selectedDataset && selectedDataset.source_protected">source protected</span>
+                                <span class="rounded-full border px-2 py-1" :class="selectedDataset ? datasetStatusClass(selectedDataset) : ''"
+                                      x-text="selectedDataset ? datasetStatusText(selectedDataset) : ''"></span>
+                                <button class="font-medium text-sky-300 hover:text-sky-200"
+                                        @click.stop="toggleDatasetPicker(true)">Change</button>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-amber-200"
+                           x-show="selectedDataset?.source_protected && activePage === 'admin_operations'">
+                            Source protected: in-place changes are blocked.
+                        </p>
+                        <details class="dp-help text-xs" x-show="selectedDataset?.remote">
+                            <summary>Execution location &amp; access</summary>
+                            <p><strong x-text="selectedDataset?.server_name"></strong> ·
+                               <span class="dp-mono break-all" x-text="selectedDataset?.root"></span></p>
+                            <p>Preprocessing creates a new dataset. In-place changes require authorized access, enabled source mutation, confirmation and a backup.</p>
+                        </details>
+                        <div class="flex flex-wrap gap-1.5 border-t border-slate-800 pt-3 text-xs"
+                             x-show="currentSubTabs().length > 1">
+                            <template x-for="tab in currentSubTabs()" :key="tab.key">
+                                <button class="rounded-lg border px-3 py-2 font-medium"
+                                        :class="activeTab === tab.key ? 'border-sky-700 bg-sky-950/70 text-sky-100' : 'border-slate-800 bg-slate-950/70 text-slate-400 hover:border-slate-700 hover:text-slate-200'"
+                                        :aria-current="activeTab === tab.key ? 'page' : null"
+                                        @click="selectTab(tab.key)">
+                                    <span x-text="tab.label"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="dp-empty-state m-4 sm:m-5" x-show="!selectedDataset && activePageRequiresDataset()">
+                    <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-sky-950 text-sky-300">◇</div>
+                    <p class="font-medium text-slate-200">Choose a working dataset first</p>
+                    <p class="mt-1 max-w-md text-xs text-slate-500">Select an existing dataset or find one in Datasets.</p>
+                    <button class="dp-btn dp-btn-primary dp-btn-inline mt-4" @click="toggleDatasetPicker(true)">Select a dataset</button>
+                    <button class="mt-3 text-xs text-sky-300" @click="selectPage('datasets')">Discover more datasets</button>
+                </div>
+                <div class="curation-workspace" x-ref="curationWorkspace" x-show="unifiedCurationActive()"
+                     @curation-review-episode="selectTab('quality_flags')"
+                     x-effect="window.syncCurationWorkspace($refs.curationWorkspace, curationTarget(), activePage, activeTab, unifiedCurationActive())"></div>
+                <div x-show="!unifiedCurationActive()">
+                <div class="mx-4 mt-4 rounded border border-emerald-900/60 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200"
+                     x-show="activeTab === 'explore_overview' && selectedDatasetIsV3()">
+                    Prepare Viewer data once to open v3.0 episodes. Source data stays unchanged.
+                </div>
+                <div class="space-y-5 px-4 py-4 sm:px-5 sm:py-5"
+                     x-show="activeTab === 'explore_overview' && selectedDataset">
+                    <div class="flex flex-col gap-3 rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h3 class="font-semibold text-slate-100">Visualization center</h3>
+                            <p class="mt-1 text-xs leading-5 text-slate-400">Open a viewer or prepare the results you need.</p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2 text-[11px] text-slate-400">
+                            <span class="rounded-full border border-emerald-900 bg-emerald-950/50 px-2 py-1 text-emerald-300"
+                                  x-text="`${visualizationReadyCount()} ready`"></span>
+                            <span class="rounded-full border border-slate-700 bg-slate-900 px-2 py-1"
+                                  x-text="`${visualizationItems().length} available`"></span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3"
+                         x-show="tabEnabled('versions') || tabEnabled('curation_manifest')">
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-200">Task setup</h3>
+                            <p class="mt-1 text-xs leading-5 text-slate-400">Group dataset instructions into task types and attributes for analysis and balanced selections.</p>
+                        </div>
+                        <a class="dp-btn dp-btn-secondary dp-btn-compact" :href="'/tasks?dataset_key=' + encodeURIComponent(selectedDataset?.repo_id || selectedDataset?.key || '')">Set up tasks →</a>
+                    </div>
+
+                    <div class="rounded-lg border border-amber-900/60 bg-amber-950/20 px-4 py-3 text-xs text-amber-100"
+                         x-show="consoleMode === 'visualize'">
+                        Visualize mode shows only viewer-safe surfaces. Start the console in full mode to access annotation, construction, embedding, comparison, and smoothing workflows.
+                    </div>
+
+                    <template x-for="group in visualizationGroups()" :key="group.key">
+                        <section class="dp-context-card p-4 sm:p-5">
+                            <div class="mb-4">
+                                <div class="dp-section-kicker" x-text="group.label"></div>
+                                <p class="mt-1 text-xs leading-5 text-slate-400" x-text="group.description"></p>
+                            </div>
+                            <div class="grid gap-3"
+                                 :class="visualizationItemsFor(group.key).length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3'">
+                                <template x-for="item in visualizationItemsFor(group.key)" :key="item.key">
+                                    <article class="flex min-h-52 flex-col rounded-lg border border-slate-800 bg-slate-950/70 p-4 transition hover:border-slate-700 hover:bg-slate-950">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="flex min-w-0 items-center gap-3">
+                                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-xs font-bold text-sky-200"
+                                                     x-text="item.icon"></div>
+                                                <div class="min-w-0">
+                                                    <h4 class="font-semibold text-slate-100" x-text="item.label"></h4>
+                                                    <p class="mt-0.5 text-[11px] text-slate-500" x-text="item.output"></p>
+                                                </div>
+                                            </div>
+                                            <span class="shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold"
+                                                  :class="item.statusClass"
+                                                  x-text="item.status"></span>
+                                        </div>
+                                        <p class="mt-4 flex-1 text-xs leading-5 text-slate-400" x-text="item.description"></p>
+                                        <div class="mt-4 border-t border-slate-800 pt-3">
+                                            <a class="dp-link-btn dp-btn-primary"
+                                               x-show="item.ready"
+                                               :href="item.href || '#'">
+                                                <span x-text="item.openLabel"></span>
+                                            </a>
+                                            <button class="dp-btn dp-btn-secondary"
+                                                    x-show="!item.ready"
+                                                    :disabled="item.setupDisabled"
+                                                    @click="openVisualizationSetup(item.key)">
+                                                <span x-text="item.setupLabel"></span>
+                                            </button>
+                                        </div>
+                                    </article>
+                                </template>
+                            </div>
+                        </section>
+                    </template>
+                </div>
+                <div x-show="selectedDataset || !activePageRequiresDataset()">
+                {% include "console/panel_versions.html" %}
+                {% include "console/panel_curation_manifest.html" %}
+                {% if control_plane_enabled %}
+                <div x-show="activeTab === 'pipelines'" x-effect="syncPipelineWorkspace($el)"></div>
+                {% endif %}
+
+{% include "console/panel_cache.html" %}
+                {% include "console/panel_temporal_caption.html" %}
+                {% include "console/panel_text_memory.html" %}
+                {% include "console/panel_stage_subtask.html" %}
+                {% include "console/panel_quality_flags.html" %}
+                {% include "console/panel_transforms.html" %}
+                {% include "console/panel_split_merge.html" %}
+                {% include "console/panel_labeling.html" %}
+                {% include "console/panel_construction.html" %}
+                {% include "console/panel_tagging.html" %}
+                {% include "console/panel_embedding.html" %}
+                {% include "console/panel_compare.html" %}
+                </div>
+                </div>
+            </section>
+
+            <section class="dp-page-surface"
+                     x-cloak x-show="activePage === 'runs'">
+                <div class="m-4 rounded-lg border border-slate-700 p-4" x-show="controlPlaneEnabled">
+                    <div class="flex justify-between">
+                        <h3 class="font-semibold">Episode deletion requests</h3>
+                        <button class="text-xs underline" @click="loadDeletionRequests().catch(err => { error = err.message; })">Refresh</button>
+                    </div>
+                    <div class="mt-3 space-y-2" x-show="canRequestEpisodeDeletion() || (['admin', 'data_manager'].includes(controlPlaneUser?.role) && selectedDataset?.remote)">
+                        <p class="text-xs" x-text="`Request episode deletion from: ${selectedDataset?.repo_id || selectedDataset?.key || ''}`"></p>
+                        <input class="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2" aria-label="Episode indices to request deletion"
+                               x-model="preprocess.delete_episode_ids" placeholder="Episodes, e.g. 1,3-5">
+                        <input class="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2" aria-label="Deletion request reason"
+                               x-model="preprocess.delete_reason" maxlength="500" placeholder="Why should these episodes be deleted?">
+                        <button class="dp-btn dp-btn-primary" :disabled="busy || !parsedDeleteEpisodeIds().length || !preprocess.delete_reason.trim() || (!canRequestEpisodeDeletion() && !remoteSourceMutationsAvailable())"
+                                @click="startRemoteMutation('delete_episodes', {episodes: parsedDeleteEpisodeIds(), reason: preprocess.delete_reason.trim()}, 'Delete selected episodes from the Agent dataset.')"
+                                x-text="canRequestEpisodeDeletion() ? 'Request episode deletion' : 'Delete episodes'"></button>
+                        <p class="text-xs text-amber-200" x-show="!canRequestEpisodeDeletion() && !remoteSourceMutationsAvailable()" x-text="remoteMutationDisabledReason()"></p>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-400" x-show="controlPlaneUser?.role === 'operator' && !canRequestEpisodeDeletion()">Select an Agent dataset in Datasets to request episode deletion.</p>
+                    <p class="mt-2 text-xs text-slate-400" x-show="!deletionRequests.length">No deletion requests.</p>
+                    <template x-for="item in deletionRequests" :key="item.request_id">
+                        <div class="mt-3 border-t border-slate-700 pt-3 text-xs">
+                            <p class="font-semibold" x-text="`${item.dataset_key} · ${item.status}`"></p>
+                            <p x-text="`Episodes: ${item.episodes.join(', ')} · Requested by: ${item.requested_by}`"></p>
+                            <p x-text="item.reason"></p>
+                            <p x-show="item.review_reason" x-text="`Review: ${item.review_reason || ''}`"></p>
+                            <p x-show="item.job_id" x-text="`Execution task: ${item.job_id || ''} — see Runs for completion or failure.`"></p>
+                            <div class="mt-2 flex gap-3" x-show="controlPlaneUser?.role === 'admin' && item.status === 'pending'">
+                                <button class="dp-btn dp-btn-danger" :disabled="busy" @click="reviewDeletionRequest(item, 'approve')">Approve deletion</button>
+                                <button class="dp-btn" :disabled="busy" @click="reviewDeletionRequest(item, 'reject')">Reject</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div class="dp-page-header">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <div class="dp-page-kicker">Data Platform</div>
+                            <h2 class="dp-page-title mt-1">Pipeline Runs</h2>
+                            <p class="dp-page-description">Monitor execution, inspect outputs and logs, and trace the audit history for every data operation.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <select class="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-300"
+                                    x-model="runsFilter.scope" @change="resetJobPages(); loadOperationLogs()">
+                                <option value="all">All datasets</option>
+                                <option value="current" :disabled="!selectedDatasetKey">Working dataset</option>
+                            </select>
+                            <select class="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-300"
+                                    x-model="runsFilter.status" @change="resetJobPages()">
+                                <option value="">All statuses</option>
+                                <option value="running">Active (including queued)</option>
+                                <option value="done">Completed</option>
+                                <option value="error">Failed</option>
+                                <option value="queued">Queued</option><option value="cancelled">Cancelled</option>
+                                <option value="cancel_requested">Stopping</option><option value="interrupted">Interrupted</option>
+                            </select>
+                            <select aria-label="Task history" x-model="jobsPageMode" @change="resetJobPages()" class="rounded border border-slate-700 bg-slate-950 p-2 text-xs">
+                                <option value="all">All tasks</option><option value="active">Active</option><option value="history">History</option>
+                            </select>
+                            <input type="datetime-local" aria-label="Jobs from" x-model="jobsCreatedFrom" @change="resetJobPages()" class="rounded bg-slate-950 p-2 text-xs">
+                            <input type="datetime-local" aria-label="Jobs until" x-model="jobsCreatedTo" @change="resetJobPages()" class="rounded bg-slate-950 p-2 text-xs">
+                            <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="jobsHasMore" @click="moreJobPages()">Load more</button>
+                            <button class="dp-btn dp-btn-secondary dp-btn-inline" @click="loadJobs()">Refresh</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-4 px-4 py-4">
+                    <div class="grid gap-4 lg:grid-cols-[minmax(280px,0.7fr)_minmax(0,1.3fr)]">
+                        <div class="dp-context-card max-h-[420px] space-y-2 overflow-y-auto p-2">
+                            <div class="flex items-center justify-between px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                <span>Dataset jobs &amp; recent tasks</span><a x-show="activeJob?.id" :href="'/learning?kind=job&amp;id='+encodeURIComponent(activeJob?.id||'')" class="text-sky-300">Feedback</a><a x-show="activeJob?.archived_reports?.length" :href="'/api/control/jobs/' + encodeURIComponent(activeJob?.id || '')" target="_blank" rel="noopener" class="text-sky-300">Archived report</a>
+                                <span x-text="filteredJobs().length"></span>
+                            </div>
+                            <p class="px-2 py-3 text-xs text-slate-500" x-show="filteredJobs().length === 0">No jobs match the current filter.</p>
+                            <template x-for="job in filteredJobs()" :key="job.id">
+                                <button class="w-full rounded border px-3 py-3 text-left"
+                                        :class="selectedJobId === job.id ? 'border-sky-700 bg-sky-950/30' : 'border-slate-800 bg-slate-900 hover:border-slate-700'"
+                                        @click="selectJob(job)">
+                                    <div class="flex items-center justify-between gap-3 text-xs">
+                                        <span class="truncate font-semibold text-slate-200" x-text="jobOperationLabel(job)"></span>
+                                        <span class="shrink-0 rounded border px-2 py-0.5 text-[10px]"
+                                              :class="jobStatusClass(job.status)" x-text="job.status"></span>
+                                    </div>
+                                    <p class="mt-1 truncate text-[11px] text-slate-500"
+                                       x-text="job.display_dataset_key || job.dataset_key || 'multiple datasets'"></p>
+                                    <p class="mt-1 truncate text-[10px] text-emerald-300"
+                                       x-show="job.status === 'done' && jobOutputLabel(job)"
+                                       x-text="`→ ${jobOutputLabel(job)}`"></p>
+                                    <p class="mt-1 text-[11px] text-slate-300" x-show="job.caption_group" x-text="captionCountLabel(job)"></p>
+                                    <div class="mt-2 h-1.5 overflow-hidden rounded bg-slate-800">
+                                        <div class="h-full bg-sky-500" :style="`width: ${job.progress || 0}%`"></div>
+                                    </div>
+                                </button>
+                            </template>
+                        </div>
+                    <div class="dp-context-card px-4 py-4">
+                        <template x-if="!selectedJob()">
+                            <p class="text-sm text-slate-500">No job selected.</p>
+                        </template>
+                        <template x-if="selectedJob()">
+                            <div>
+                                <div class="mb-2 flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="font-semibold text-slate-100" x-text="jobOperationLabel(selectedJob())"></div>
+                                        <p class="mt-1 truncate text-xs text-slate-500"
+                                           x-text="selectedJob()?.display_dataset_key || selectedJob()?.dataset_key || 'multiple datasets'"></p>
+                                    </div>
+                                    <span class="shrink-0 rounded border px-2 py-0.5 text-xs"
+                                          :class="jobStatusClass(selectedJob()?.status)" x-text="selectedJob()?.status"></span>
+                                </div>
+                                <div class="h-2 overflow-hidden rounded bg-slate-800">
+                                    <div class="h-full bg-sky-500 transition-all" :style="`width: ${selectedJob()?.progress || 0}%`"></div>
+                                </div>
+                                <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-500">
+                                    <span x-text="`${selectedJob()?.current || 0}/${selectedJob()?.total || 0}`"></span>
+                                    <span x-text="`elapsed ${formatDuration(selectedJob()?.elapsed_seconds)}`"></span>
+                                    <span x-text="selectedJob()?.status === 'running' ? `ETA ${formatDuration(selectedJob()?.eta_seconds)}` : 'ETA -'"></span>
+                                </div>
+                                <p class="mt-2 text-xs text-slate-300" x-text="selectedJob()?.message"></p>
+                                {% include 'console/caption_children.html' %}
+                                <div class="mt-3 flex flex-wrap items-center gap-2" x-show="controlPlaneEnabled &amp;&amp; !selectedJob()?.caption_group">
+                                    <span class="mr-2 text-xs text-slate-400" x-text="'Submitted by ' + (selectedJob()?.requested_by_username || 'Unknown user')"></span>
+                                    <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="ownsRun(selectedJob()) && !selectedJob()?.caption_skipped && ['error','cancelled','interrupted'].includes(selectedJob()?.status)"
+                                            :disabled="!!jobControlBusy || !canControlRun(selectedJob(), 'retry')" @click="controlRun(selectedJob(), 'retry')">Retry</button>
+                                    <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="ownsRun(selectedJob()) && !selectedJob()?.caption_skipped && ['queued','running','cancel_requested'].includes(selectedJob()?.status)"
+                                            :disabled="!!jobControlBusy || selectedJob()?.status === 'cancel_requested' || !canControlRun(selectedJob(), 'cancel')" @click="controlRun(selectedJob(), 'cancel')"
+                                            x-text="selectedJob()?.status === 'queued' ? 'Cancel queued' : selectedJob()?.status === 'cancel_requested' ? 'Stopping…' : 'Request stop'"></button>
+                                    <a href="/control-plane#jobs" class="text-xs text-sky-300" x-show="adminModeEnabled && !ownsRun(selectedJob())">Manage all jobs</a>
+                                </div>
+                                <p class="mt-2 text-xs text-slate-400" x-show="controlPlaneEnabled && !selectedJob()?.caption_group && selectedJob()?.status !== 'done'" x-text="runControlReason(selectedJob())"></p>
+                                <p role="alert" class="mt-2 text-xs text-red-300" x-show="jobControlError" x-text="jobControlError"></p>
+                                <p role="status" class="mt-2 text-xs text-sky-300" x-show="jobControlNotice" x-text="jobControlNotice"></p>
+
+                                <div class="mt-3 rounded-lg border border-slate-800 bg-slate-950 p-3"
+                                     x-show="jobOutputLabel(selectedJob())">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Output dataset</div>
+                                            <p class="mt-1 truncate text-xs text-slate-200" x-text="jobOutputLabel(selectedJob())"></p>
+                                            <p class="dp-mono mt-1 break-all text-[10px] text-slate-500" x-show="selectedJob()?.output_root" x-text="selectedJob()?.output_root"></p>
+                                        </div>
+                                        <div class="flex shrink-0 gap-2">
+                                            <button class="dp-btn dp-btn-secondary dp-btn-inline"
+                                                    x-show="canUseJobOutput(selectedJob())"
+                                                    @click="useJobOutput(selectedJob())">Use dataset</button>
+                                            <button class="dp-btn dp-btn-secondary dp-btn-inline"
+                                                    x-show="canPrepareJobOutput(selectedJob())"
+                                                    :disabled="busy || remoteActionBusy"
+                                                    @click="prepareJobOutput(selectedJob())">Prepare viewer</button>
+                                            <a class="dp-link-btn dp-btn-primary dp-btn-inline"
+                                               x-show="jobViewerUrl(selectedJob())"
+                                               :href="jobViewerUrl(selectedJob())">Open viewer</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <details class="mt-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2"
+                                         x-show="selectedJob()?.result_summary">
+                                    <summary class="cursor-pointer text-xs font-medium text-slate-300">Result summary</summary>
+                                    <pre class="dp-mono mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[10px] text-slate-400"
+                                         x-text="JSON.stringify(selectedJob()?.result_summary, null, 2)"></pre>
+                                </details>
+                                <div class="mt-3 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-2">
+                                    <span x-text="`Server: ${jobServerLabel(selectedJob())}`"></span>
+                                    <span x-text="`Started: ${formatJobTime(selectedJob()?.started_at || selectedJob()?.created_at)}`"></span>
+                                    <span x-text="`Finished: ${formatJobTime(selectedJob()?.finished_at)}`"></span>
+                                    <span class="dp-mono truncate" :title="selectedJob()?.id" x-text="`Job ID: ${selectedJob()?.id}`"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    </div>
+
+                    <div class="grid gap-4 xl:grid-cols-2">
+                    <div class="dp-context-card p-3">
+                        <div class="mb-2 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-xs font-semibold text-slate-200">Live logs</h3>
+<button class="dp-btn" x-show="selectedJob()?.remote &amp;&amp; !selectedJob()?.caption_group" @click="openPlatformAssistant({type:'job',targetId:selectedJob().id,locationId:selectedJob().dataset_key?.replace(/^remote:/,'')})">Explain task with AI</button>
+                                <label class="text-xs text-slate-400" x-show="selectedJob()?.remote"><input type="checkbox" x-model="showDetailedJobLogs" @change="mergeRemoteJobsIntoRuns()"> Detailed events</label>
+                                <p class="mt-0.5 text-[11px] text-slate-500">Streaming output for the selected job</p>
+                            </div>
+                            <button class="text-xs text-sky-300 hover:text-sky-200" @click="loadJobs()">Refresh</button>
+                        </div>
+                        <div class="dp-mono h-[320px] overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs">
+                            <template x-if="!selectedJob() || selectedJob()?.logs.length === 0">
+                                <p class="text-slate-500">No job logs yet.</p>
+                            </template>
+                            <template x-for="(entry, idx) in selectedJob() ? selectedJob()?.logs : []" :key="`${idx}-${entry.time}-${entry.message}`">
+                                <div class="mb-1 grid grid-cols-[4.5rem_1fr] gap-2">
+                                    <span class="text-slate-500" x-text="entry.time"></span>
+                                    <span class="text-slate-300" x-text="entry.message"></span>
+                                </div>
+                            </template>
+                            <p class="mt-2 whitespace-pre-wrap text-red-300" x-show="selectedJob() && selectedJob()?.error" x-text="selectedJob() && selectedJob()?.error"></p>
+                        </div>
+                    </div>
+
+                    <div class="dp-context-card p-3">
+                        <div class="mb-2 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-xs font-semibold text-slate-200">Audit history</h3>
+                                <p class="mt-0.5 text-[11px] text-slate-500">Immutable request and result records</p>
+                            </div>
+                            <button class="text-xs text-sky-300 hover:text-sky-200" @click="loadOperationLogs()">Refresh</button>
+                        </div>
+                        <div class="mb-2 grid grid-cols-[8rem_1fr] gap-2">
+                            <select class="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-300"
+                                    x-model="operationLogFilter.status" @change="loadOperationLogs()">
+                                <option value="">all status</option>
+                                <option value="success">success</option>
+                                <option value="accepted">accepted</option>
+                                <option value="failed">failed</option>
+                                <option value="started">started</option>
+                            </select>
+                            <input class="rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-300"
+                                   x-model="operationLogFilter.operation" @keydown.enter="loadOperationLogs()"
+                                   placeholder="filter operation, press Enter">
+                        </div>
+                        <div class="h-[320px] overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs">
+                            <p class="text-red-300" role="status" x-show="operationLogsError" x-text="operationLogsError"></p>
+                            <p class="text-slate-500" x-show="operationLogsLoading">Loading operation history...</p>
+                            <p class="text-slate-500" x-show="!operationLogsLoading && operationLogs.length === 0">No operation history yet.</p>
+                            <template x-for="entry in operationLogs" :key="entry.event_id || `${entry.timestamp}-${entry.operation}`">
+                                <details class="mb-2 rounded border border-slate-800 bg-slate-900 px-2 py-2" @toggle="if ($el.open) loadOperationDetail(entry)">
+                                    <summary class="cursor-pointer list-none">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <div class="truncate text-slate-200" x-text="operationLabel(entry)"></div>
+                                                <div class="mt-1 truncate text-[10px] text-slate-500" x-text="operationSummary(entry)"></div>
+                                            </div>
+                                            <span class="shrink-0 rounded border px-1.5 py-0.5 text-[10px]"
+                                                  :class="operationStatusClass(entry.status)" x-text="entry.status || 'unknown'"></span>
+                                        </div>
+                                        <div class="mt-1 flex justify-between gap-2 text-[10px] text-slate-500">
+                                            <span x-text="formatOperationTime(entry.timestamp || entry.time)"></span>
+                                            <span x-text="entry.actor && entry.actor.username ? entry.actor.username : ''"></span>
+                                        </div>
+                                    </summary>
+                                    <p x-show="entry.detailLoading">Loading details…</p>
+                                    <p class="text-red-300" x-show="entry.detailError" x-text="entry.detailError"></p>
+                                    <button x-show="entry.detailError" @click="loadOperationDetail(entry)">Retry</button>
+                                    <pre x-show="!entry.summary || entry.fullDetail" class="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all border-t border-slate-800 pt-2 text-[10px] text-slate-400"
+                                         x-text="JSON.stringify(entry.fullDetail || entry, null, 2)"></pre>
+                                </details>
+                            </template>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="fixed inset-0 z-50" x-cloak x-show="jobDrawerOpen" x-effect="window.syncConsoleDialog($el, jobDrawerOpen)" @keydown.escape.window="jobDrawerOpen = false">
+        <button class="absolute inset-0 bg-black/60" aria-label="Close job drawer" @click="jobDrawerOpen = false"></button>
+        <section class="absolute inset-x-0 bottom-0 flex h-[65vh] min-h-[30rem] flex-col rounded-t-xl border border-b-0 border-slate-700 bg-slate-900 shadow-2xl max-md:inset-0 max-md:h-full max-md:rounded-none max-md:border-0"
+                 role="dialog" aria-modal="true" aria-label="Jobs and logs" tabindex="-1">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+                <div>
+                    <h2 class="font-semibold text-slate-100">Pipeline runs</h2>
+                    <p class="hidden text-[11px] text-slate-500 sm:block">The same run status, output and logs shown on the Pipeline Runs page.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="dp-btn dp-btn-secondary dp-btn-inline" @click="selectPage('runs'); jobDrawerOpen = false">View all runs</button>
+                    <button class="dp-btn dp-btn-inline" aria-label="Close job activity" @click="jobDrawerOpen = false">Close</button>
+                </div>
+            </div>
+            <div class="grid min-h-0 flex-1 md:grid-cols-[20rem_minmax(0,1fr)]">
+                <div class="min-h-0 overflow-y-auto border-r border-slate-800 p-2 max-md:max-h-52 max-md:border-b max-md:border-r-0">
+                    <div class="flex flex-wrap gap-2 px-2 py-2">
+                        <select class="min-w-0 rounded border border-slate-700 bg-slate-950 p-2 text-xs" aria-label="Job dataset scope" x-model="runsFilter.scope" @change="resetJobPages()">
+                            <option value="all">All datasets</option><option value="current" :disabled="!selectedDatasetKey">Working dataset</option>
+                        </select>
+                        <select class="min-w-0 rounded border border-slate-700 bg-slate-950 p-2 text-xs" aria-label="Job status filter" x-model="runsFilter.status" @change="resetJobPages()">
+                            <option value="">All statuses</option><option value="running">Active (including queued)</option><option value="done">Completed</option><option value="error">Failed</option><option value="queued">Queued</option><option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center justify-between px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        <span>Recent jobs</span><a x-show="activeJob?.id" :href="'/learning?kind=job&amp;id='+encodeURIComponent(activeJob?.id||'')" class="text-sky-300">Feedback</a><a x-show="activeJob?.archived_reports?.length" :href="'/api/control/jobs/' + encodeURIComponent(activeJob?.id || '')" target="_blank" rel="noopener" class="text-sky-300">Archived report</a>
+                        <span x-text="filteredJobs().length"></span>
+                    </div>
+                    <p class="px-2 py-3 text-xs text-slate-500" x-show="filteredJobs().length === 0" role="status">No jobs match these filters.</p>
+                    <template x-for="job in filteredJobs()" :key="job.id">
+                        <button class="mb-1 w-full rounded px-3 py-2 text-left"
+                                :class="selectedJobId === job.id ? 'bg-sky-950/50 text-sky-100' : 'text-slate-300 hover:bg-slate-800'"
+                                @click="selectJob(job)">
+                            <div class="flex items-center justify-between gap-2 text-xs">
+                                <span class="truncate" x-text="jobOperationLabel(job)"></span>
+                                <span class="shrink-0 text-[10px]" :class="job.status === 'error' ? 'text-red-300' : 'text-slate-500'" x-text="jobStateText(job)"></span>
+                            </div>
+                            <p class="mt-1 truncate text-[10px] text-slate-500" x-text="job.display_dataset_key || job.dataset_key || 'multiple datasets'"></p>
+                            <p class="mt-1 truncate text-[10px] text-emerald-300"
+                               x-show="job.status === 'done' && jobOutputLabel(job)"
+                               x-text="`→ ${jobOutputLabel(job)}`"></p>
+                        </button>
+                    </template>
+                </div>
+                <div class="flex min-h-0 flex-col p-4">
+                    <template x-if="!selectedJob()">
+                        <p class="text-sm text-slate-500">Select a job to inspect its progress and logs.</p>
+                    </template>
+                    <template x-if="selectedJob()">
+                        <div class="flex min-h-0 flex-1 flex-col">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="font-semibold text-slate-100" x-text="jobOperationLabel(selectedJob())"></div>
+                                    <p class="mt-1 truncate text-xs text-slate-500"
+                                       x-text="selectedJob()?.display_dataset_key || selectedJob()?.dataset_key || 'multiple datasets'"></p>
+                                </div>
+                                <div class="flex flex-wrap gap-2 text-xs">
+                                    <a class="dp-link-btn dp-btn-secondary dp-btn-inline"
+                                       x-show="jobViewerUrl(selectedJob())" :href="jobViewerUrl(selectedJob())" @click="learningInteraction('result_opened', selectedJob().id)">Open viewer</a>
+                                    <a class="dp-link-btn dp-btn-secondary dp-btn-inline" x-show="selectedJob()?.review_url" :href="selectedJob()?.review_url" @click="learningInteraction('result_opened', selectedJob().id)">Open result</a>
+                                    <span class="rounded border px-2 py-1" :class="jobStatusClass(selectedJob()?.status)" x-text="selectedJob()?.status"></span>
+                                </div>
+                            </div>
+                            <div class="mt-3 h-2 overflow-hidden rounded bg-slate-800">
+                                <div class="h-full bg-sky-500 transition-all" :style="`width: ${selectedJob()?.progress || 0}%`"></div>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-500">
+                                <span x-text="`${selectedJob()?.current || 0}/${selectedJob()?.total || 0}`"></span>
+                                <span x-text="`elapsed ${formatDuration(selectedJob()?.elapsed_seconds)}`"></span>
+                                <span x-text="selectedJob()?.status === 'running' ? `ETA ${formatDuration(selectedJob()?.eta_seconds)}` : 'ETA -'"></span>
+                            </div>
+                            <p class="mt-2 text-xs text-slate-300" x-text="selectedJob()?.message"></p>
+                                {% include 'console/caption_children.html' %}
+                                <div class="mt-3 flex flex-wrap items-center gap-2" x-show="controlPlaneEnabled &amp;&amp; !selectedJob()?.caption_group">
+                                    <span class="mr-2 text-xs text-slate-400" x-text="'Submitted by ' + (selectedJob()?.requested_by_username || 'Unknown user')"></span>
+                                    <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="ownsRun(selectedJob()) && !selectedJob()?.caption_skipped && ['error','cancelled','interrupted'].includes(selectedJob()?.status)"
+                                            :disabled="!!jobControlBusy || !canControlRun(selectedJob(), 'retry')" @click="controlRun(selectedJob(), 'retry')">Retry</button>
+                                    <button class="dp-btn dp-btn-secondary dp-btn-inline" x-show="ownsRun(selectedJob()) && !selectedJob()?.caption_skipped && ['queued','running','cancel_requested'].includes(selectedJob()?.status)"
+                                            :disabled="!!jobControlBusy || selectedJob()?.status === 'cancel_requested' || !canControlRun(selectedJob(), 'cancel')" @click="controlRun(selectedJob(), 'cancel')"
+                                            x-text="selectedJob()?.status === 'queued' ? 'Cancel queued' : selectedJob()?.status === 'cancel_requested' ? 'Stopping…' : 'Request stop'"></button>
+                                    <a href="/control-plane#jobs" class="text-xs text-sky-300" x-show="adminModeEnabled && !ownsRun(selectedJob())">Manage all jobs</a>
+                                </div>
+                                <p class="mt-2 text-xs text-slate-400" x-show="controlPlaneEnabled && !selectedJob()?.caption_group && selectedJob()?.status !== 'done'" x-text="runControlReason(selectedJob())"></p>
+                                <p role="alert" class="mt-2 text-xs text-red-300" x-show="jobControlError" x-text="jobControlError"></p>
+                                <p role="status" class="mt-2 text-xs text-sky-300" x-show="jobControlNotice" x-text="jobControlNotice"></p>
+
+                            <div class="mt-3 rounded-lg border border-slate-800 bg-slate-950 p-3"
+                                 x-show="jobOutputLabel(selectedJob())">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Output dataset</div>
+                                        <p class="mt-1 truncate text-xs text-slate-200" x-text="jobOutputLabel(selectedJob())"></p>
+                                        <p class="dp-mono mt-1 break-all text-[10px] text-slate-500"
+                                           x-show="selectedJob()?.output_root" x-text="selectedJob()?.output_root"></p>
+                                    </div>
+                                    <div class="flex shrink-0 gap-2">
+                                        <button class="dp-btn dp-btn-secondary dp-btn-inline"
+                                                x-show="canUseJobOutput(selectedJob())"
+                                                @click="useJobOutput(selectedJob())">Use dataset</button>
+                                        <button class="dp-btn dp-btn-secondary dp-btn-inline"
+                                                x-show="canPrepareJobOutput(selectedJob())"
+                                                :disabled="busy || remoteActionBusy"
+                                                @click="prepareJobOutput(selectedJob())">Prepare viewer</button>
+                                        <a class="dp-link-btn dp-btn-primary dp-btn-inline"
+                                           x-show="jobViewerUrl(selectedJob())"
+                                           :href="jobViewerUrl(selectedJob())">Open viewer</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-4">
+                                <span x-text="`Server: ${jobServerLabel(selectedJob())}`"></span>
+                                <span x-text="`Started: ${formatJobTime(selectedJob()?.started_at || selectedJob()?.created_at)}`"></span>
+                                <span x-text="`Finished: ${formatJobTime(selectedJob()?.finished_at)}`"></span>
+                                <span class="dp-mono truncate" :title="selectedJob()?.id" x-text="`Job ID: ${selectedJob()?.id}`"></span>
+                            </div>
+                            <details class="mt-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2"
+                                     x-show="selectedJob()?.result_summary">
+                                <summary class="cursor-pointer text-xs font-medium text-slate-300">Result summary</summary>
+                                <pre class="dp-mono mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[10px] text-slate-400"
+                                     x-text="JSON.stringify(selectedJob()?.result_summary, null, 2)"></pre>
+                            </details>
+                            <div x-ref="jobLogBox" class="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs">
+                                <label class="text-xs text-slate-400" x-show="selectedJob()?.remote"><input type="checkbox" x-model="showDetailedJobLogs" @change="mergeRemoteJobsIntoRuns()"> Detailed events</label>
+                                <p class="text-slate-500" x-show="selectedJob()?.logs.length === 0">No job logs yet.</p>
+                                <template x-for="(entry, idx) in selectedJob()?.logs" :key="`${idx}-${entry.time}-${entry.message}`">
+                                    <div class="mb-1 grid grid-cols-[4.5rem_1fr] gap-2">
+                                        <span class="text-slate-500" x-text="entry.time"></span>
+                                        <span class="text-slate-300" x-text="entry.message"></span>
+                                    </div>
+                                </template>
+                                <p class="mt-2 whitespace-pre-wrap text-red-300" x-show="selectedJob()?.error" x-text="selectedJob()?.error"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    {% if control_plane_enabled %}
+    {% set can_edit = control_plane_user and control_plane_user.role != 'viewer' %}
+    {% include "assistant_workspace.html" %}
+    <template id="pipeline-workspace-template">{% include "pipeline_editor.html" %}</template>
+    {% endif %}
+    <template id="curation-workspace-template">{% include "visualize_dataset_curation.html" %}</template>
+    <script>{% include "temporal_caption_task.js" %}
+{% include "curation.js" %}</script>
+    <script>
+{% include "pipelines.js" %}
+{% include "console/pipeline.js" %}
+{% include "console/context.js" %}
+{% include "assistant_launcher.js" %}
+{% include "console/shell.js" %}
+{% include "console/account.js" %}
+{% include "console/browse.js" %}
+{% include "console/operators.js" %}
+{% include "console/lifecycle.js" %}
+{% include "console/runs.js" %}
+
+        function precomputeConsole() {
+            const app = {};
+            for (const state of [consoleShellState(), consoleAccountState(), consoleBrowseState(),
+                consoleOperatorsState(), consoleLifecycleState(), consoleRunsState(), consolePipelineState()]) {
+                for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(state))) {
+                    if (Object.hasOwn(app, key)) throw new Error(`Duplicate console state: ${key}`);
+                    Object.defineProperty(app, key, descriptor);
+                }
+            }
+            return app;
+        }
+    </script>
+</body>
+</html>

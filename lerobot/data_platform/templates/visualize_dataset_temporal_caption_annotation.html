@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Temporal Caption · Annotation</title>{% include 'temporal_caption_styles.html' %}</head><body>
+<header class="topbar dp-topbar"><div class="dp-topbar-context"><nav class="dp-dataset-nav"><a class="dp-btn" href="{{ home_url }}">Dataset</a><span class="dp-btn" aria-current="page">Annotation</span><a class="dp-btn" href="{{ review_url }}">Review</a></nav><h1>Temporal Caption</h1><p>{{ page_title }}</p></div></header><main class="caption-task-page">
+<div id="caption-task">{% include 'temporal_caption_task.html' %}</div></main><script>{% include 'temporal_caption_task.js' %}
+window.createTemporalCaptionTask(document.getElementById('caption-task'), {api:{{ api_base|tojson }},reviewUrl:{{ review_url|tojson }},enabled:{{ remote_caption|tojson }}});
+</script>
+{% if g is defined and g.control_plane_user %}{% include 'temporal_caption_assistant.html' %}{% endif %}
+</body></html>

@@ -1,0 +1,805 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from lerobot.data_platform import agent as agent_module
+from lerobot.data_platform.agent import DataPlatformAgent, discover_datasets
+from lerobot.data_platform.precompute.preprocess.common import PreprocessResult
+
+
+def _make_dataset(root: Path, *, episodes: int = 2) -> None:
+    (root / "meta").mkdir(parents=True)
+    (root / "data").mkdir()
+    (root / "meta" / "info.json").write_text(
+        json.dumps(
+            {
+                "codebase_version": "v2.1",
+                "fps": 30,
+                "total_episodes": episodes,
+                "total_frames": episodes * 5,
+                "features": {},
+                "data_profile": {
+                    "schema_version": 1,
+                    "robot_profile": "h10w_dvt2",
+                    "legacy_data_version": "DVT2",
+                },
+            }
+        )
+    )
+
+
+class _FakeClient:
+    server_url = "https://server-a.example"
+
+    def __init__(self):
+        self.events = []
+        self.uploads = []
+
+    def event(self, _state, job_id, message, payload=None):
+        self.events.append((job_id, message, payload))
+
+    def upload_artifact(self, _state, job_id, relative_path, path, *, derived=False):
+        self.uploads.append((job_id, Path(relative_path), Path(path).read_bytes(), derived))
+
+
+def _agent(
+    tmp_path: Path,
+    allowed_root: Path,
+    writable_root: Path,
+    *,
+    allow_source_mutations: bool = False,
+) -> DataPlatformAgent:
+    state_path = tmp_path / "agent-state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "node_id": "node-id",
+                "node_token": "node-token",
+                "name": "server-b",
+                "server_url": "https://server-a.example",
+            }
+        )
+    )
+    return DataPlatformAgent(
+        client=_FakeClient(),
+        state_path=state_path,
+        name="server-b",
+        allowed_roots=[allowed_root],
+        writable_roots=[writable_root],
+        enrollment_token="",
+        allow_source_mutations=allow_source_mutations,
+    )
+
+
+def test_agent_installer_uses_service_accessible_system_python_and_recovers_enrollment():
+    installer = (
+        Path(__file__).parents[2] / "deploy" / "data-platform" / "agent-bundle" / "install.sh"
+    ).read_text()
+
+    assert "PYTHON_BIN=/usr/bin/python3.10" in installer
+    assert 'runuser -u "$SERVICE_USER" -- "$PYTHON_BIN"' in installer
+    assert "UV_NO_MANAGED_PYTHON=1" in installer
+    assert "DATA_PLATFORM_AGENT_ALLOW_SOURCE_MUTATIONS=0" in installer
+    assert "if grep -q '^DATA_PLATFORM_AGENT_ENROLLMENT_TOKEN='" in installer
+
+
+def test_local_identity_survives_repeated_agent_heartbeats(tmp_path, monkeypatch):
+    from lerobot.data_platform import curation_execution, mcap_import
+    from lerobot.data_platform.control_plane import ControlPlaneStore
+
+    monkeypatch.setattr(curation_execution, "worker_capabilities", lambda: {"curation_operations": []})
+    monkeypatch.setattr(mcap_import, "runtime_status", lambda: {"ready": False})
+    agent = _agent(tmp_path, tmp_path, tmp_path)
+    assert not agent.capabilities().get("local_requests")
+    agent.local_requests = True
+    assert agent.capabilities()["operator_versions"]["preprocess.clear_flags"] == "1.0.0"
+    store = ControlPlaneStore(f"sqlite:///{tmp_path / 'control.db'}")
+    _, node = store.enroll_node(
+        name="local-worker",
+        hostname="localhost",
+        allowed_roots=[str(tmp_path)],
+        writable_roots=[str(tmp_path)],
+        capabilities={"local_requests": True},
+        enrollment_token="fixture",
+        expected_token="fixture",
+    )
+    monkeypatch.setattr(
+        agent.client,
+        "heartbeat",
+        lambda state, capabilities: store.heartbeat(node["node_id"], capabilities=capabilities),
+        raising=False,
+    )
+    for _ in range(2):
+        agent.run_once(sync=False, allow_claim=False)
+        store.configure_local_execution_roots(node["node_id"], [str(tmp_path)], [str(tmp_path)])
+    assert (
+        next(item for item in store.list_nodes() if item["node_id"] == node["node_id"])["capabilities"][
+            "local_requests"
+        ]
+        is True
+    )
+
+
+def test_discover_datasets_stops_at_dataset_roots(tmp_path: Path):
+    first = tmp_path / "team" / "first"
+    second = tmp_path / "team" / "nested" / "second"
+    _make_dataset(first)
+    _make_dataset(second)
+    (first / "data" / "ignored-child").mkdir()
+
+    found = discover_datasets([tmp_path / "team"], node_name="server-b")
+
+    assert {item["root"] for item in found} == {str(first.resolve()), str(second.resolve())}
+    assert all(item["dataset_key"].startswith("node-server-b/") for item in found)
+
+
+def test_agent_remote_preprocess_uses_sibling_output_and_reports_location(tmp_path: Path, monkeypatch):
+    source = tmp_path / "datasets" / "source"
+    _make_dataset(source)
+    agent = _agent(tmp_path, tmp_path / "datasets", tmp_path / "datasets")
+
+    def fake_preprocess(op, src_root, out_root, progress_callback, **options):
+        assert op == "standardize"
+        assert Path(src_root) == source.resolve()
+        assert Path(out_root).parent == source.parent
+        assert options == {"profile": "dvt2"}
+        _make_dataset(Path(out_root), episodes=3)
+        progress_callback({"message": "done", "current": 3, "total": 3})
+        return PreprocessResult(
+            op=op,
+            src_roots=[Path(src_root)],
+            out_root=Path(out_root),
+            repo_id="local/standardized",
+            total_episodes=3,
+        )
+
+    precompute_calls = []
+    monkeypatch.setattr(agent_module, "run_preprocess_op", fake_preprocess)
+
+    def fake_precompute(**kwargs):
+        precompute_calls.append(kwargs)
+        if Path(kwargs["root"]) != source.resolve():
+            static = Path(kwargs["output_dir"]) / "static"
+            static.mkdir(parents=True, exist_ok=True)
+            (static / "viewer_manifest.json").write_text(json.dumps({"episodes": [{"episode_index": 0}]}))
+        return {}
+
+    monkeypatch.setattr(agent_module, "run_precompute", fake_precompute)
+    result = agent.execute_job(
+        {
+            "job_id": "job-1",
+            "operation": "preprocess.standardize",
+            "options": {"profile": "dvt2"},
+            "location": {"dataset_key": "node-server-b/source", "root": str(source)},
+        }
+    )
+
+    output = Path(result["dataset_location"]["root"])
+    assert output != source
+    assert output.parent == source.parent
+    assert (source / "meta" / "info.json").is_file()
+    assert result["dataset_location"]["metadata"]["total_episodes"] == 3
+    assert result["dataset_location"]["metadata"]["stage"] == "standard"
+    assert result["viewer_cache"]["uploaded_files"] == 1
+    assert [Path(call["root"]) for call in precompute_calls] == [source.resolve(), output]
+    assert agent.client.uploads[-1][1] == Path("viewer_manifest.json")
+    assert agent.client.uploads[-1][3] is True
+    assert agent.client.events[-1][2]["current"] == 100
+
+
+def test_agent_viewer_prepare_uploads_manifest_last(tmp_path: Path, monkeypatch):
+    source = tmp_path / "datasets" / "source"
+    _make_dataset(source)
+    agent = _agent(tmp_path, tmp_path / "datasets", tmp_path)
+    output_dir = tmp_path / "viewer-cache"
+
+    def fake_precompute(**kwargs):
+        assert kwargs["visualize_only"] is True
+        assert kwargs["data_version"] == "DVT2"
+        assert kwargs["prepare_videos"] is False
+        assert kwargs["prepare_csv"] is True
+        assert kwargs["overwrite"] is True
+        assert kwargs["overwrite_csv"] is True
+        static = Path(kwargs["output_dir"]) / "static"
+        (static / "csv").mkdir(parents=True)
+        (static / "csv" / "episode_000000_ds1.csv").write_text("timestamp\n0\n")
+        (static / "viewer_manifest.json").write_text(json.dumps({"episodes": [{"episode_index": 0}]}))
+        return {"prepared": True}
+
+    monkeypatch.setattr(agent_module, "run_precompute", fake_precompute)
+    result = agent.execute_job(
+        {
+            "job_id": "job-viewer",
+            "operation": "viewer.prepare",
+            "options": {
+                "data_version": "DVT2",
+                "overwrite": True,
+                "overwrite_csv": True,
+                "prepare_csv": True,
+                "prepare_videos": False,
+            },
+            "location": {
+                "dataset_key": "node-server-b/source",
+                "root": str(source),
+                "output_dir": str(output_dir),
+            },
+        }
+    )
+
+    assert result["uploaded_files"] == 2
+    assert agent.client.uploads[-1][1] == Path("viewer_manifest.json")
+
+
+def test_agent_remote_preprocess_accepts_safe_custom_output_and_overwrite(tmp_path: Path, monkeypatch):
+    source = tmp_path / "datasets" / "source"
+    custom_output = tmp_path / "datasets" / "custom-standard"
+    _make_dataset(source)
+    agent = _agent(tmp_path, tmp_path / "datasets", tmp_path / "datasets")
+
+    def fake_preprocess(op, src_root, out_root, progress_callback, **options):
+        assert op == "standardize"
+        assert Path(src_root) == source.resolve()
+        assert Path(out_root) == custom_output.resolve()
+        assert options["overwrite"] is True
+        _make_dataset(Path(out_root), episodes=3)
+        return PreprocessResult(
+            op=op,
+            src_roots=[Path(src_root)],
+            out_root=Path(out_root),
+            repo_id="local/custom-standard",
+            total_episodes=3,
+        )
+
+    monkeypatch.setattr(agent_module, "run_preprocess_op", fake_preprocess)
+
+    def fake_precompute(**kwargs):
+        if Path(kwargs["root"]) == custom_output.resolve():
+            static = Path(kwargs["output_dir"]) / "static"
+            static.mkdir(parents=True, exist_ok=True)
+            (static / "viewer_manifest.json").write_text(json.dumps({"episodes": [{"episode_index": 0}]}))
+        return {}
+
+    monkeypatch.setattr(agent_module, "run_precompute", fake_precompute)
+    monkeypatch.setattr(
+        agent_module,
+        "_AgentDataset",
+        lambda repo_id, root: type(
+            "Dataset",
+            (),
+            {"repo_id": repo_id, "root": root, "total_frames": 12},
+        )(),
+    )
+    deleted = []
+
+    def fake_delete(_dataset, episode_ids, **_kwargs):
+        deleted.extend(episode_ids)
+        return {"deleted_episode_ids": episode_ids, "new_total_episodes": 1}
+
+    monkeypatch.setattr(agent_module, "delete_episodes_inplace", fake_delete)
+    result = agent.execute_job(
+        {
+            "job_id": "custom-output",
+            "operation": "preprocess.standardize",
+            "options": {
+                "delete_episodes": "1,2",
+                "out_root": str(custom_output),
+                "overwrite_output": True,
+            },
+            "location": {"dataset_key": "node-server-b/source", "root": str(source)},
+        }
+    )
+
+    assert Path(result["dataset_location"]["root"]) == custom_output.resolve()
+    assert deleted == [1, 2]
+    assert result["preprocess"]["summary"]["episodes_after_delete"] == 1
+
+
+def test_agent_remote_preprocess_rejects_unsafe_custom_output(tmp_path: Path):
+    source = tmp_path / "datasets" / "source"
+    _make_dataset(source)
+    agent = _agent(tmp_path, tmp_path / "datasets", tmp_path / "datasets")
+
+    for output in (source / "child", tmp_path / "outside"):
+        try:
+            agent.execute_job(
+                {
+                    "job_id": f"unsafe-{output.name}",
+                    "operation": "preprocess.standardize",
+                    "options": {"out_root": str(output), "overwrite_output": True},
+                    "location": {"dataset_key": "node-server-b/source", "root": str(source)},
+                }
+            )
+        except (PermissionError, ValueError):
+            pass
+        else:
+            raise AssertionError(f"unsafe output was accepted: {output}")
+
+
+def test_agent_rejects_source_outside_allowed_roots(tmp_path: Path):
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside"
+    _make_dataset(outside)
+    agent = _agent(tmp_path, allowed, tmp_path)
+
+    try:
+        agent.execute_job(
+            {
+                "job_id": "escape",
+                "operation": "preprocess.standardize",
+                "options": {},
+                "location": {"dataset_key": "outside/data", "root": str(outside)},
+            }
+        )
+    except PermissionError as exc:
+        assert "outside configured roots" in str(exc)
+    else:
+        raise AssertionError("outside source root was accepted")
+
+
+def test_agent_source_mutation_is_off_by_default(tmp_path: Path):
+    source = tmp_path / "datasets" / "source"
+    _make_dataset(source)
+    agent = _agent(tmp_path, tmp_path / "datasets", tmp_path / "datasets")
+
+    try:
+        agent.execute_job(
+            {
+                "job_id": "mutation-disabled",
+                "operation": "mutation.value_edit",
+                "options": {
+                    "edits": [{"field": "action", "dimension": 0, "value": 0}],
+                    "reason": "test",
+                },
+                "location": {"dataset_key": "node-server-b/source", "root": str(source)},
+            }
+        )
+    except PermissionError as exc:
+        assert "disabled" in str(exc)
+    else:
+        raise AssertionError("source mutation ran without the Agent switch")
+
+
+def test_agent_source_mutation_keeps_backup_and_restores_on_failure(tmp_path: Path, monkeypatch):
+    source = tmp_path / "datasets" / "source"
+    _make_dataset(source)
+    parquet = source / "data" / "episode_000000.parquet"
+    parquet.write_text("original")
+    agent = _agent(
+        tmp_path,
+        tmp_path / "datasets",
+        tmp_path / "datasets",
+        allow_source_mutations=True,
+    )
+
+    def failing_preprocess(_op, src_root, **_kwargs):
+        temporary = Path(src_root) / "data" / ".replacement.tmp"
+        temporary.write_text("changed")
+        temporary.replace(parquet)
+        raise RuntimeError("simulated write failure")
+
+    monkeypatch.setattr(agent_module, "run_preprocess_op", failing_preprocess)
+    try:
+        agent.execute_job(
+            {
+                "job_id": "mutation-failure",
+                "operation": "mutation.value_edit",
+                "options": {
+                    "edits": [{"field": "action", "dimension": 0, "value": 0}],
+                    "reason": "test rollback",
+                    "requested_by": {"username": "platform-admin"},
+                },
+                "location": {"dataset_key": "node-server-b/source", "root": str(source)},
+            }
+        )
+    except RuntimeError as exc:
+        assert "simulated write failure" in str(exc)
+    else:
+        raise AssertionError("simulated mutation failure was ignored")
+
+    assert parquet.read_text() == "original"
+    backups = list((tmp_path / "datasets" / ".data-platform-backups" / "source").iterdir())
+    assert len(backups) == 1
+    assert (backups[0] / "dataset" / "data" / parquet.name).read_text() == "original"
+    audit_log = tmp_path / "datasets" / "vis" / "local_vis_source" / "static" / "operation_log.jsonl"
+    events = [json.loads(line) for line in audit_log.read_text().splitlines()]
+    assert [event["status"] for event in events[-2:]] == ["started", "failed"]
+    assert events[-1]["details"]["restored"] is True
+
+
+def test_agent_source_mutation_reuses_completed_job_marker(tmp_path: Path, monkeypatch):
+    source = tmp_path / "datasets" / "source"
+    _make_dataset(source)
+    parquet = source / "data" / "episode_000000.parquet"
+    parquet.write_text("original")
+    agent = _agent(
+        tmp_path,
+        tmp_path / "datasets",
+        tmp_path / "datasets",
+        allow_source_mutations=True,
+    )
+    calls = 0
+
+    def successful_preprocess(op, src_root, **_kwargs):
+        nonlocal calls
+        calls += 1
+        temporary = Path(src_root) / "data" / ".replacement.tmp"
+        temporary.write_text("changed")
+        temporary.replace(parquet)
+        return PreprocessResult(
+            op=op,
+            src_roots=[Path(src_root)],
+            out_root=Path(src_root),
+            repo_id="node-server-b/source",
+            total_episodes=2,
+        )
+
+    monkeypatch.setattr(agent_module, "run_preprocess_op", successful_preprocess)
+    job = {
+        "job_id": "mutation-success",
+        "operation": "mutation.value_edit",
+        "options": {
+            "edits": [{"field": "action", "dimension": 0, "value": 0}],
+            "reason": "test idempotency",
+            "requested_by": {"username": "platform-admin"},
+        },
+        "location": {"dataset_key": "node-server-b/source", "root": str(source)},
+    }
+
+    first = agent.execute_job(job)
+    second = agent.execute_job(job)
+
+    assert calls == 1
+    assert second == first
+    assert parquet.read_text() == "changed"
+    assert Path(first["backup_root"]).joinpath("dataset", "data", parquet.name).read_text() == "original"
+    assert agent._completed_mutation_path(job["job_id"]).is_file()
+
+
+def test_agent_does_not_overwrite_success_with_error_when_completion_response_fails(
+    tmp_path: Path, monkeypatch
+):
+    source = tmp_path / "datasets" / "source"
+    _make_dataset(source)
+    agent = _agent(tmp_path, tmp_path / "datasets", tmp_path)
+
+    class RunClient(_FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.completions = []
+
+        def heartbeat(self, _state, _capabilities):
+            return None
+
+        def claim(self, _state, *, lease_seconds):
+            assert lease_seconds == agent.lease_seconds
+            return {
+                "job_id": "job-complete",
+                "operation": "viewer.prepare",
+                "location": {"dataset_key": "node-server-b/source", "root": str(source)},
+            }
+
+        def complete(self, _state, _job_id, *, status, result=None, error=None):
+            self.completions.append((status, result, error))
+            if status == "done":
+                raise RuntimeError("response was lost")
+
+    client = RunClient()
+    agent.client = client
+    monkeypatch.setattr(agent, "execute_job", lambda _job: {"prepared": True})
+
+    assert agent.run_once(sync=False) is True
+    assert [status for status, _result, _error in client.completions] == ["done"]
+
+
+@pytest.mark.parametrize("slots", [2, 4, 8])
+def test_dispatcher_runs_independent_job_types(tmp_path, monkeypatch, slots):
+    from threading import Event, Lock
+    from types import SimpleNamespace
+
+    from lerobot.data_platform.agent import _ExecutionDispatcher
+    from lerobot.data_platform.execution import ExecutionSupervisor
+
+    monkeypatch.setenv("DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS", str(slots))
+    agent = SimpleNamespace(state_path=tmp_path / "agent.json")
+    dispatcher = _ExecutionDispatcher(agent)
+    entered = Event()
+    release = Event()
+    lock = Lock()
+    active = set()
+
+    def start(_supervisor, job):
+        with lock:
+            active.add(job["job_id"])
+            if len(active) == slots:
+                entered.set()
+        assert release.wait(5)
+
+    monkeypatch.setattr(ExecutionSupervisor, "start", start)
+    monkeypatch.setattr(
+        dispatcher,
+        "_worker_agent",
+        lambda _job: SimpleNamespace(
+            state_path=agent.state_path,
+            client=SimpleNamespace(session=SimpleNamespace(close=lambda: None)),
+        ),
+    )
+    try:
+        dispatcher.dispatch(
+            {"job_id": "a", "operation": "caption.annotate", "execution": {"attempt_id": "a"}}
+        )
+        assert dispatcher.available()
+        dispatcher.dispatch({"job_id": "b", "operation": "viewer.prepare", "execution": {"attempt_id": "b"}})
+        for index in range(2, slots):
+            assert dispatcher.available()
+            key = f"extra-{index}"
+            dispatcher.dispatch(
+                {"job_id": key, "operation": "preprocess.merge", "execution": {"attempt_id": key}}
+            )
+        assert entered.wait(5)
+        assert not dispatcher.available()
+    finally:
+        release.set()
+        for thread, _ in dispatcher.threads.values():
+            thread.join(timeout=5)
+
+    dispatcher.threads.clear()
+    dispatcher.dispatch({"job_id": "c", "operation": "viewer.prepare", "execution": {"attempt_id": "c"}})
+    assert dispatcher.available()
+    for thread, _ in dispatcher.threads.values():
+        thread.join(timeout=5)
+    dispatcher.threads.clear()
+    dispatcher.dispatch({"job_id": "d", "operation": "mutation.trim", "execution": {"attempt_id": "d"}})
+    assert not dispatcher.available()
+    for thread, _ in dispatcher.threads.values():
+        thread.join(timeout=5)
+
+
+def test_caption_dispatcher_reconciles_each_attempt_once(tmp_path, monkeypatch):
+    from threading import Event
+    from types import SimpleNamespace
+
+    from lerobot.data_platform.agent import _ExecutionDispatcher
+    from lerobot.data_platform.execution import ExecutionSupervisor, atomic_json
+
+    monkeypatch.setenv("DATA_PLATFORM_CAPTION_RUNNING_LIMIT", "2")
+    agent = SimpleNamespace(state_path=tmp_path / "agent.json")
+    dispatcher = _ExecutionDispatcher(agent)
+    release = Event()
+    entered = {name: Event() for name in ("a", "b")}
+    seen = []
+
+    def monitor(_supervisor, marker, _process):
+        name = marker["job"]["job_id"]
+        seen.append(name)
+        entered[name].set()
+        assert release.wait(5)
+
+    monkeypatch.setattr(ExecutionSupervisor, "monitor", monitor)
+    monkeypatch.setattr(
+        dispatcher,
+        "_worker_agent",
+        lambda _job: SimpleNamespace(
+            state_path=agent.state_path,
+            client=SimpleNamespace(session=SimpleNamespace(close=lambda: None)),
+        ),
+    )
+    try:
+        for name in ("a", "b"):
+            path = dispatcher.supervisor.root / name / "marker.json"
+            atomic_json(
+                path,
+                {
+                    "job": {
+                        "job_id": name,
+                        "operation": "caption.annotate",
+                        "execution": {"attempt_id": name},
+                    },
+                    "acknowledged": False,
+                },
+            )
+        dispatcher.reconcile()
+        dispatcher.reconcile()
+        assert all(event.wait(5) for event in entered.values())
+        dispatcher.reconcile()
+        assert sorted(seen) == ["a", "b"]
+        assert not dispatcher.available()
+    finally:
+        release.set()
+        for thread, _ in dispatcher.threads.values():
+            thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("slots", [1, 2])
+def test_agent_discovers_new_datasets_while_job_is_running(tmp_path, monkeypatch, slots):
+    from threading import Event
+    from types import SimpleNamespace
+
+    from lerobot.data_platform.agent import AgentClient, _ExecutionDispatcher
+    from lerobot.data_platform.execution import ExecutionSupervisor
+
+    monkeypatch.setenv("DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS", str(slots))
+    source = tmp_path / "datasets"
+    _make_dataset(source / "first")
+    agent = _agent(tmp_path, source, tmp_path)
+
+    class Client(AgentClient):
+        def __init__(self):
+            super().__init__("https://server-a.example")
+            self.catalogs = []
+            self.claims = 0
+            self.heartbeats = 0
+
+        def heartbeat(self, _state, _capabilities):
+            self.heartbeats += 1
+            return {"result_sync_protocol": 1}
+
+        def sync_locations(self, _state, locations):
+            self.catalogs.append({item["root"] for item in locations})
+            return locations
+
+        def claim(self, _state, *, lease_seconds):
+            self.claims += 1
+            return None
+
+    client = Client()
+    agent.client = client
+    monkeypatch.setattr(agent, "capabilities", lambda: {})
+    dispatcher = _ExecutionDispatcher(agent)
+    entered, release = Event(), Event()
+
+    def start(_supervisor, _job):
+        entered.set()
+        assert release.wait(5)
+
+    monkeypatch.setattr(ExecutionSupervisor, "start", start)
+    monkeypatch.setattr(
+        dispatcher,
+        "_worker_agent",
+        lambda _job: SimpleNamespace(
+            state_path=agent.state_path,
+            client=SimpleNamespace(session=SimpleNamespace(close=lambda: None)),
+        ),
+    )
+    monkeypatch.setattr(agent_module, "_ExecutionDispatcher", lambda _agent: dispatcher)
+    sync_results = []
+    monkeypatch.setattr(
+        "lerobot.data_platform.dataset_results.sync_agent_results", lambda _agent: sync_results.append(True)
+    )
+    ticks = [100.0]
+    monkeypatch.setattr(agent_module.time, "monotonic", lambda: ticks[0])
+
+    class StopPolling(BaseException):
+        pass
+
+    polls = 0
+
+    def sleep(_seconds):
+        nonlocal polls
+        polls += 1
+        assert dispatcher.threads["busy"][0].is_alive()
+        agent._result_sync_thread.join(timeout=1)
+        assert not agent._result_sync_thread.is_alive()
+        if polls == 1:
+            _make_dataset(source / "new")
+            ticks[0] = 101.0
+        if polls == 2:
+            ticks[0] = 111.0
+        if polls == 3:
+            raise StopPolling
+
+    monkeypatch.setattr(agent_module.time, "sleep", sleep)
+    try:
+        dispatcher.dispatch(
+            {"job_id": "busy", "operation": "viewer.prepare", "execution": {"attempt_id": "busy"}}
+        )
+        assert entered.wait(1)
+        with pytest.raises(StopPolling):
+            agent.run_forever(poll_seconds=1, sync_seconds=10)
+        assert client.catalogs == [
+            {str(source / "first")},
+            {str(source / "first"), str(source / "new")},
+        ]
+        assert client.heartbeats == 3
+        assert client.claims == (0 if slots == 1 else 3)
+        assert sync_results == [True, True]
+    finally:
+        release.set()
+        for thread, _ in dispatcher.threads.values():
+            thread.join(timeout=5)
+        client.session.close()
+
+
+def test_result_transfer_does_not_block_agent_heartbeats_or_claims(tmp_path, monkeypatch):
+    from threading import Event
+
+    from lerobot.data_platform.agent import AgentClient
+
+    agent = _agent(tmp_path, tmp_path, tmp_path)
+
+    class Client(AgentClient):
+        def __init__(self):
+            super().__init__("https://server-a.example", verify="/test/ca.pem")
+            self.heartbeats = 0
+            self.claims = 0
+
+        def heartbeat(self, _state, _capabilities):
+            self.heartbeats += 1
+            return {"result_sync_protocol": 1}
+
+        def claim(self, _state, *, lease_seconds):
+            self.claims += 1
+            return None
+
+    agent.client = Client()
+    monkeypatch.setattr(agent, "capabilities", lambda: {})
+    monkeypatch.setattr(agent_module.time, "monotonic", lambda: 100.0)
+    entered, release, closed = Event(), Event(), Event()
+    workers = []
+
+    def transfer(worker):
+        workers.append(worker)
+        worker.client.session.close = closed.set
+        entered.set()
+        assert release.wait(5)
+
+    monkeypatch.setattr("lerobot.data_platform.dataset_results.sync_agent_results", transfer)
+    try:
+        agent.run_once(sync=False, dispatch=lambda job: None)
+        assert entered.wait(1)
+        for _ in range(3):
+            agent.run_once(sync=False, dispatch=lambda job: None)
+        assert agent.client.heartbeats == agent.client.claims == 4
+        assert len(workers) == 1
+        assert workers[0].client is not agent.client
+        assert workers[0].client.session is not agent.client.session
+        assert workers[0].client.verify == agent.client.verify
+        assert workers[0].client.worker_instance_id == agent.client.worker_instance_id
+    finally:
+        release.set()
+        agent._result_sync_thread.join(timeout=5)
+        agent.client.session.close()
+    assert closed.is_set()
+
+
+def test_once_finishes_result_sync_before_returning(tmp_path, monkeypatch):
+    agent = _agent(tmp_path, tmp_path, tmp_path)
+    completed = []
+    monkeypatch.setattr(agent.client, "heartbeat", lambda *_args: {"result_sync_protocol": 1}, raising=False)
+    monkeypatch.setattr(agent.client, "claim", lambda *_args, **_kwargs: None, raising=False)
+    monkeypatch.setattr(agent, "capabilities", lambda: {})
+    monkeypatch.setattr(agent_module.time, "monotonic", lambda: 100.0)
+    monkeypatch.setattr(
+        "lerobot.data_platform.dataset_results.sync_agent_results", lambda _agent: completed.append(True)
+    )
+    assert not agent.run_once(sync=False)
+    assert completed == [True]
+
+
+def test_result_client_start_failure_keeps_main_session_open_and_retries(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    agent = _agent(tmp_path, tmp_path, tmp_path)
+    closed, attempts = [], []
+    agent.client = SimpleNamespace(
+        server_url="https://server-a.example",
+        verify=True,
+        worker_instance_id="worker",
+        session=SimpleNamespace(close=lambda: closed.append(True)),
+    )
+    ticks = [100.0]
+    monkeypatch.setattr(agent_module.time, "monotonic", lambda: ticks[0])
+
+    def unavailable_client(*_args, **_kwargs):
+        attempts.append(True)
+        raise RuntimeError("client initialization failed")
+
+    monkeypatch.setattr(agent_module, "AgentClient", unavailable_client)
+    for tick in (100.0, 111.0):
+        ticks[0] = tick
+        agent._sync_results(background=True)
+        agent._result_sync_thread.join(timeout=1)
+        assert not agent._result_sync_thread.is_alive()
+    assert attempts == [True, True]
+    assert closed == []

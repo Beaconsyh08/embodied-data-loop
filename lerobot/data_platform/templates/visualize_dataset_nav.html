@@ -1,0 +1,13 @@
+<nav class="dp-dataset-nav{{ ' is-compact' if nav_compact|default(false) else '' }}" aria-label="Dataset views">
+  <a class="dp-btn" href="{{ home_url or '/' }}" title="Return to the console with this dataset selected">Dataset console</a>
+  {% for item in nav_links or [] %}
+  {% set is_active = nav_active == item.key %}
+  {% set is_enabled = item.enabled or is_active %}
+  {% if is_enabled %}
+  <a class="dp-btn" href="{{ item.href }}" title="{{ item.hint or item.label }}"
+     {% if is_active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+  {% else %}
+  <span class="dp-btn" role="link" aria-disabled="true" tabindex="0" title="{{ item.hint or 'Not available yet' }}">{{ item.label }}<span class="dp-nav-hint">{{ item.hint or 'Not available yet' }}</span></span>
+  {% endif %}
+  {% endfor %}
+</nav>
