@@ -83,8 +83,8 @@ def check(runtime: Path, mode: str) -> None:
         operation = "umi." + ("replay" if mode == "replay" else "cosmos_id")
         probe(
             Path(config["host_python"]),
-            "from lerobot.data_platform.precompute.umi.runtime import load_runtime; "
-            f"load_runtime({operation!r}); import lerobot.data_platform.precompute.umi.worker; "
+            "from lerobot.data_platform.operators.implementations.umi.runtime import load_runtime; "
+            f"load_runtime({operation!r}); import lerobot.data_platform.operators.implementations.umi.worker; "
             "import laundry.core.dataset, laundry.pipelines._cosmos_id.bridge",
             PLATFORM,
             laundry / "src",

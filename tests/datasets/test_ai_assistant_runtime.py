@@ -31,10 +31,10 @@ from lerobot.data_platform.ai_tools.runtime_repository import (  # noqa: E402
     RuntimeRepository,
 )
 from lerobot.data_platform.ai_tools.service import AssistantBusyError  # noqa: E402
-from lerobot.data_platform.control_plane import ControlPlaneUser, DatasetLocation  # noqa: E402
-from lerobot.data_platform.job_management import JobConflictError  # noqa: E402
+from lerobot.data_platform.control.store import ControlPlaneUser, DatasetLocation  # noqa: E402
 from lerobot.data_platform.routes.ai_assistant import register_ai_assistant_routes  # noqa: E402
 from lerobot.data_platform.routes.processing import register_processing_routes  # noqa: E402
+from lerobot.data_platform.runtime.jobs import JobConflictError  # noqa: E402
 from tests.datasets.test_ai_assistant import assistant, call  # noqa: E402, F401
 from tests.datasets.test_ai_assistant_context import bind_lifecycle, text_response  # noqa: E402
 from tests.datasets.test_control_plane import _app  # noqa: E402
@@ -228,7 +228,7 @@ def test_another_process_publishes_completed_checkpoint_without_model(asynchrono
     expire_lease(service, lease)
     code = """
 import sys
-from lerobot.data_platform.control_plane import ControlPlaneStore
+from lerobot.data_platform.control.store import ControlPlaneStore
 from lerobot.data_platform.processing.service import PipelineManager
 from lerobot.data_platform.ai_tools.service import AssistantService
 from lerobot.data_platform.ai_tools.runner import AssistantRunner

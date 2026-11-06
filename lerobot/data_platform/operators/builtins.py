@@ -187,7 +187,7 @@ def builtins() -> list[OperatorSpec]:
                 description,
                 "preprocess",
                 "source" if source else "cache" if name in {"quality_flags", "clear_flags"} else "dataset",
-                "lerobot.data_platform.precompute.preprocess." + entry,
+                "lerobot.data_platform.operators.implementations.preprocess." + entry,
                 legacy_remote=name
                 in {
                     "convert_action",
@@ -238,18 +238,18 @@ def builtins() -> list[OperatorSpec]:
                 }.get(name, ()),
                 parameter_schema_override=_curation_schema(parameters),
                 local_entry_point={
-                    "labeling": "lerobot.data_platform.precompute.labeling.runner:run_labeling",
-                    "tagging": "lerobot.data_platform.precompute.tagging.runner:run_tagging",
-                    "embedding": "lerobot.data_platform.precompute.embedding.runner:run_embedding",
-                    "construction": "lerobot.data_platform.precompute.construction.runner:run_construction",
+                    "labeling": "lerobot.data_platform.operators.implementations.labeling.runner:run_labeling",
+                    "tagging": "lerobot.data_platform.operators.implementations.tagging.runner:run_tagging",
+                    "embedding": "lerobot.data_platform.operators.implementations.embedding.runner:run_embedding",
+                    "construction": "lerobot.data_platform.operators.implementations.construction.runner:run_construction",
                 }.get(name, ""),
             )
         )
     local_entries = {
-        "delete_episodes": "lerobot.data_platform.precompute.preprocess.delete_episodes:delete_episodes_inplace",
-        "repair_v3_video_timestamps": "lerobot.data_platform.precompute.preprocess.dataset_version:repair_v3_video_timestamps",
+        "delete_episodes": "lerobot.data_platform.operators.implementations.preprocess.delete_episodes:delete_episodes_inplace",
+        "repair_v3_video_timestamps": "lerobot.data_platform.operators.implementations.preprocess.dataset_version:repair_v3_video_timestamps",
         **{
-            name: "lerobot.data_platform.precompute.preprocess." + _PREPROCESS[name][0]
+            name: "lerobot.data_platform.operators.implementations.preprocess." + _PREPROCESS[name][0]
             for name in (
                 "value_edit",
                 "rewrite_prompts",

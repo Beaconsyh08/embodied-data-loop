@@ -12,9 +12,7 @@ from pathlib import Path
 
 from flask import abort, jsonify, request
 
-from lerobot.data_platform.routes.control_plane import _current_user, _role_denied
-from lerobot.data_platform.temporal_caption_demo import SCHEMES
-from lerobot.data_platform.temporal_caption_jobs import (
+from lerobot.data_platform.annotations.jobs import (
     FILES,
     OPERATION,
     import_archive,
@@ -22,10 +20,12 @@ from lerobot.data_platform.temporal_caption_jobs import (
     validate_options,
     validate_source,
 )
+from lerobot.data_platform.operators.implementations.caption.demo import SCHEMES
+from lerobot.data_platform.routes.control_plane import _current_user, _role_denied
 
 
 def caption_scheme_status(capabilities, reason, user, metadata=None):
-    from lerobot.data_platform.precompute.mixed_episode_viewer import is_mixed_episode_viewer
+    from lerobot.data_platform.operators.implementations.mixed_episode_viewer import is_mixed_episode_viewer
 
     # Caption protocol 1 originally supported these two schemes without advertising a list.
     supported = capabilities.get("caption_schemes", ["multiview_semantics", "video_events"])
@@ -54,7 +54,7 @@ def caption_scheme_status(capabilities, reason, user, metadata=None):
                 else "Configure DASHSCOPE_API_KEY in the executor environment"
             )
         if not unavailable and scheme_id == "flora" and metadata is not None:
-            from lerobot.data_platform.temporal_caption_flora import camera_roles
+            from lerobot.data_platform.operators.implementations.caption.flora import camera_roles
 
             try:
                 camera_roles(
@@ -247,7 +247,7 @@ def register_caption_job_routes(app, ctx, resolve):
 
     @app.route("/api/temporal-caption/<dataset_namespace>/<dataset_name>/jobs", methods=["GET", "POST"])
     def local_caption_jobs(dataset_namespace, dataset_name):
-        from lerobot.data_platform.local_execution import agent_capabilities_for_local, enqueue_local
+        from lerobot.data_platform.runtime.local import agent_capabilities_for_local, enqueue_local
 
         key = f"{dataset_namespace}/{dataset_name}"
         try:

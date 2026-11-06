@@ -8,9 +8,9 @@ from flask import jsonify, render_template, request
 from lerobot.data_platform.ai_tools.strategies import Strategies, public_summary
 from lerobot.data_platform.ai_tools.strategy_evaluation import initial_cases
 from lerobot.data_platform.ai_tools.strategy_models import StrategySuite
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.routes.control_plane import _current_user
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def register_strategy_routes(app, ctx):

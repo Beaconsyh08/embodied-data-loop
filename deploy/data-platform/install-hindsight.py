@@ -22,7 +22,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from lerobot.data_platform.deployment import Deployment, read_environment_file  # noqa: E402
+from lerobot.data_platform.ops.deployment import Deployment, read_environment_file  # noqa: E402
 
 
 def run(*args, **kwargs):
@@ -72,7 +72,7 @@ def main():
 
 
 def install(args):
-    from lerobot.data_platform.releases import validate_package_index
+    from lerobot.data_platform.ops.releases import validate_package_index
 
     validate_package_index(args.index_url)
     deployment = Deployment(args.env)

@@ -37,9 +37,9 @@ from lerobot.data_platform.ai_tools.strategy_models import (
     StrategyVersion,
 )
 from lerobot.data_platform.ai_tools.strategy_selection import semantic_digest
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.processing.service import location_identity
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 
 class IncompleteError(RuntimeError):

@@ -105,7 +105,7 @@ def test_approval_failure_keeps_request_pending_without_job(tmp_path, problem):
             ],
         )
     if problem == "agent_disabled":
-        from lerobot.data_platform.control_plane import ControlPlaneNode
+        from lerobot.data_platform.control.store import ControlPlaneNode
 
         with store.sessions.begin() as session:
             session.get(ControlPlaneNode, node["node_id"]).capabilities = {}
@@ -150,7 +150,7 @@ def test_rejection_and_request_visibility(tmp_path):
 def test_approved_deletion_executes_with_backup_and_invalidates_viewer(tmp_path, v3):
     import json
 
-    from lerobot.data_platform.control_plane import ControlPlaneNode
+    from lerobot.data_platform.control.store import ControlPlaneNode
     from tests.datasets.test_dataset_merge_alignment import _snapshot
     from tests.datasets.test_remote_dataset_merge import _HttpClient, _remote_setup
 

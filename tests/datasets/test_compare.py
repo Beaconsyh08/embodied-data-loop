@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from lerobot.data_platform.precompute.compare.overlap import scenario_distribution, vocab_venn
+from lerobot.data_platform.operators.implementations.compare.overlap import scenario_distribution, vocab_venn
 
 
 class DummyMeta:

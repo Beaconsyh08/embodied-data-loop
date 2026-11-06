@@ -18,7 +18,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def create_app():
-    from lerobot.data_platform.environment import check_server_environment
+    from lerobot.data_platform.ops.environment import check_server_environment
 
     check_server_environment()
     datasets_root_value = os.environ.get("DATA_PLATFORM_ROOT", "").strip()

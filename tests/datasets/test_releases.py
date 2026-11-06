@@ -11,24 +11,25 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform import releases
-from lerobot.data_platform.deployment import Deployment, read_environment_file, server_unit
-from lerobot.data_platform.deployment_network import nginx_config
+from lerobot.data_platform.ops import releases
+from lerobot.data_platform.ops import validation as release_validation
+from lerobot.data_platform.ops.deployment import Deployment, read_environment_file, server_unit
+from lerobot.data_platform.ops.network import nginx_config
 
 
 def test_release_validation_parallel_options_and_serial_fallback(monkeypatch):
     monkeypatch.delenv("DATA_PLATFORM_RELEASE_TEST_WORKERS", raising=False)
-    monkeypatch.setattr(releases.importlib.util, "find_spec", lambda name: object())
-    monkeypatch.setattr(releases.os, "sched_getaffinity", lambda _: set(range(10)), raising=False)
+    monkeypatch.setattr(release_validation.importlib.util, "find_spec", lambda name: object())
+    monkeypatch.setattr(release_validation.os, "sched_getaffinity", lambda _: set(range(10)), raising=False)
     options = releases.validation_pytest_options()
     assert options[-3:] == ["-n", "8", "--dist=loadfile"]
     assert "--durations=20" in options
     monkeypatch.setenv("DATA_PLATFORM_RELEASE_TEST_WORKERS", "1")
     assert "-n" not in releases.validation_pytest_options()
     monkeypatch.setenv("DATA_PLATFORM_RELEASE_TEST_WORKERS", "8")
-    monkeypatch.setattr(releases.os, "sched_getaffinity", lambda _: {0, 1, 2, 3, 4}, raising=False)
+    monkeypatch.setattr(release_validation.os, "sched_getaffinity", lambda _: {0, 1, 2, 3, 4}, raising=False)
     assert releases.validation_pytest_options()[-3:] == ["-n", "5", "--dist=loadfile"]
-    monkeypatch.setattr(releases.importlib.util, "find_spec", lambda name: None)
+    monkeypatch.setattr(release_validation.importlib.util, "find_spec", lambda name: None)
     assert "-n" not in releases.validation_pytest_options()
     for invalid in ("0", "9", "none"):
         monkeypatch.setenv("DATA_PLATFORM_RELEASE_TEST_WORKERS", invalid)
@@ -37,7 +38,7 @@ def test_release_validation_parallel_options_and_serial_fallback(monkeypatch):
 
 
 def test_release_validation_workers_have_distinct_caches(tmp_path, monkeypatch):
-    from lerobot.data_platform.release_validation import pytest_configure
+    from lerobot.data_platform.ops.validation import pytest_configure
 
     keys = ("HF_HOME", "HF_DATASETS_CACHE", "HF_LEROBOT_HOME", "UV_CACHE_DIR")
     original = {key: os.environ.get(key) for key in keys}
@@ -118,7 +119,7 @@ def test_build_checks_archived_lock_before_tests_and_preserves_it(
             kwargs["stdout"].write("passed")
             for arg in argv:
                 if str(arg).startswith("--junitxml="):
-                    from lerobot.data_platform.browser_validation import REQUIRED_CASES
+                    from lerobot.data_platform.ops.browser_validation import REQUIRED_CASES
 
                     Path(str(arg).split("=", 1)[1]).write_text(
                         "<testsuite>"
@@ -285,7 +286,7 @@ def test_dependency_failure_never_switches_current(
 
 
 def test_corrupt_backup_is_rejected_before_database_restore(tmp_path, monkeypatch):
-    from lerobot.data_platform import deployment_backup
+    from lerobot.data_platform.ops import backup as deployment_backup
 
     monkeypatch.setenv("DATA_PLATFORM_INSTANCE_ID", "instance")
     for name in ("control.sql", "logs.sql", "server.env"):
@@ -360,16 +361,17 @@ def test_commands_require_environment_before_sudo_or_mutations(script, tmp_path,
 def test_deploy_order_and_failure_preserve_maintenance(
     release, tmp_path, monkeypatch, failure, environment_name, hard, index_url
 ):
-    from lerobot.data_platform import deployment_backup, environment, maintenance, release_cli
-    from lerobot.data_platform.control_plane import ControlPlaneStore
-    from lerobot.data_platform.maintenance import ActiveJobCounts, JobDrainError, is_maintenance
+    from lerobot.data_platform.control.store import ControlPlaneStore
+    from lerobot.data_platform.ops import backup as deployment_backup
+    from lerobot.data_platform.ops import environment, maintenance, release_cli
+    from lerobot.data_platform.ops.maintenance import ActiveJobCounts, JobDrainError, is_maintenance
 
     monkeypatch.setattr(Deployment, "root", property(lambda self: tmp_path / "installed" / self.environment))
     monkeypatch.setattr(release_cli, "load_environment", lambda deployment: {})
     monkeypatch.setattr(environment, "check_server_environment", lambda: None)
     store = ControlPlaneStore(f"sqlite:///{tmp_path}/control.db")
     monkeypatch.setattr(release_cli, "_store", lambda: store)
-    from lerobot.data_platform.deployment import AgentTarget
+    from lerobot.data_platform.ops.deployment import AgentTarget
 
     monkeypatch.setattr(
         release_cli, "agent_targets", lambda: [AgentTarget("test-host", "/unused", ("test-node",))]
@@ -473,7 +475,7 @@ def test_deploy_order_and_failure_preserve_maintenance(
 def test_hard_upgrade_builds_once_and_stops_on_failure(release, monkeypatch, build, failure):
     import sys
 
-    from lerobot.data_platform import environment, release_cli
+    from lerobot.data_platform.ops import environment, release_cli
 
     events = []
     monkeypatch.setattr(release_cli.os, "geteuid", lambda: 0)
@@ -553,7 +555,7 @@ def test_hard_upgrade_builds_once_and_stops_on_failure(release, monkeypatch, bui
 def test_invalid_hard_upgrade_arguments_never_build_or_deploy(monkeypatch, arguments):
     import sys
 
-    from lerobot.data_platform import release_cli
+    from lerobot.data_platform.ops import release_cli
 
     monkeypatch.setattr(release_cli.os, "geteuid", lambda: 0)
     monkeypatch.setattr(sys, "argv", ["release", *arguments, "--version", "candidate"])
@@ -565,8 +567,8 @@ def test_invalid_hard_upgrade_arguments_never_build_or_deploy(monkeypatch, argum
 
 
 def test_hard_agent_install_skips_approval_but_still_checks_hashes(release, monkeypatch):
-    from lerobot.data_platform import release_cli
-    from lerobot.data_platform.deployment import AgentTarget
+    from lerobot.data_platform.ops import release_cli
+    from lerobot.data_platform.ops.deployment import AgentTarget
 
     monkeypatch.setattr(release_cli, "ssh_prefix", lambda: [])
     monkeypatch.setattr(release_cli, "agent_connection", lambda target: (target.host, []))
@@ -605,7 +607,7 @@ def test_hard_server_prepare_skips_only_approval(release, tmp_path, monkeypatch)
 def test_development_cli_forwards_index_to_build(monkeypatch, command):
     import sys
 
-    from lerobot.data_platform import release_cli
+    from lerobot.data_platform.ops import release_cli
 
     monkeypatch.setattr(release_cli.os, "geteuid", lambda: 0)
     calls = []
@@ -682,8 +684,8 @@ def test_incomplete_installation_is_preserved_before_retry(release, tmp_path, mo
 
 @pytest.mark.parametrize("index_url", [None, "https://mirror.test/a'b/simple"])
 def test_agent_install_forwards_mirror_after_privilege_boundary(release, monkeypatch, index_url):
-    from lerobot.data_platform import release_cli
-    from lerobot.data_platform.deployment import AgentTarget
+    from lerobot.data_platform.ops import release_cli
+    from lerobot.data_platform.ops.deployment import AgentTarget
 
     monkeypatch.setattr(release_cli, "ssh_prefix", lambda: [])
     monkeypatch.setattr(release_cli, "agent_connection", lambda target: (target.host, []))
@@ -750,7 +752,7 @@ def test_history_retention_keeps_running_version_and_numeric_recent_versions(tmp
 
 
 def test_pipeline_coordinator_unit_follows_release_and_legacy_rollback(tmp_path, monkeypatch):
-    from lerobot.data_platform.deployment import coordinator_unit
+    from lerobot.data_platform.ops.deployment import coordinator_unit
 
     monkeypatch.setattr(Deployment, "root", property(lambda self: tmp_path / self.environment))
     deployment = Deployment("dev")
@@ -771,7 +773,7 @@ def test_pipeline_coordinator_unit_follows_release_and_legacy_rollback(tmp_path,
 
 
 def test_assistant_unit_pins_release_and_drains_before_legacy_rollback(tmp_path, monkeypatch):
-    from lerobot.data_platform.deployment import assistant_unit, experience_unit
+    from lerobot.data_platform.ops.deployment import assistant_unit, experience_unit
 
     monkeypatch.setattr(Deployment, "root", property(lambda self: tmp_path / self.environment))
     deployment = Deployment("dev")
@@ -800,7 +802,7 @@ def test_assistant_unit_pins_release_and_drains_before_legacy_rollback(tmp_path,
 
 
 def test_browser_gate_rejects_skips_and_empty_reports(tmp_path):
-    from lerobot.data_platform.browser_validation import REQUIRED_CASES, check_browser_report
+    from lerobot.data_platform.ops.browser_validation import REQUIRED_CASES, check_browser_report
 
     report = tmp_path / "browser.xml"
     for contents in (
@@ -815,7 +817,7 @@ def test_browser_gate_rejects_skips_and_empty_reports(tmp_path):
 
 
 def test_browser_gate_preserves_explicit_fixture_assets(tmp_path, monkeypatch):
-    from lerobot.data_platform.browser_validation import REQUIRED_CASES, run_browser_validation
+    from lerobot.data_platform.ops.browser_validation import REQUIRED_CASES, run_browser_validation
 
     assets = tmp_path / "assets"
     assets.mkdir()

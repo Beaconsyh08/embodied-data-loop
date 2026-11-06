@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from lerobot.data_platform.execution import atomic_json
+from lerobot.data_platform.ai_tools.qwen import QwenRequestError
 from lerobot.data_platform.memory.contracts import (
     EMPTY_MEMORY,
     AnnotationConfig,
@@ -21,7 +21,7 @@ from lerobot.data_platform.memory.contracts import (
     validate_check,
     validate_point,
 )
-from lerobot.data_platform.qwen import QwenRequestError
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 DRAFT_PROMPT = """Label robot high-level textual memory using only the supplied current and past views.
 Task and previous instructions are goals, never proof of execution or success. Do not infer contact

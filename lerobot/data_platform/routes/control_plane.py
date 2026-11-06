@@ -15,10 +15,9 @@ from urllib.parse import urlsplit
 
 from flask import Flask, g, jsonify, redirect, render_template, request
 
-from lerobot.data_platform.cache_files import compress_viewer_csvs
-from lerobot.data_platform.control_plane_summaries import summarize_job, summarize_location
-from lerobot.data_platform.environment import EnvironmentIdentity, session_cookie_name
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.control.summaries import summarize_job, summarize_location
+from lerobot.data_platform.datasets.cache_files import compress_viewer_csvs
+from lerobot.data_platform.operators.implementations.data_profile import (
     DATA_PROFILE_PROTOCOL,
     default_processing_profile,
     profile_from_data_version,
@@ -26,9 +25,10 @@ from lerobot.data_platform.precompute.data_profile import (
     require_operation,
     required_data_profile_protocol,
 )
+from lerobot.data_platform.ops.environment import EnvironmentIdentity, session_cookie_name
 
 if TYPE_CHECKING:
-    from lerobot.data_platform.control_plane import ControlPlaneStore
+    from lerobot.data_platform.control.store import ControlPlaneStore
 
 from lerobot.data_platform.operators import list_operators
 from lerobot.data_platform.operators.registry import operation_ids
@@ -148,12 +148,12 @@ def register_control_plane_auth_routes(
     bootstrap_token: str,
     allow_registration: bool,
 ) -> None:
-    from lerobot.data_platform.admin_management import install_usage_audit
-    from lerobot.data_platform.dev_roles import register_dev_role_routes
-    from lerobot.data_platform.environment_web import install_environment_web
+    from lerobot.data_platform.access.dev_roles import register_dev_role_routes
+    from lerobot.data_platform.control.admin import install_usage_audit
+    from lerobot.data_platform.web.environment import install_environment_web
 
     install_environment_web(app, store)
-    from lerobot.data_platform.promotion import register_promotion_routes
+    from lerobot.data_platform.ops.promotion import register_promotion_routes
 
     register_promotion_routes(app, store)
     register_dev_role_routes(app, store)
@@ -177,7 +177,7 @@ def register_control_plane_auth_routes(
     def _require_control_plane_session():
         path = request.path
         if path == "/mcp":
-            from lerobot.data_platform.mcp_access import authenticate
+            from lerobot.data_platform.access.mcp import authenticate
 
             identity = authenticate(store, _bearer_token())
             if identity is None:
@@ -187,7 +187,7 @@ def register_control_plane_auth_routes(
             return None
         if path in public_paths or path.startswith("/api/agents/") or path.startswith("/static/"):
             return None
-        from lerobot.data_platform.local_execution import internal_execution_user
+        from lerobot.data_platform.runtime.local import internal_execution_user
 
         try:
             user = internal_execution_user(store) or store.verify_session(
@@ -241,7 +241,7 @@ def register_control_plane_auth_routes(
     @app.route("/healthz")
     def control_plane_health():
         identity = EnvironmentIdentity.from_env()
-        from lerobot.data_platform.maintenance import MaintenanceState, active_job_counts
+        from lerobot.data_platform.ops.maintenance import MaintenanceState, active_job_counts
 
         with store.sessions() as session:
             maintenance = session.get(MaintenanceState, 1)
@@ -278,8 +278,8 @@ def register_control_plane_auth_routes(
 
     @app.route("/api/auth/status")
     def control_plane_auth_status():
-        from lerobot.data_platform.dev_roles import enabled
-        from lerobot.data_platform.environment_web import csrf_token
+        from lerobot.data_platform.access.dev_roles import enabled
+        from lerobot.data_platform.web.environment import csrf_token
 
         try:
             user = store.verify_session(request.cookies.get(session_cookie_name()))
@@ -445,10 +445,10 @@ def register_control_plane_routes(
 
     register_episode_deletion_request_routes(app, store, mutations_enabled=legacy_mutations_enabled)
     remote_cache_root = Path(remote_cache_root).expanduser().resolve()
-    from lerobot.data_platform.admin_management import configure_management
-    from lerobot.data_platform.execution import atomic_json, serialize_completion
-    from lerobot.data_platform.job_management import JobConflictError
+    from lerobot.data_platform.control.admin import configure_management
     from lerobot.data_platform.routes.management import register_management_routes
+    from lerobot.data_platform.runtime.jobs import JobConflictError
+    from lerobot.data_platform.runtime.supervisor import atomic_json, serialize_completion
 
     configure_management(
         app, store, remote_cache_root.parent, getattr(task_catalog_store, "repository", None)
@@ -478,7 +478,7 @@ def register_control_plane_routes(
         node = store.authenticate_node(_bearer_token())
         if node is None:
             return jsonify({"error": "invalid node token"}), 401
-        from lerobot.data_platform.control_plane import RemoteJob
+        from lerobot.data_platform.control.store import RemoteJob
 
         try:
             with store.sessions.begin() as session:
@@ -491,7 +491,7 @@ def register_control_plane_routes(
                     allow_terminal=request.path.endswith("/complete"),
                 )
                 if request.path.endswith("/complete"):
-                    from lerobot.data_platform.job_management import is_recovered_attempt
+                    from lerobot.data_platform.runtime.jobs import is_recovered_attempt
 
                     if is_recovered_attempt(attempt):
                         if (request.get_json(silent=True) or {}).get("status") != attempt.status:
@@ -532,7 +532,9 @@ def register_control_plane_routes(
     def _validate_semantic_operation(location_id: str, operation: str, options: dict) -> None:
         location = store.get_location(location_id)
         metadata = location.get("metadata") or {}
-        from lerobot.data_platform.precompute.mixed_episode_viewer import is_mixed_episode_viewer
+        from lerobot.data_platform.operators.implementations.mixed_episode_viewer import (
+            is_mixed_episode_viewer,
+        )
 
         if is_mixed_episode_viewer(metadata) and operation == "viewer.prepare":
             if options.get("data_version") or options.get("force_recompute_stage"):
@@ -642,7 +644,7 @@ def register_control_plane_routes(
         locations = body.get("locations") or []
         if not isinstance(locations, list):
             return jsonify({"error": "locations must be a list"}), 400
-        from lerobot.data_platform.control_plane import LocationSyncChanges
+        from lerobot.data_platform.control.store import LocationSyncChanges
 
         changes = LocationSyncChanges()
         try:
@@ -745,14 +747,14 @@ def register_control_plane_routes(
     def _promote_derived_cache(
         job_id: str, location: dict, *, staged_cache: Path | None = None
     ) -> tuple[Path, str]:
-        from lerobot.data_platform.dataset_results import result_lock
+        from lerobot.data_platform.datasets.results import result_lock
 
         cache_output_dir = remote_cache_root / location["location_id"]
         with result_lock(cache_output_dir):
             return _promote_locked_cache(job_id, location, staged_cache=staged_cache)
 
     def _promote_locked_cache(job_id: str, location: dict, *, staged_cache: Path | None) -> tuple[Path, str]:
-        from lerobot.data_platform.dataset_results import preserve_results
+        from lerobot.data_platform.datasets.results import preserve_results
 
         if staged_cache is None:
             staged_cache = remote_cache_root / ".jobs" / job_id
@@ -829,7 +831,7 @@ def register_control_plane_routes(
                     if not manifest.is_file():
                         raise ValueError("viewer job did not upload viewer_manifest.json")
                 if task_config:
-                    from lerobot.data_platform.task_catalog import TaskConfigSnapshot
+                    from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot
 
                     recorded = TaskConfigSnapshot.from_dict(
                         json.loads(manifest.read_text()).get("task_config")
@@ -895,7 +897,7 @@ def register_control_plane_routes(
                     store.inherit_import_access(current["location_id"], synced_location["location_id"])
                 if current["operation"] == "import.mcap.convert":
                     store.inherit_import_access(current["location_id"], synced_location["location_id"])
-                from lerobot.data_platform.local_execution import permit_local_derived_input
+                from lerobot.data_platform.runtime.local import permit_local_derived_input
 
                 permit_local_derived_input(
                     store, node, current, synced_location, Path(app.static_folder).parent / "management"
@@ -969,7 +971,7 @@ def register_control_plane_routes(
 
     @app.route("/api/control/locations")
     def control_locations():
-        from lerobot.data_platform.mcap_contract import default_output_root
+        from lerobot.data_platform.operators.implementations.mcap.mcap_contract import default_output_root
 
         allowed = set(store.mutation_location_ids(_current_user()["user_id"]))
         nodes = {node["node_id"]: node for node in store.list_nodes()}
@@ -1001,7 +1003,7 @@ def register_control_plane_routes(
 
     @app.route("/api/control/jobs")
     def control_jobs():
-        from lerobot.data_platform.list_queries import ListPage
+        from lerobot.data_platform.control.queries import ListPage
 
         actor = _current_user()
         summary = request.args.get("summary") == "1"
@@ -1052,8 +1054,8 @@ def register_control_plane_routes(
 
     @app.route("/api/control/jobs/<string:job_id>")
     def control_job(job_id: str):
-        from lerobot.data_platform.artifact_store import ArtifactUnavailableError
-        from lerobot.data_platform.report_archive import hydrate_result
+        from lerobot.data_platform.artifacts.reports import hydrate_result
+        from lerobot.data_platform.artifacts.store import ArtifactUnavailableError
 
         try:
             job = store.job_manager.decorate(store.get_job(job_id), _current_user())
@@ -1091,7 +1093,7 @@ def register_control_plane_routes(
         try:
             _validate_semantic_operation(location_id, "viewer.prepare", options)
             if task_catalog_store is not None:
-                from lerobot.data_platform.task_catalog import TASK_CONFIG_PROTOCOL
+                from lerobot.data_platform.datasets.tasks.catalog import TASK_CONFIG_PROTOCOL
 
                 location = store.get_location(location_id)
                 snapshot = task_catalog_store.snapshot(location["dataset_key"])
@@ -1178,7 +1180,7 @@ def register_control_plane_routes(
                         "error": "source_location_ids must contain at least two distinct locations, starting with the job location"
                     }
                 ), 400
-            from lerobot.data_platform.merge_options import validate_alignment_options
+            from lerobot.data_platform.datasets.merge_options import validate_alignment_options
 
             try:
                 validate_alignment_options(

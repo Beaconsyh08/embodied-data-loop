@@ -4,7 +4,11 @@ import json
 
 import pytest
 
-from lerobot.data_platform.temporal_caption_signals import analyze_signals, boundary_matrix, signal_audit
+from lerobot.data_platform.operators.implementations.caption.signals import (
+    analyze_signals,
+    boundary_matrix,
+    signal_audit,
+)
 
 
 def metadata(values, key="action"):

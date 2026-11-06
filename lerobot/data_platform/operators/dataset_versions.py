@@ -3,13 +3,17 @@
 import json
 from pathlib import Path
 
-from lerobot.data_platform.curation import bundle_manifest, snapshot_from_version
-from lerobot.data_platform.curation_execution import hydrate_builder
-from lerobot.data_platform.execution import atomic_json
-from lerobot.data_platform.lifecycle import LifecycleStore, dataset_snapshot, validate_materialized_dataset
-from lerobot.data_platform.precompute.preprocess.common import PreprocessResult
+from lerobot.data_platform.datasets.curation import bundle_manifest, snapshot_from_version
+from lerobot.data_platform.datasets.lifecycle.service import (
+    LifecycleStore,
+    dataset_snapshot,
+    validate_materialized_dataset,
+)
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
+from lerobot.data_platform.operators.implementations.curation import hydrate_builder
+from lerobot.data_platform.operators.implementations.preprocess.common import PreprocessResult
 from lerobot.data_platform.processing.lineage import register_preprocess_result
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 
 def publish_preprocess_version(agent, job, source, result):
@@ -72,7 +76,7 @@ def resume_preprocess_result(agent, job):
     path = agent.state_path.parent / "operator-work" / job["job_id"] / "completed-preprocess.json"
     if not path.is_file():
         return None
-    from lerobot.data_platform.agent import _require_safe_output, _require_within
+    from lerobot.data_platform.runtime.agent import _require_safe_output, _require_within
 
     value = json.loads(path.read_text())
     if value["command"] != content_digest([job["operation"], job.get("_operator_version"), job["options"]]):

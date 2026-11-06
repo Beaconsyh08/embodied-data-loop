@@ -13,9 +13,9 @@ from lerobot.data_platform.processing.models import PipelineRun
 
 def configured_manager():
     """Open shared durable state without constructing Web registries, caches or background readers."""
-    from lerobot.data_platform.control_plane import ControlPlaneStore
-    from lerobot.data_platform.environment import check_server_environment
-    from lerobot.data_platform.lifecycle import LifecycleStore
+    from lerobot.data_platform.control.store import ControlPlaneStore
+    from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
+    from lerobot.data_platform.ops.environment import check_server_environment
     from lerobot.data_platform.processing.service import PipelineManager
 
     check_server_environment()

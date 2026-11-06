@@ -7,8 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from lerobot.data_platform.ai_tools.actions import confirm
-from lerobot.data_platform.control_plane import ControlPlaneUser, DatasetLocation
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.control.store import ControlPlaneUser, DatasetLocation
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant, call, processing_setup  # noqa: F401
 from tests.datasets.test_ai_assistant_context import bind_lifecycle, text_response
 
@@ -212,8 +212,8 @@ def test_viewer_reference_rejects_unavailable_or_untrusted_cache(assistant, tmp_
 
 
 def quality_artifact(fixture, tmp_path, *, status="done", parameters=None):
-    from lerobot.data_platform.control_plane import RemoteJob
-    from lerobot.data_platform.curation import bundle_manifest
+    from lerobot.data_platform.control.store import RemoteJob
+    from lerobot.data_platform.datasets.curation import bundle_manifest
     from lerobot.data_platform.processing.service import location_identity
 
     service, _, owner, body = fixture
@@ -242,7 +242,7 @@ def quality_artifact(fixture, tmp_path, *, status="done", parameters=None):
 
 def test_quality_card_new_running_published_and_missing_artifact(assistant, tmp_path):  # noqa: F811
     from lerobot.data_platform.ai_tools.operation_state import action_status
-    from lerobot.data_platform.control_plane import RemoteJob
+    from lerobot.data_platform.control.store import RemoteJob
 
     result = prepared(assistant, tmp_path, "curation.quality")
     service, _, owner, body = assistant
@@ -267,7 +267,7 @@ def test_quality_card_new_running_published_and_missing_artifact(assistant, tmp_
 
 def test_quality_configuration_version_and_oversized_history_are_not_reused(assistant, tmp_path):  # noqa: F811
     from lerobot.data_platform.ai_tools.operation_state import action_status
-    from lerobot.data_platform.control_plane import RemoteJob
+    from lerobot.data_platform.control.store import RemoteJob
 
     result = prepared(assistant, tmp_path, "curation.quality")
     service, _, owner, body = assistant

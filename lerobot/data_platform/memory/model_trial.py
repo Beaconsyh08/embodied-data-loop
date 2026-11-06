@@ -6,7 +6,6 @@ import json
 import re
 from pathlib import Path
 
-from lerobot.data_platform.execution import atomic_json
 from lerobot.data_platform.memory import ai_review
 from lerobot.data_platform.memory.contracts import (
     EMPTY_MEMORY,
@@ -18,6 +17,7 @@ from lerobot.data_platform.memory.contracts import (
 )
 from lerobot.data_platform.memory.generation import call_model, request_payload, response_json
 from lerobot.data_platform.memory.source_repair import CAMERAS, source_mosaic
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 DRAFT = """Produce a causal robot high-level subtask and compact textual memory, in English.
 Images are synchronized mosaics: LEFT PANEL = image (main), CENTER = left_wrist_image,

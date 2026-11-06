@@ -16,7 +16,7 @@ def test_existing_viewer_finds_and_serves_compressed_csv(tmp_path):
 
 
 def test_compression_keeps_csv_bytes_and_media_unchanged(tmp_path):
-    from lerobot.data_platform.cache_files import compress_viewer_csvs, read_cache_bytes
+    from lerobot.data_platform.datasets.cache_files import compress_viewer_csvs, read_cache_bytes
 
     directory = tmp_path / "csv"
     directory.mkdir()
@@ -35,7 +35,7 @@ def test_compression_keeps_csv_bytes_and_media_unchanged(tmp_path):
 
 
 def test_failed_compression_preserves_original(tmp_path, monkeypatch):
-    from lerobot.data_platform import cache_files
+    from lerobot.data_platform.datasets import cache_files
 
     path = tmp_path / "episode_000000_ds1.csv"
     path.write_bytes(b"timestamp,state\n0,1\n")
@@ -55,7 +55,7 @@ def test_failed_compression_preserves_original(tmp_path, monkeypatch):
 def test_compressed_cache_symlink_is_rejected_by_results(tmp_path):
     import pytest
 
-    from lerobot.data_platform.dataset_results import result_path
+    from lerobot.data_platform.datasets.results import result_path
 
     (tmp_path / "csv").mkdir()
     other = tmp_path / "other"
@@ -72,7 +72,7 @@ def test_compression_and_stage_write_preserve_file_acl(tmp_path):
 
     import pytest
 
-    from lerobot.data_platform.cache_files import compress_file, open_cached_csv
+    from lerobot.data_platform.datasets.cache_files import compress_file, open_cached_csv
 
     if not shutil.which("setfacl"):
         pytest.skip("POSIX ACL tools are required")
@@ -91,7 +91,7 @@ def test_compression_and_stage_write_preserve_file_acl(tmp_path):
 def test_compression_resumes_after_publication_without_losing_original(tmp_path):
     import pytest
 
-    from lerobot.data_platform.cache_files import compress_file
+    from lerobot.data_platform.datasets.cache_files import compress_file
 
     path = tmp_path / "episode_000000_ds1.csv"
     content = b"timestamp,stage\n0,0\n"
@@ -110,7 +110,7 @@ def test_compression_resumes_after_publication_without_losing_original(tmp_path)
 def test_result_snapshot_limits_decoded_csv_bytes(tmp_path):
     import pytest
 
-    from lerobot.data_platform.dataset_results import ResultSnapshot
+    from lerobot.data_platform.datasets.results import ResultSnapshot
 
     (tmp_path / "static/csv").mkdir(parents=True)
     (tmp_path / ".edited-csv.json").write_text('["csv/episode_000000_ds1.csv"]')

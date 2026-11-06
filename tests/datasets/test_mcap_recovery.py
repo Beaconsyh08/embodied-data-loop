@@ -5,10 +5,10 @@ from datetime import timedelta
 
 import pytest
 
-from lerobot.data_platform.control_plane import ControlPlaneStore, RemoteJob, _utcnow
-from lerobot.data_platform.execution import ExecutionSupervisor, atomic_json
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import JobControl
+from lerobot.data_platform.control.storage import JobControl
+from lerobot.data_platform.control.store import ControlPlaneStore, RemoteJob, _utcnow
+from lerobot.data_platform.runtime.jobs import JobConflictError
+from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor, atomic_json
 from tests.datasets.test_execution_supervisor import Client, fake_agent
 from tests.datasets.test_job_management import command
 from tests.datasets.test_mcap_import import _setup
@@ -90,7 +90,7 @@ def test_recovery_excludes_stops_normal_errors_published_work_and_legacy_attempt
     elif reason == "force":
         command(store, job, owner, "terminate", confirm=True, reason="test")
     elif reason in {"finalizing", "legacy"}:
-        from lerobot.data_platform.management_storage import JobAttempt
+        from lerobot.data_platform.control.storage import JobAttempt
 
         with store.sessions.begin() as session:
             control = session.get(JobControl, job["job_id"])
@@ -121,8 +121,8 @@ def test_repeated_process_loss_stops_after_three_automatic_recoveries(tmp_path):
 
 
 def test_recovered_job_still_obeys_maintenance_and_revoked_submitter_access(tmp_path):
-    from lerobot.data_platform.control_plane import ControlPlaneUser
-    from lerobot.data_platform.maintenance import set_maintenance
+    from lerobot.data_platform.control.store import ControlPlaneUser
+    from lerobot.data_platform.ops.maintenance import set_maintenance
 
     store, _, owner, node, _, job, claimed = conversion(tmp_path)
     set_maintenance(store, True)
@@ -225,7 +225,7 @@ def test_lost_completion_response_can_be_acknowledged_after_new_attempt_is_claim
 
 
 def test_reboot_never_monitors_reused_pids_from_previous_boot(tmp_path, monkeypatch):
-    from lerobot.data_platform import execution
+    from lerobot.data_platform.runtime import supervisor as execution
 
     client = Client()
     supervisor = ExecutionSupervisor(fake_agent(tmp_path, client))

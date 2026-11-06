@@ -15,12 +15,12 @@ from lerobot.data_platform.ai_tools import followups, memory
 from lerobot.data_platform.ai_tools.actions import confirm
 from lerobot.data_platform.ai_tools.models import AssistantConversation, AssistantFollowup
 from lerobot.data_platform.ai_tools.service import AssistantService
-from lerobot.data_platform.control_plane import ControlPlaneUser, DatasetLocation
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import AuditOutbox, JobControl
+from lerobot.data_platform.control.storage import AuditOutbox, JobControl
+from lerobot.data_platform.control.store import ControlPlaneUser, DatasetLocation
 from lerobot.data_platform.processing.models import PipelineRun
 from lerobot.data_platform.routes.ai_assistant import register_ai_assistant_routes
 from lerobot.data_platform.routes.processing import register_processing_routes
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant  # noqa: F401
 from tests.datasets.test_ai_assistant_actions import prepared
 from tests.datasets.test_ai_assistant_context import text_response
@@ -44,7 +44,7 @@ def save(service, actor_id, text="请先解释术语", **fields):
 
 
 def completed(assistant, processing_setup, tmp_path):  # noqa: F811
-    from lerobot.data_platform.curation import register_snapshot, snapshot_from_version
+    from lerobot.data_platform.datasets.curation import register_snapshot, snapshot_from_version
     from tests.datasets.test_ai_assistant_context import bind_lifecycle
 
     service, _, owner, _ = assistant
@@ -184,7 +184,7 @@ def test_followup_survives_restart_publishes_once_without_changing_conversation(
         [
             sys.executable,
             "-c",
-            "import sys; from lerobot.data_platform.control_plane import ControlPlaneStore; "
+            "import sys; from lerobot.data_platform.control.store import ControlPlaneStore; "
             "from lerobot.data_platform.processing.service import PipelineManager; "
             "from lerobot.data_platform.ai_tools.service import AssistantService; "
             "from lerobot.data_platform.ai_tools.followups import tick; "
@@ -324,7 +324,7 @@ def test_pending_followup_stops_when_access_revoked(assistant, processing_setup,
 
 @pytest.mark.parametrize("status", ["error", "cancelled"])
 def test_followup_reports_failure_or_cancellation_without_submitting_a_retry(assistant, tmp_path, status):  # noqa: F811
-    from lerobot.data_platform.control_plane import RemoteJob
+    from lerobot.data_platform.control.store import RemoteJob
     from lerobot.data_platform.processing.models import PipelineStepRun
 
     result = prepared(assistant, tmp_path)
@@ -384,8 +384,8 @@ def test_acknowledged_error_is_summarized_without_error_payload_or_retry(
     processing_setup,  # noqa: F811
     tmp_path,
 ):  # noqa: F811
-    from lerobot.data_platform.control_plane import RemoteJob
-    from lerobot.data_platform.management_storage import JobAttempt
+    from lerobot.data_platform.control.storage import JobAttempt
+    from lerobot.data_platform.control.store import RemoteJob
     from lerobot.data_platform.processing.models import PipelineStepRun
 
     _, receipt, job_id = completed(assistant, processing_setup, tmp_path)

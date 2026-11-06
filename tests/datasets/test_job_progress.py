@@ -2,9 +2,9 @@
 
 from types import SimpleNamespace
 
-from lerobot.data_platform.execution import ExecutionSupervisor, SpoolingClient
-from lerobot.data_platform.job_progress import progress_snapshot, visible_progress_log
-from lerobot.data_platform.local_execution import local_job_payload
+from lerobot.data_platform.runtime.local import local_job_payload
+from lerobot.data_platform.runtime.progress import progress_snapshot, visible_progress_log
+from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor, SpoolingClient
 from tests.datasets.test_job_management import command, setup  # noqa: F401
 
 
@@ -91,7 +91,7 @@ def test_final_event_drain_delivers_more_than_one_batch(tmp_path):
 
 
 def test_viewer_stage_changes_bypass_throttle_and_upload_counts_success(tmp_path, monkeypatch):
-    from lerobot.data_platform import agent as agent_module
+    from lerobot.data_platform.runtime import agent as agent_module
     from tests.datasets.test_data_platform_agent import _agent
 
     source = tmp_path / "source"
@@ -173,7 +173,7 @@ def test_draining_renews_lease_and_preserves_stop_request(tmp_path, monkeypatch)
     import itertools
     import json
 
-    from lerobot.data_platform import execution
+    from lerobot.data_platform.runtime import supervisor as execution
 
     client = SpoolingClient("http://unused", tmp_path)
     client.event(None, "job", "Computed")

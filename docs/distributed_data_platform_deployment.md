@@ -216,7 +216,7 @@ For a one-shot development check:
 
 ```bash
 DATA_PLATFORM_AGENT_ENROLLMENT_TOKEN=... \
-python -m lerobot.data_platform.agent \
+python -m lerobot.data_platform.runtime.agent \
   --server-url https://data-platform.example.com \
   --name server-b \
   --allowed-root /data/datasets \

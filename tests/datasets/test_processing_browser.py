@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from werkzeug.serving import make_server
 
-from lerobot.data_platform.lifecycle import LifecycleStore
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
 from lerobot.data_platform.operators.registry import operation_ids, worker_manifest
 from lerobot.data_platform.routes.curation import register_curation_routes
 from lerobot.data_platform.routes.processing import register_processing_routes

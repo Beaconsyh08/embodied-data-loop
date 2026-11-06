@@ -11,18 +11,22 @@ from types import SimpleNamespace
 import pytest
 from flask import Flask
 
-from lerobot.data_platform import qwen
-from lerobot.data_platform.lifecycle import LifecycleStore
-from lerobot.data_platform.precompute.labeling.qwen_dashscope import QwenDashScopeDetector
-from lerobot.data_platform.precompute.labeling.qwen_dashscope import get_capabilities as labeling_capabilities
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
-from lerobot.data_platform.precompute.tagging.vlm_backend import DashScopeVLMTagger
-from lerobot.data_platform.precompute.tagging.vlm_backend import get_capabilities as tagging_capabilities
+from lerobot.data_platform.ai_tools import qwen
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
+from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot, TaskDefinition, builtin_catalog
+from lerobot.data_platform.datasets.tasks.suggestions import accepted_definitions, generate_suggestions
+from lerobot.data_platform.operators.implementations.labeling.qwen_dashscope import QwenDashScopeDetector
+from lerobot.data_platform.operators.implementations.labeling.qwen_dashscope import (
+    get_capabilities as labeling_capabilities,
+)
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.operators.implementations.tagging.vlm_backend import DashScopeVLMTagger
+from lerobot.data_platform.operators.implementations.tagging.vlm_backend import (
+    get_capabilities as tagging_capabilities,
+)
 from lerobot.data_platform.routes import task_suggestions as suggestion_routes
 from lerobot.data_platform.routes import tasks as task_routes
 from lerobot.data_platform.routes.control_plane import register_control_plane_auth_routes
-from lerobot.data_platform.task_catalog import TaskConfigSnapshot, TaskDefinition, builtin_catalog
-from lerobot.data_platform.task_suggestions import accepted_definitions, generate_suggestions
 from tests.datasets.test_control_plane import _bootstrap
 from tests.datasets.test_control_plane import _store as control_store
 from tests.datasets.test_lifecycle import _make_dataset, _snapshot, _write_jsonl

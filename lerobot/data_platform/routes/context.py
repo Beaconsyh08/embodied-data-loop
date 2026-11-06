@@ -58,10 +58,10 @@ class RouteContext:
         import os
 
         if os.environ.get("DATA_PLATFORM_INTERNAL_EXECUTION"):
-            from lerobot.data_platform.local_execution import report_local_progress
+            from lerobot.data_platform.runtime.local import report_local_progress
 
             report_local_progress(payload)
-        from lerobot.data_platform.job_progress import progress_snapshot, visible_progress_log
+        from lerobot.data_platform.runtime.progress import progress_snapshot, visible_progress_log
 
         with self.jobs_lock:
             if job.get("status") in {"done", "error", "cancelled", "interrupted"}:

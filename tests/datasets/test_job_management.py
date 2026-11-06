@@ -6,10 +6,10 @@ from datetime import timedelta
 
 import pytest
 
-from lerobot.data_platform.control_plane import ControlPlaneNode, ControlPlaneStore, RemoteJob, _utcnow
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import EventSpool, LogDelivery, UsageLogStore
-from lerobot.data_platform.operation_log import build_operation_event
+from lerobot.data_platform.artifacts.audit import build_operation_event
+from lerobot.data_platform.control.storage import EventSpool, LogDelivery, UsageLogStore
+from lerobot.data_platform.control.store import ControlPlaneNode, ControlPlaneStore, RemoteJob, _utcnow
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_control_plane import _app, _bootstrap
 
 
@@ -59,7 +59,7 @@ def command(store, job, actor, action, **extra):
 
 @pytest.mark.parametrize("status", ["running", "cancel_requested", "interrupted"])
 def test_deployment_drain_reports_all_blockers_without_discarding_jobs(setup, status):
-    from lerobot.data_platform.maintenance import JobDrainError, active_job_counts, wait_until_idle
+    from lerobot.data_platform.ops.maintenance import JobDrainError, active_job_counts, wait_until_idle
 
     store, _, _, _, _, create = setup
     queued = create()
@@ -79,7 +79,7 @@ def test_deployment_drain_reports_all_blockers_without_discarding_jobs(setup, st
 
 
 def test_deployment_wait_finishes_after_current_job_is_acknowledged(setup, monkeypatch):
-    from lerobot.data_platform.maintenance import active_jobs, wait_until_idle
+    from lerobot.data_platform.ops.maintenance import active_jobs, wait_until_idle
 
     store, _, _, _, _, create = setup
     job = create()
@@ -562,7 +562,7 @@ def test_mysql_scheduler_lock_serializes_claims_without_row_changes():
     from sqlalchemy import select
     from sqlalchemy.engine import make_url
 
-    from lerobot.data_platform.management_storage import SchedulerLock
+    from lerobot.data_platform.control.storage import SchedulerLock
 
     url = os.environ.get("DATA_PLATFORM_TEST_MYSQL_URL")
     if not url:
@@ -614,7 +614,7 @@ def test_mysql_scheduler_lock_serializes_claims_without_row_changes():
 
 @pytest.mark.parametrize("secondary", [False, True])
 def test_deleted_input_disables_retry_and_rejects_direct_command(setup, secondary):
-    from lerobot.data_platform.control_plane import DatasetLocation
+    from lerobot.data_platform.control.store import DatasetLocation
 
     store, admin, owner, node, location, create = setup
     job = create()
@@ -640,8 +640,8 @@ def test_deleted_input_disables_retry_and_rejects_direct_command(setup, secondar
 def test_deleted_input_cannot_trigger_automatic_mcap_recovery(setup):
     from types import SimpleNamespace
 
-    from lerobot.data_platform.control_plane import DatasetLocation
-    from lerobot.data_platform.job_management import PROCESS_LOSS_ERROR
+    from lerobot.data_platform.control.store import DatasetLocation
+    from lerobot.data_platform.runtime.jobs import PROCESS_LOSS_ERROR
 
     store, admin, owner, node, location, create = setup
     job = create()

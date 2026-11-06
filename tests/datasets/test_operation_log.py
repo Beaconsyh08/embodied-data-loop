@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform.operation_log import (
+from lerobot.data_platform.artifacts.audit import (
     LOG_FILENAME,
     append_operation_event,
     audit_cli_main,
@@ -77,7 +77,7 @@ def test_concurrent_appends_leave_valid_json_lines(tmp_path: Path):
 
 
 def test_operation_logs_rotate_and_retained_events_remain_queryable(tmp_path: Path, monkeypatch):
-    from lerobot.data_platform import operation_log
+    from lerobot.data_platform.artifacts import audit as operation_log
 
     monkeypatch.setattr(operation_log, "LOG_MAX_BYTES", 1200, raising=False)
     monkeypatch.setattr(operation_log, "LOG_BACKUP_COUNT", 2, raising=False)
@@ -107,7 +107,7 @@ def test_operation_logs_rotate_and_retained_events_remain_queryable(tmp_path: Pa
 
 
 def test_catalog_sync_audit_keeps_identity_without_large_metadata():
-    from lerobot.data_platform.operation_log import summarize_location_sync_request
+    from lerobot.data_platform.artifacts.audit import summarize_location_sync_request
 
     metadata = {"feature_" + str(index): "large-metadata-marker" * 100 for index in range(100)}
     location = {"dataset_key": "shared/source", "root": "/datasets/source", "metadata": metadata}
@@ -141,7 +141,7 @@ def _append_rotating_process_events(directory: Path, offset: int):
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux workers use flock and fork")
 def test_rotation_preserves_events_across_worker_processes(tmp_path: Path, monkeypatch):
-    from lerobot.data_platform import operation_log
+    from lerobot.data_platform.artifacts import audit as operation_log
 
     monkeypatch.setattr(operation_log, "LOG_MAX_BYTES", 4096)
     monkeypatch.setattr(operation_log, "LOG_BACKUP_COUNT", 32)
@@ -305,7 +305,7 @@ def test_web_routine_polls_skip_audit_but_changes_and_failures_remain(tmp_path, 
 
 
 def test_recent_summary_skips_archives_and_preserves_lazy_detail(tmp_path, monkeypatch):
-    from lerobot.data_platform import operation_log
+    from lerobot.data_platform.artifacts import audit as operation_log
 
     event = append_operation_event(
         tmp_path, "large_result", status="success", details={"result": ["x" * 4000] * 200}

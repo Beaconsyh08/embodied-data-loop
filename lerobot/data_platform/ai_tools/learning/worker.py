@@ -18,9 +18,9 @@ from lerobot.data_platform.ai_tools.learning.models import (
     LearningEvent,
 )
 from lerobot.data_platform.ai_tools.learning.service import Learning, control, now_ms
-from lerobot.data_platform.control_plane import RemoteJob
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
+from lerobot.data_platform.control.store import RemoteJob
 from lerobot.data_platform.processing.models import PipelineRun, PipelineStepRun
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 EXPECTED = (PermissionError, KeyError, ValueError, JobConflictError)
 

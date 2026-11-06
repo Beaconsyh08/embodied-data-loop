@@ -12,8 +12,13 @@ import pytest
 from PIL import Image
 
 from lerobot.data_platform import viewer
+from lerobot.data_platform.operators.implementations.caption.core import (
+    artifact_key,
+    prepare,
+    sample_frames,
+    validate_result,
+)
 from lerobot.data_platform.routes.temporal_caption import register_temporal_caption_routes
-from lerobot.data_platform.temporal_caption import artifact_key, prepare, sample_frames, validate_result
 from tests.datasets.test_analysis_metadata import _remote_context
 from tests.datasets.test_control_plane import _bootstrap
 
@@ -275,7 +280,7 @@ def demo_result():
 
 
 def test_demo_normalization_preserves_identity_quality_and_inclusive_coverage():
-    from lerobot.data_platform.temporal_caption_demo import normalize_demo, scheme_info
+    from lerobot.data_platform.operators.implementations.caption.demo import normalize_demo, scheme_info
 
     source = demo_result()
     normalized = normalize_demo(source, {"episode_index": 25, "num_frames": 12, "fps": 30}, "n/d")
@@ -294,7 +299,7 @@ def test_demo_normalization_preserves_identity_quality_and_inclusive_coverage():
 
 
 def test_review_context_uses_elapsed_frames_and_does_not_expose_source_paths(tmp_path):
-    from lerobot.data_platform.temporal_caption_demo import review_context
+    from lerobot.data_platform.operators.implementations.caption.demo import review_context
 
     (tmp_path / "episode.json").write_text(
         json.dumps(
@@ -316,8 +321,8 @@ def test_review_context_uses_elapsed_frames_and_does_not_expose_source_paths(tmp
 
 
 def test_video_event_scheme_runs_one_episode_and_uses_temporal_input(tmp_path, monkeypatch):
-    from lerobot.data_platform import qwen
-    from lerobot.data_platform.temporal_caption_demo import infer_video_events
+    from lerobot.data_platform.ai_tools import qwen
+    from lerobot.data_platform.operators.implementations.caption.demo import infer_video_events
 
     bundle = tmp_path / "bundle"
     (bundle / "frames").mkdir(parents=True)
@@ -378,7 +383,7 @@ def test_camera_order_supports_arm_and_wrist_names():
 def test_review_camera_reorder_preserves_source_and_reuses_cache(tmp_path):
     import subprocess
 
-    from lerobot.data_platform.camera_layout import ordered_review_video
+    from lerobot.data_platform.datasets.camera_layout import ordered_review_video
 
     if not shutil.which("ffmpeg"):
         pytest.skip("ffmpeg required")
@@ -483,7 +488,7 @@ def test_export_v21_embedded_images_and_source_preservation(tmp_path):
 
 
 def test_long_episode_sampling_spans_whole_episode_and_retains_boundaries():
-    from lerobot.data_platform.temporal_caption import limit_frames
+    from lerobot.data_platform.operators.implementations.caption.core import limit_frames
 
     previous = {"segments": [{"start_frame": 0}, {"start_frame": 801}, {"start_frame": 1903}]}
     frames = sample_frames(6000, 30, previous)

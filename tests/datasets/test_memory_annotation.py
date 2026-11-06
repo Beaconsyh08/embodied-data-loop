@@ -7,13 +7,13 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from lerobot.data_platform.execution import StopRequestedError, atomic_json
-from lerobot.data_platform.lifecycle_repository import SQLiteLifecycleRepository
+from lerobot.data_platform.ai_tools.qwen import QwenRequestError
+from lerobot.data_platform.datasets.lifecycle.repository import SQLiteLifecycleRepository
 from lerobot.data_platform.memory.contracts import AnnotationConfig, checkpoints, history_frames
 from lerobot.data_platform.memory.generation import call_model, generate
 from lerobot.data_platform.memory.review import MemoryReviewStore
 from lerobot.data_platform.memory.sources import select_pilot
-from lerobot.data_platform.qwen import QwenRequestError
+from lerobot.data_platform.runtime.supervisor import StopRequestedError, atomic_json
 
 
 def sample(tmp_path, count=5):
@@ -166,7 +166,7 @@ def test_transport_retry_cancel_and_schema_not_repaired(tmp_path):
 
 
 def test_edit_invalidates_suffix_and_approval_and_conflicts(tmp_path):
-    from lerobot.data_platform.job_management import JobConflictError
+    from lerobot.data_platform.runtime.jobs import JobConflictError
 
     bundle, pin = sample(tmp_path)
     state = generate(bundle, pin, tmp_path / "run", Teacher())
@@ -221,7 +221,7 @@ def test_pilot_whole_groups_and_shortfall():
 
 
 def test_causal_video_decoder_never_chooses_future(tmp_path):
-    from lerobot.data_platform.mem_export import _video_images
+    from lerobot.data_platform.artifacts.mem_export import _video_images
     from tests.datasets.test_mem_export import fixture
 
     root, _, _ = fixture(tmp_path, version="v2.1", video=True)
@@ -239,8 +239,8 @@ def real_source(tmp_path, count=2):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from lerobot.data_platform.temporal_caption_flora import build_artifact
-    from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+    from lerobot.data_platform.operators.implementations.caption.flora import build_artifact
+    from lerobot.data_platform.operators.implementations.caption.snapshot import caption_source_fingerprint
 
     source = tmp_path / "source"
     (source / "meta").mkdir(parents=True)

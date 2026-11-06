@@ -2,8 +2,8 @@
 
 from flask import jsonify, render_template, request
 
-from lerobot.data_platform.account_passwords import allow_attempt, change_password, issue_reset, redeem_reset
-from lerobot.data_platform.environment import session_cookie_name
+from lerobot.data_platform.access.passwords import allow_attempt, change_password, issue_reset, redeem_reset
+from lerobot.data_platform.ops.environment import session_cookie_name
 
 
 def register_account_password_routes(app, store):

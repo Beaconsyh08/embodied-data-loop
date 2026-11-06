@@ -15,14 +15,14 @@ from lerobot.data_platform.ai_tools.learning.models import (
     LearningOrigin,
 )
 from lerobot.data_platform.ai_tools.models import AssistantConversation, AssistantTurn
-from lerobot.data_platform.control_plane import RemoteJob
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import JobAttempt, JobControl
+from lerobot.data_platform.control.storage import JobAttempt, JobControl
+from lerobot.data_platform.control.store import RemoteJob
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.processing.models import PipelineRun, PipelineStepRun, PipelineVersion
 from lerobot.data_platform.processing.planner import PipelineSpec
 from lerobot.data_platform.processing.service import location_identity
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def changes(before, after):

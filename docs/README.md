@@ -16,31 +16,56 @@ limitations under the License.
 
 # Data Platform 文档导航
 
-本目录同时包含 Data Platform 操作手册与上游 LeRobot 文档构建说明。
-平台 Markdown 手册可以直接阅读，无需启动文档构建服务。
+平台 Markdown 手册可直接阅读，无需构建文档站点。按工作选择入口；
+[开发指南](data_platform_development.md) 提供源码地图和验证方法。
+
+## 使用平台
 
 | 需要做什么 | 文档 |
 | --- | --- |
-| 了解近期能力、版本依据与限制 | [平台状态说明](distributed_data_platform_current_status.md) |
 | 查页面入口、参数、角色与操作结果 | [页面操作手册](data_platform_page_user_guide.md) |
-| 更新、验收、恢复和日常排障 | [运维手册](data_platform_operations.md) |
+| 登录、恢复密码、理解数据范围和任务配额 | [账号](data_platform_accounts.md)、[权限](data_platform_permissions.md)、[任务管理](data_platform_multi_user_management.md) |
+| 终端访问和外部助手接入 | [CLI](../clients/data-platform-cli/README.md)、[MCP](data_platform_mcp.md) |
+| 导入、合并与任务定义 | [MCAP](data_platform_mcap_import.md)、[Merge 对齐](data_platform_merge_alignment.md)、[任务目录](data_platform_task_catalog.md) |
+| 质量复核与构建 | [统一 Curation](data_platform_unified_curation.md)、[生命周期](data_lifecycle_architecture.md) |
+| 时序标注与人工评测 | [Temporal Caption / FLORA](temporal_caption_trial.md)、[FLORA 人工评测试点](flora_evaluation_pilot.md) |
+| 文本记忆与离线导出 | [Text memory](memory_annotation.md)、[MEM export](mem_export.md) |
+| UMI 诊断、回放与 Cosmos 候选 | [UMI 数据支持](umi_dataset_support.md)、[data-laundry 安装](data_laundry_setup.md) |
+
+## 开发与架构
+
+| 需要做什么 | 文档 |
+| --- | --- |
+| 找源码、添加算子、选择测试 | [领域目录与算子放置规则](../lerobot/data_platform/README.md)、[开发指南](data_platform_development.md) |
+| 了解当前能力、架构与限制 | [平台状态说明](distributed_data_platform_current_status.md)、[架构实现核对](data_platform_architecture_review.md) |
+| 算子、Pipeline 与助手接口 | [统一算子和流程](data_platform_operators.md)、[LangGraph 运行器](data_platform_assistant_langgraph.md) |
+| 后台经验、策略与反馈 | [Hindsight](data_platform_hindsight.md)、[策略实验](data_platform_strategies.md)、[使用学习](data_platform_continuous_learning.md)、[学习验收](data_platform_continuous_learning_acceptance.md) |
+| 独立 FLORA 服务与 GPU 路由 | [HTTP API](flora_http_api.md) |
+| 查变化与兼容性 | [变更记录](data_platform_changelog.md) |
+
+## 部署与运维
+
+| 需要做什么 | 文档 |
+| --- | --- |
+| 更新、验收、恢复和排障 | [运维手册](data_platform_operations.md) |
 | 首次建立 dev/prod、批准与回退 | [双环境部署](data_platform_environments.md) |
 | 接入数据节点与 Agent | [分布式部署](distributed_data_platform_deployment.md) |
-| 找源码、安装包、数据库、缓存与数据目录 | [存储位置](data_platform_storage_locations.md) |
-| 账号、数据范围、任务配额与审计 | [账号恢复](data_platform_accounts.md)、[权限](data_platform_permissions.md)、[多用户任务管理](data_platform_multi_user_management.md) |
-| 运行质量检测、复核并构建数据 | [统一 Curation](data_platform_unified_curation.md)、[生命周期](data_lifecycle_architecture.md) |
-| 时序标注、任务定义、UMI 与 Merge | [Temporal Caption](temporal_caption_trial.md)、[任务目录](data_platform_task_catalog.md)、[UMI](umi_dataset_support.md)、[Merge 对齐](data_platform_merge_alignment.md) |
+| 找安装包、数据库、缓存与数据目录 | [存储位置](data_platform_storage_locations.md) |
 
-文档中的日期与版本表示核对范围；实时部署、Agent 能力和实际执行结果需要按运维手册重新确认。
-源码、已安装发行包、在线服务验收是不同证据。下方为上游 LeRobot 文档站点的生成流程。
+文档日期和版本限定源码核对范围；实时安装、Agent 能力和业务验收需按运维手册确认。
+
+## 历史设计
+
+[任务管理实施计划](data_platform_job_management_plan.md) 保留 2026-09-08 的设计基线，
+[交互优化设计](data_platform_ux_design.md) 保留当时的页面设计与验收范围。
+其中的“尚未实现”或部署快照属于当时状态；当前契约使用上方手册。
+
+<a id="data-platform-processing-architecture"></a>
+
+算子架构与外部接入已归入上方“开发与架构”和“使用平台”，保持原导航锚点可用。
+下方说明只适用于上游 LeRobot 的 `docs/source/` 文档站点。
 
 # Generating the documentation
-
-Data Platform documentation: [user guide](data_platform_page_user_guide.md),
-[current architecture](distributed_data_platform_current_status.md),
-[release changes](data_platform_changelog.md), [operations](data_platform_operations.md),
-[permissions](data_platform_permissions.md), and [CLI](../clients/data-platform-cli/README.md).
-Update these contracts with the corresponding implementation before building a release.
 
 To generate the documentation, you first have to build it. Several packages are necessary to build the doc,
 you can install them with the following command, at the root of the code repository:
@@ -161,11 +186,3 @@ the ones hosted on [`hf-internal-testing`](https://huggingface.co/hf-internal-te
 them by URL. We recommend putting them in the following dataset: [huggingface/documentation-images](https://huggingface.co/datasets/huggingface/documentation-images).
 If an external contribution, feel free to add the images to your PR and ask a Hugging Face member to migrate your images
 to this dataset.
-
-## Data Platform processing architecture
-
-See [Unified operators and pipelines](data_platform_operators.md) for operator contracts, the migration inventory, APIs, review gates and recovery.
-
-- [Architecture upgrade completion review](data_platform_architecture_review.md): implementation coverage, console service boundaries and remaining runtime acceptance.
-
-External Codex/Claude Code access: [MCP setup and credential management](data_platform_mcp.md).

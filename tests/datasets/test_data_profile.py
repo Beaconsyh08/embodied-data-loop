@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.operators.implementations.data_profile import (
     default_processing_profile,
     profile_from_info,
     quality_check_capabilities,

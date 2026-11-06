@@ -11,11 +11,15 @@ from pathlib import Path
 from flask import g, jsonify, render_template, request
 
 from lerobot.data_platform.cli import run_precompute
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.precompute.dataset_io import load_episode_records, load_task_records
-from lerobot.data_platform.precompute.viewer_manifest import load_viewer_manifest
+from lerobot.data_platform.datasets.tasks.catalog import (
+    TASK_CONFIG_PROTOCOL,
+    TaskConfigSnapshot,
+    normalize_task,
+)
+from lerobot.data_platform.operators.implementations.dataset_io import load_episode_records, load_task_records
+from lerobot.data_platform.operators.implementations.viewer_manifest import load_viewer_manifest
 from lerobot.data_platform.routes.task_suggestions import register_task_suggestion_routes
-from lerobot.data_platform.task_catalog import TASK_CONFIG_PROTOCOL, TaskConfigSnapshot, normalize_task
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_task_routes(app, ctx) -> None:

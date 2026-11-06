@@ -16,7 +16,7 @@ elif [[ $ENVIRONMENT != dev && $ENVIRONMENT != prod ]]; then
 fi
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 CHECKOUT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
-if [[ -f "$CHECKOUT/lerobot/data_platform/release_cli.py" && -x "$CHECKOUT/.venv/bin/python" ]]; then
+if [[ ( -f "$CHECKOUT/lerobot/data_platform/ops/release_cli.py" || -f "$CHECKOUT/lerobot/data_platform/release_cli.py" ) && -x "$CHECKOUT/.venv/bin/python" ]]; then
     TOOL_ROOT=$CHECKOUT
 else
     TOOL_ENVIRONMENT=$ENVIRONMENT

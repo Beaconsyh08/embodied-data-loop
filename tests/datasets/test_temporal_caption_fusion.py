@@ -6,13 +6,13 @@ import json
 import pytest
 from PIL import Image
 
-from lerobot.data_platform.temporal_caption_fusion import (
+from lerobot.data_platform.annotations.jobs import validate_run
+from lerobot.data_platform.operators.implementations.caption.fusion import (
     focus_frames,
     infer_fusion,
     validate_partition,
     validate_review,
 )
-from lerobot.data_platform.temporal_caption_jobs import validate_run
 from tests.datasets.test_temporal_caption import result
 
 
@@ -150,7 +150,7 @@ def test_structural_retry_receives_exact_failed_boundary_and_response(tmp_path):
 
 
 def test_visual_only_fusion_has_no_derived_signal_evidence(tmp_path):
-    from lerobot.data_platform.temporal_caption_fusion import signal_evidence
+    from lerobot.data_platform.operators.implementations.caption.fusion import signal_evidence
 
     metadata = json.loads((bundle(tmp_path) / "episode.json").read_text())
     metadata["include_signals"] = False

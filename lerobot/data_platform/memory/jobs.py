@@ -6,19 +6,19 @@ import json
 import os
 import shutil
 
-from lerobot.data_platform.execution import atomic_json
-from lerobot.data_platform.mem_export import digest as file_digest
-from lerobot.data_platform.mem_export import export
+from lerobot.data_platform.ai_tools.qwen import QwenClient, dashscope_env_api_key
+from lerobot.data_platform.artifacts.mem_export import digest as file_digest
+from lerobot.data_platform.artifacts.mem_export import export
 from lerobot.data_platform.memory.contracts import AnnotationConfig, digest
 from lerobot.data_platform.memory.generation import generate, mosaic
 from lerobot.data_platform.memory.sources import preview
 from lerobot.data_platform.operators import OperatorResult
-from lerobot.data_platform.qwen import QwenClient, dashscope_env_api_key
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 
 def capabilities():
-    from lerobot.data_platform.execution_resources import ExecutionResources
     from lerobot.data_platform.memory.batch import parallel_episodes
+    from lerobot.data_platform.runtime.resources import ExecutionResources
 
     return {
         "memory_annotation_protocol": 1,
@@ -260,8 +260,8 @@ def export_request(context, request, stop):
 
 def complete(job, destination, ledger, result):
     """Bind publication to prepared inputs and current review revisions, after lease authentication."""
-    from lerobot.data_platform.job_management import JobConflictError
     from lerobot.data_platform.memory.review import MemoryReviewStore
+    from lerobot.data_platform.runtime.jobs import JobConflictError
 
     prepared = ledger.repository.get("memory_requests", job["options"]["parameters"]["request_id"])
     if not prepared or prepared["location_id"] != job["location_id"]:

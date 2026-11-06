@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from werkzeug.serving import make_server
 
-from lerobot.data_platform.operation_log import append_operation_event
+from lerobot.data_platform.artifacts.audit import append_operation_event
 from lerobot.data_platform.operators.registry import operation_ids, worker_manifest
 from tests.datasets.test_ai_assistant import FakeQwen, call, draft
 from tests.datasets.test_console_services import console_app

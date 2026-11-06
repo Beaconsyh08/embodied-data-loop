@@ -6,9 +6,9 @@ from pathlib import Path
 
 from flask import jsonify, render_template
 
-from lerobot.data_platform.precompute.analysis import AnalysisMetadata, build_dataset_analysis
-from lerobot.data_platform.precompute.viewer_manifest import load_viewer_manifest
-from lerobot.data_platform.task_catalog import TaskConfigSnapshot
+from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot
+from lerobot.data_platform.operators.implementations.analysis import AnalysisMetadata, build_dataset_analysis
+from lerobot.data_platform.operators.implementations.viewer_manifest import load_viewer_manifest
 
 
 def build_remote_analysis(location: dict, ctx) -> dict:

@@ -8,11 +8,11 @@ from urllib.parse import urlsplit
 from flask import g, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
+from lerobot.data_platform.access.mcp import credentials
 from lerobot.data_platform.ai_tools.external import MCP_TOOLS, ExternalTools
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.mcp_access import credentials
 from lerobot.data_platform.routes.control_plane import _current_user
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 PROTOCOLS = ("2025-03-26", "2025-06-18", "2025-11-25")
 

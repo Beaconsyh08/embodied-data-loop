@@ -11,10 +11,10 @@ import pytest
 from flask import Flask
 
 from lerobot.data_platform.cli import run_precompute
-from lerobot.data_platform.precompute.data_profile import require_dataset_operation
-from lerobot.data_platform.precompute.mixed_episode_viewer import episode_viewer_spec
-from lerobot.data_platform.precompute.preprocess.dataset_version import validate_v3_dataset
-from lerobot.data_platform.precompute.viewer_signals import viewer_signal_presentation
+from lerobot.data_platform.operators.implementations.data_profile import require_dataset_operation
+from lerobot.data_platform.operators.implementations.mixed_episode_viewer import episode_viewer_spec
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import validate_v3_dataset
+from lerobot.data_platform.operators.implementations.viewer_signals import viewer_signal_presentation
 from lerobot.data_platform.viewer import _columns_from_csv_header, _serve_csv_stripped
 
 
@@ -187,8 +187,8 @@ def test_mixed_precompute_preserves_views_and_raw_signals(mixed_root, tmp_path):
 
 
 def test_mixed_snapshot_keeps_source_read_only(mixed_root):
-    from lerobot.data_platform.curation import scan_snapshot
-    from lerobot.data_platform.lifecycle import dataset_snapshot
+    from lerobot.data_platform.datasets.curation import scan_snapshot
+    from lerobot.data_platform.datasets.lifecycle.service import dataset_snapshot
 
     before = dataset_snapshot(mixed_root)
     snapshot = scan_snapshot(mixed_root, "node/mixed", "mixed-test")
@@ -197,7 +197,7 @@ def test_mixed_snapshot_keeps_source_read_only(mixed_root):
 
 
 def test_mixed_snapshot_rejects_wrong_episode_signal_width(mixed_root):
-    from lerobot.data_platform.curation import scan_snapshot
+    from lerobot.data_platform.datasets.curation import scan_snapshot
 
     path = mixed_root / "data/chunk-000/file-000.parquet"
     table = pq.read_table(path)
@@ -232,10 +232,10 @@ def test_mixed_rejects_unregistered_camera_and_missing_video(mixed_root):
 def test_flora_mixed_uses_native_views_fps_and_checks_source(mixed_root, tmp_path, monkeypatch):
     from types import SimpleNamespace
 
-    from lerobot.data_platform import temporal_caption_flora
-    from lerobot.data_platform.temporal_caption_jobs import execute_caption_job, validate_run
-    from lerobot.data_platform.temporal_caption_mixed import prepare_flora_mixed
-    from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+    from lerobot.data_platform.annotations.jobs import execute_caption_job, validate_run
+    from lerobot.data_platform.operators.implementations.caption import flora as temporal_caption_flora
+    from lerobot.data_platform.operators.implementations.caption.mixed import prepare_flora_mixed
+    from lerobot.data_platform.operators.implementations.caption.snapshot import caption_source_fingerprint
 
     episodes = pq.read_table(mixed_root / "meta/episodes/chunk-000/file-000.parquet").to_pylist()
     records = []
@@ -436,7 +436,7 @@ def test_cached_viewer_switches_episode_media_and_signal_metadata(mixed_root, tm
 
 
 def test_mixed_agent_capability_checked_at_submission_and_claim(mixed_root, tmp_path):
-    from lerobot.data_platform.agent import _dataset_payload
+    from lerobot.data_platform.runtime.agent import _dataset_payload
     from tests.datasets.test_control_plane import _app, _bootstrap, _store
     from tests.datasets.test_data_platform_agent import _agent
 

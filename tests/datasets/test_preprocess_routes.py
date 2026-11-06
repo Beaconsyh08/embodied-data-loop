@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 from flask import Flask
 
-from lerobot.data_platform.precompute.preprocess.common import PreprocessResult
+from lerobot.data_platform.operators.implementations.preprocess.common import PreprocessResult
 from lerobot.data_platform.routes import preprocess as preprocess_routes
 from tests.datasets.console_templates import template_source
 
@@ -21,7 +21,10 @@ class _ImmediateThread:
 
 def _route_context(src_root: Path, *, legacy: bool = False):
     # These route doubles model legacy DVT jobs; declare that policy explicitly.
-    from lerobot.data_platform.precompute.data_profile import profile_from_data_version, write_data_profile
+    from lerobot.data_platform.operators.implementations.data_profile import (
+        profile_from_data_version,
+        write_data_profile,
+    )
 
     if legacy:
         write_data_profile(

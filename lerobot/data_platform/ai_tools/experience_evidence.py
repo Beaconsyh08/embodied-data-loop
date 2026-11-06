@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
-from lerobot.data_platform.control_plane import RemoteJob
-from lerobot.data_platform.management_storage import JobAttempt, JobControl
+from lerobot.data_platform.control.storage import JobAttempt, JobControl
+from lerobot.data_platform.control.store import RemoteJob
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.processing.models import PipelineVersion
-from lerobot.data_platform.task_catalog import content_digest
 
 METRICS = {
     "total_frames",

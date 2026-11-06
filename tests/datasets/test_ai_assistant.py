@@ -17,12 +17,12 @@ from lerobot.data_platform.ai_tools.service import (
     AssistantService,
     AssistantUnavailableError,
 )
-from lerobot.data_platform.control_plane import ControlPlaneUser, DatasetLocation
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import AuditOutbox
+from lerobot.data_platform.control.storage import AuditOutbox
+from lerobot.data_platform.control.store import ControlPlaneUser, DatasetLocation
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.routes.ai_assistant import register_ai_assistant_routes
 from lerobot.data_platform.routes.processing import register_processing_routes
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_control_plane import _app
 from tests.datasets.test_processing import setup as processing_setup  # noqa: F401
 
@@ -299,7 +299,7 @@ def test_pending_restore_and_receipt_retention_in_active_conversation(assistant)
 
 
 def test_http_audit_excludes_prompt_and_generated_response(assistant, tmp_path):
-    from lerobot.data_platform.operation_log import LOG_FILENAME
+    from lerobot.data_platform.artifacts.audit import LOG_FILENAME
     from tests.datasets.test_console_services import console_app
 
     service, _, _, value = assistant
@@ -331,7 +331,7 @@ def test_http_audit_excludes_prompt_and_generated_response(assistant, tmp_path):
 def test_qwen_transport_caps_response_without_exposing_provider_body(monkeypatch):
     import io
 
-    from lerobot.data_platform import qwen
+    from lerobot.data_platform.ai_tools import qwen
 
     response = io.BytesIO(b'{"private": "' + b"x" * 1000 + b'"}')
     monkeypatch.setattr(

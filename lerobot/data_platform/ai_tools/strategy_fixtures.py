@@ -9,7 +9,7 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 
 
 def inventory(root):
@@ -178,7 +178,7 @@ def validate_fixture(root, fmt):
 def verify_output(root, source_root, *, expected_episodes, expected_format):
     import numpy as np
 
-    from lerobot.data_platform.precompute.dataset_io import (
+    from lerobot.data_platform.operators.implementations.dataset_io import (
         load_episode_records,
         load_task_records,
         read_episode_table,
@@ -199,7 +199,7 @@ def verify_output(root, source_root, *, expected_episodes, expected_format):
     }
     if output_features != source_features:
         raise ValueError("Output feature schema changed")
-    from lerobot.data_platform.dataset_metadata import MetaOnlyDataset
+    from lerobot.data_platform.datasets.metadata import MetaOnlyDataset
 
     meta = MetaOnlyDataset("synthetic/output", root=root).meta
     source_meta = MetaOnlyDataset("synthetic/source", root=source_root).meta

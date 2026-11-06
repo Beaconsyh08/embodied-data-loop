@@ -19,9 +19,9 @@ from lerobot.data_platform.ai_tools.models import (
     AssistantTurn,
 )
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
-from lerobot.data_platform.environment import EnvironmentIdentity
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
+from lerobot.data_platform.ops.environment import EnvironmentIdentity
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 class ExperienceChangedError(JobConflictError):

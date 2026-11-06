@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from lerobot.data_platform.deployment_progress import production_progress
+from lerobot.data_platform.ops.progress import production_progress
 
 
 def write(root, name, value):
@@ -12,7 +12,7 @@ def write(root, name, value):
 
 
 def test_old_success_is_not_used_for_a_new_attempt(tmp_path, monkeypatch):
-    monkeypatch.setattr("lerobot.data_platform.deployment_progress.time.time", lambda: 101)
+    monkeypatch.setattr("lerobot.data_platform.ops.progress.time.time", lambda: 101)
     write(tmp_path, "promotion-request.json", {"id": "new", "release": "R2", "started_at": 100})
     write(tmp_path, "deployment.json", {"release": "R2", "started_at": 10, "status": "installed"})
     result = production_progress(tmp_path, "activating")
@@ -33,7 +33,7 @@ def test_old_success_is_not_used_for_a_new_attempt(tmp_path, monkeypatch):
     ],
 )
 def test_progress_survives_refresh_and_handles_process_exit(tmp_path, monkeypatch, status, unit, expected):
-    monkeypatch.setattr("lerobot.data_platform.deployment_progress.time.time", lambda: 200)
+    monkeypatch.setattr("lerobot.data_platform.ops.progress.time.time", lambda: 200)
     write(tmp_path, "promotion-request.json", {"id": "attempt", "release": "R2", "started_at": 100})
     write(
         tmp_path,
@@ -107,7 +107,7 @@ def test_web_retry_preserves_maintenance_and_partial_upgrade_guards(
 ):
     from types import SimpleNamespace
 
-    from lerobot.data_platform import deployment, promotion, releases
+    from lerobot.data_platform.ops import deployment, promotion, releases
 
     candidate = tmp_path / "R3"
     candidate.mkdir()
@@ -201,7 +201,7 @@ def test_uncertain_or_partial_upgrade_cannot_use_drain_retry(tmp_path, evidence)
 def test_promotion_dispatch_records_attempt_before_start(tmp_path, monkeypatch, dispatch_failure):
     from types import SimpleNamespace
 
-    from lerobot.data_platform import deployment, promotion, releases
+    from lerobot.data_platform.ops import deployment, promotion, releases
 
     monkeypatch.setattr(promotion.os, "geteuid", lambda: 0)
     monkeypatch.setattr(deployment, "Deployment", lambda name: SimpleNamespace(root=tmp_path))

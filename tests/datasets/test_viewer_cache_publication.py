@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform.execution import ExecutionSupervisor, atomic_json, publish_viewer_cache
+from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor, atomic_json, publish_viewer_cache
 
 
 def cache_fixture(tmp_path):
@@ -62,7 +62,7 @@ def test_publication_waits_for_result_write_and_preserves_latest_flags(tmp_path,
     from concurrent.futures import ThreadPoolExecutor
     from threading import Event
 
-    from lerobot.data_platform import dataset_results
+    from lerobot.data_platform.datasets import results as dataset_results
 
     source, cache, target = cache_fixture(tmp_path)
     atomic_json(target / "static/viewer_manifest.json", {"root": str(source)})
@@ -91,7 +91,7 @@ def test_publication_waits_for_result_write_and_preserves_latest_flags(tmp_path,
 
 
 def test_publication_restores_backup_after_rename_failure(tmp_path, monkeypatch):
-    from lerobot.data_platform import execution
+    from lerobot.data_platform.runtime import supervisor as execution
 
     source, cache, target = cache_fixture(tmp_path)
     atomic_json(target / "static/viewer_manifest.json", {"root": str(source)})

@@ -11,14 +11,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform.execution import (
+from lerobot.data_platform.runtime.concurrency import footprint
+from lerobot.data_platform.runtime.supervisor import (
     ExecutionSupervisor,
     atomic_json,
     group_members,
     input_fingerprint,
     process_identity,
 )
-from lerobot.data_platform.job_concurrency import footprint
 from tests.datasets.test_preprocess_ops import _add_v21_stat_counts, _make_dataset
 
 
@@ -153,7 +153,7 @@ def test_completed_viewer_cache_retry_replays_uploads_without_compute(tmp_path, 
     with pytest.raises(ValueError, match="Viewer source changed"):
         supervisor._reuse_published_viewer(job, current, "changed-source", reservation)
     assert not uploaded
-    from lerobot.data_platform import execution
+    from lerobot.data_platform.runtime import supervisor as execution
 
     def real_process_group_only(pid):
         assert pid is not None and pid > 0
@@ -169,7 +169,7 @@ def test_completed_viewer_cache_retry_replays_uploads_without_compute(tmp_path, 
 
 
 def test_spooling_client_provides_only_inherited_identity(tmp_path):
-    from lerobot.data_platform.execution import SpoolingClient
+    from lerobot.data_platform.runtime.supervisor import SpoolingClient
 
     identity = {"environment": "dev", "instance_id": "development-instance"}
     client = SpoolingClient("https://unreachable.invalid", tmp_path, server_identity=identity)
@@ -226,7 +226,7 @@ def test_first_viewer_job_creates_missing_cache_parent(tmp_path, monkeypatch):
         "options": {},
         "execution": {"attempt_id": "attempt", "final_output": None},
     }
-    from lerobot.data_platform import execution
+    from lerobot.data_platform.runtime import supervisor as execution
 
     monkeypatch.setattr(execution.subprocess, "Popen", lambda *args, **kwargs: SimpleNamespace(pid=123))
     monkeypatch.setattr(execution, "process_identity", lambda pid: "test-process")
@@ -249,7 +249,7 @@ def test_real_worker_preserves_source_and_publishes_drop_field(
     source = tmp_path / "source"
     _make_dataset(source)
     if version == "v3.0":
-        from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+        from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 
         _add_v21_stat_counts(source)
         converted = tmp_path / "source_v3"
@@ -261,7 +261,7 @@ def test_real_worker_preserves_source_and_publishes_drop_field(
     client = Client()
     agent = fake_agent(tmp_path, client)
     if named_environment:
-        from lerobot.data_platform.environment import EnvironmentIdentity, verify_directory
+        from lerobot.data_platform.ops.environment import EnvironmentIdentity, verify_directory
 
         monkeypatch.setenv("DATA_PLATFORM_ENV", "dev")
         monkeypatch.setenv("DATA_PLATFORM_INSTANCE_ID", "11111111-1111-4111-8111-111111111111")
@@ -292,7 +292,7 @@ def test_real_worker_preserves_source_and_publishes_drop_field(
         },
     }
     if local_command:
-        from lerobot.data_platform.precompute.preprocess.field_ops import run_drop_field
+        from lerobot.data_platform.operators.implementations.preprocess.field_ops import run_drop_field
         from lerobot.data_platform.processing.commands import build_command
 
         command = build_command(
@@ -314,7 +314,7 @@ def test_real_worker_preserves_source_and_publishes_drop_field(
     info = json.loads((final / "meta" / "info.json").read_text())
     assert "old_field" not in info["features"]
     assert result["result"]["dataset_location"]["root"] == str(final)
-    from lerobot.data_platform.agent import _dataset_payload
+    from lerobot.data_platform.runtime.agent import _dataset_payload
 
     assert (
         result["result"]["dataset_location"]["dataset_key"]
@@ -470,7 +470,7 @@ def test_agent_path_reservation_waits_and_renews_until_release(tmp_path):
 def test_local_validated_command_is_queued_and_executed(tmp_path, monkeypatch):
     from lerobot.data_platform import viewer
     from lerobot.data_platform.cli import get_default_output_dir
-    from lerobot.data_platform.execution import input_fingerprint
+    from lerobot.data_platform.runtime.supervisor import input_fingerprint
 
     monkeypatch.setenv("DATA_PLATFORM_DATABASE_URL", f"sqlite:///{tmp_path / 'control.db'}")
     monkeypatch.setenv("DATA_PLATFORM_INTERNAL_EXECUTION", "")
@@ -565,7 +565,7 @@ def test_local_validated_command_is_queued_and_executed(tmp_path, monkeypatch):
 
 
 def test_agent_ca_bundle_keeps_explicit_tls_options(monkeypatch):
-    from lerobot.data_platform.agent import AgentClient
+    from lerobot.data_platform.runtime.agent import AgentClient
 
     monkeypatch.setenv("DATA_PLATFORM_AGENT_CA_BUNDLE", "/etc/ssl/certs/ca-certificates.crt")
     assert AgentClient("https://example.invalid").verify == "/etc/ssl/certs/ca-certificates.crt"
@@ -576,7 +576,7 @@ def test_agent_ca_bundle_keeps_explicit_tls_options(monkeypatch):
 def test_curation_worker_retains_checksummed_bundle_through_publication(tmp_path, monkeypatch):
     import shutil
 
-    from lerobot.data_platform.curation import scan_snapshot, validate_bundle
+    from lerobot.data_platform.datasets.curation import scan_snapshot, validate_bundle
     from tests.datasets.test_lifecycle import _make_dataset as make_source
     from tests.datasets.test_lifecycle import _snapshot
 

@@ -24,15 +24,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from lerobot.data_platform.dataset_metadata import MetaOnlyDataset
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.precompute.annotation import DEFAULT_FALLBACK_STAGE_COUNT
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.datasets.metadata import MetaOnlyDataset
+from lerobot.data_platform.operators.implementations.annotation import DEFAULT_FALLBACK_STAGE_COUNT
+from lerobot.data_platform.operators.implementations.data_profile import (
     require_dataset_operation,
     require_operation,
     resolve_processing_profile,
 )
-from lerobot.data_platform.precompute.labeling import (
+from lerobot.data_platform.operators.implementations.labeling import (
     DEFAULT_BACKEND,
     DEFAULT_BOX_THRESHOLD,
     DEFAULT_DASHSCOPE_BASE_URL,
@@ -43,16 +42,17 @@ from lerobot.data_platform.precompute.labeling import (
     DEFAULT_TEXT_THRESHOLD,
     sample_episodes_by_task_type,
 )
-from lerobot.data_platform.precompute.labeling import (
+from lerobot.data_platform.operators.implementations.labeling import (
     get_capabilities as get_labeling_capabilities,
 )
-from lerobot.data_platform.precompute.viewer_manifest import (
+from lerobot.data_platform.operators.implementations.viewer_manifest import (
     manifest_episode_ids,
 )
 from lerobot.data_platform.processing.commands import build_command
 from lerobot.data_platform.routes import (
     RouteContext,
 )
+from lerobot.data_platform.runtime.local import launch_background
 from lerobot.data_platform.services.cache import DatasetCacheService
 from lerobot.data_platform.services.catalog import DatasetCatalog
 from lerobot.data_platform.services.dataset_paths import (

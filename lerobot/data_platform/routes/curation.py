@@ -16,7 +16,7 @@ from urllib.parse import urlencode
 
 from flask import abort, jsonify, redirect, request, send_file
 
-from lerobot.data_platform.curation import (
+from lerobot.data_platform.datasets.curation import (
     CURATION_PROTOCOL,
     DATASET_OPERATIONS,
     OPERATIONS,
@@ -28,10 +28,10 @@ from lerobot.data_platform.curation import (
     snapshot_from_version,
     supports_artifact_transport,
 )
-from lerobot.data_platform.curation_execution import validate_parameters
-from lerobot.data_platform.lifecycle import MATERIALIZATION_COMMITTED, MaterializationRun
-from lerobot.data_platform.local_execution import enqueue_local
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.datasets.lifecycle.service import MATERIALIZATION_COMMITTED, MaterializationRun
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
+from lerobot.data_platform.operators.implementations.curation import validate_parameters
+from lerobot.data_platform.operators.implementations.data_profile import (
     default_processing_profile,
     operation_capabilities,
     profile_from_data_version,
@@ -43,7 +43,7 @@ from lerobot.data_platform.routes.control_plane import (
     _role_denied,
     _validate_remote_output_path,
 )
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.local import enqueue_local
 
 
 def register_curation_routes(app, ctx):
@@ -121,7 +121,7 @@ def register_curation_routes(app, ctx):
                 "output_dir": str(Path(static).parent),
                 "metadata": info,
             }
-            from lerobot.data_platform.local_execution import agent_capabilities_for_local
+            from lerobot.data_platform.runtime.local import agent_capabilities_for_local
 
             node = {
                 "name": "Local executor",
@@ -288,7 +288,9 @@ def register_curation_routes(app, ctx):
         if not capability["can_execute"]:
             raise ValueError(capability["reason"])
         if operation == "curation.quality":
-            from lerobot.data_platform.precompute.preprocess.quality_flags import validate_quality_parameters
+            from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
+                validate_quality_parameters,
+            )
 
             checks, config, _ = validate_quality_parameters(parameters)
             if (
@@ -309,7 +311,7 @@ def register_curation_routes(app, ctx):
                     capability.get("error") or "Labeling backend is unavailable on this execution node"
                 )
         if operation == "curation.tagging":
-            from lerobot.data_platform.precompute.tagging.schema import selected_tag_defs
+            from lerobot.data_platform.operators.implementations.tagging.schema import selected_tag_defs
 
             definitions = selected_tag_defs(parameters.get("selected_tags"))
             backend = parameters.get("vlm_backend", "qwen_dashscope")
@@ -548,7 +550,7 @@ def register_curation_routes(app, ctx):
                 ):
                     raise ValueError("Bounding box requires finite, ordered positive coordinates")
         if "tags" in fields:
-            from lerobot.data_platform.precompute.tagging.schema import normalize_tag_values
+            from lerobot.data_platform.operators.implementations.tagging.schema import normalize_tag_values
 
             fields["tags"] = normalize_tag_values(fields["tags"])
         if "task" in fields and not str(fields["task"]).strip():
@@ -609,7 +611,7 @@ def register_curation_routes(app, ctx):
     @app.post("/api/curation/drafts/<workspace_id>/import-sidecars")
     @checked
     def curation_import_sidecars(workspace_id):
-        from lerobot.data_platform.lifecycle import collect_curation_sidecars
+        from lerobot.data_platform.datasets.lifecycle.service import collect_curation_sidecars
 
         body = request.get_json(silent=True) or {}
         target, location, _, _, _ = resolve(body)
@@ -654,8 +656,11 @@ def register_curation_routes(app, ctx):
     @app.get("/api/curation/runs/<run>")
     @checked
     def curation_result(run):
-        from lerobot.data_platform.precompute.labeling.review import load_labels_jsonl, resolved_labels_path
-        from lerobot.data_platform.precompute.tagging.review import current_tags
+        from lerobot.data_platform.operators.implementations.labeling.review import (
+            load_labels_jsonl,
+            resolved_labels_path,
+        )
+        from lerobot.data_platform.operators.implementations.tagging.review import current_tags
 
         record = result_record(run)
         variant = request.args.get("variant") or record["result"].get("output_variant")
@@ -673,7 +678,7 @@ def register_curation_routes(app, ctx):
         coverage = directory / "static" / "quality_coverage.json"
         if coverage.is_file():
             quality["coverage"] = json.loads(coverage.read_text()).get("streams", [])
-        from lerobot.data_platform.precompute.embedding import load_points
+        from lerobot.data_platform.operators.implementations.embedding import load_points
 
         snapshot = ledger().curation_snapshot(record["target"]["dataset_version_id"])
         meta = (
@@ -705,7 +710,7 @@ def register_curation_routes(app, ctx):
     @app.post("/api/curation/drafts/<workspace_id>/caption-evidence")
     @checked
     def curation_caption_evidence(workspace_id):
-        from lerobot.data_platform.temporal_caption import artifact_key, validate_result
+        from lerobot.data_platform.operators.implementations.caption.core import artifact_key, validate_result
 
         body = request.get_json(silent=True) or {}
         target, _, _, snapshot, _ = resolve(body)
@@ -762,12 +767,12 @@ def register_curation_routes(app, ctx):
     @app.post("/api/curation/drafts/<workspace_id>/accept/<run>/<int:episode_index>")
     @checked
     def curation_accept_result(workspace_id, run, episode_index):
-        from lerobot.data_platform.precompute.labeling.review import (
+        from lerobot.data_platform.operators.implementations.labeling.review import (
             first_frame_bbox_from_record,
             load_labels_jsonl,
             resolved_labels_path,
         )
-        from lerobot.data_platform.precompute.tagging.review import current_tags
+        from lerobot.data_platform.operators.implementations.tagging.review import current_tags
 
         body = request.get_json(silent=True) or {}
         store = ledger()

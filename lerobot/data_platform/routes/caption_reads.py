@@ -2,7 +2,7 @@
 
 from flask import jsonify, request
 
-from lerobot.data_platform.caption_reads import MAX_REPLY_BYTES, CaptionReadRelay
+from lerobot.data_platform.annotations.reads import MAX_REPLY_BYTES, CaptionReadRelay
 from lerobot.data_platform.routes.control_plane import _bearer_token
 
 

@@ -5,13 +5,16 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from lerobot.data_platform.precompute.embedding import policy_backend
-from lerobot.data_platform.precompute.embedding.policy_backend import (
+from lerobot.data_platform.operators.implementations.embedding import policy_backend
+from lerobot.data_platform.operators.implementations.embedding.policy_backend import (
     DEFAULT_OPENPI_CONFIG,
     resolve_openpi_config,
 )
-from lerobot.data_platform.precompute.embedding.reducer import fit_reducer, transform
-from lerobot.data_platform.precompute.embedding.runner import project_existing_embeddings, run_embedding
+from lerobot.data_platform.operators.implementations.embedding.reducer import fit_reducer, transform
+from lerobot.data_platform.operators.implementations.embedding.runner import (
+    project_existing_embeddings,
+    run_embedding,
+)
 
 
 class DummyMeta:

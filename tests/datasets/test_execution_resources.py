@@ -5,10 +5,10 @@ import threading
 
 import pytest
 
-from lerobot.data_platform import execution_resources as resources
-from lerobot.data_platform.execution import StopRequestedError
-from lerobot.data_platform.execution_pools import ThreadPoolExecutor, map_completed
-from lerobot.data_platform.precompute.viewer_work import ViewerWork, run_viewer_work
+from lerobot.data_platform.operators.implementations.viewer_work import ViewerWork, run_viewer_work
+from lerobot.data_platform.runtime import resources as resources
+from lerobot.data_platform.runtime.pools import ThreadPoolExecutor, map_completed
+from lerobot.data_platform.runtime.supervisor import StopRequestedError
 
 
 @pytest.fixture(autouse=True)
@@ -168,7 +168,7 @@ def test_duplicate_outputs_rejected_before_work(tmp_path):
     "configured, expected", [(None, 1), ("1", 1), ("2", 2), ("4", 4), ("8", 8), ("99", 8)]
 )
 def test_agent_slot_configuration(monkeypatch, configured, expected):
-    from lerobot.data_platform.job_concurrency import agent_slots
+    from lerobot.data_platform.runtime.concurrency import agent_slots
 
     monkeypatch.delenv("DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS", raising=False)
     if configured is not None:

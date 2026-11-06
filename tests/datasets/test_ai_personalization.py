@@ -10,11 +10,11 @@ from sqlalchemy import select
 
 from lerobot.data_platform.ai_tools.models import AssistantConversation
 from lerobot.data_platform.ai_tools.personalization import DEFAULTS, conversations, preferences
-from lerobot.data_platform.control_plane import ControlPlaneUser, DatasetLocation
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import AuditOutbox
+from lerobot.data_platform.control.storage import AuditOutbox
+from lerobot.data_platform.control.store import ControlPlaneUser, DatasetLocation
 from lerobot.data_platform.routes.ai_assistant import register_ai_assistant_routes
 from lerobot.data_platform.routes.processing import register_processing_routes
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant, processing_setup  # noqa: F401
 from tests.datasets.test_control_plane import _app
 

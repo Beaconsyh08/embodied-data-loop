@@ -124,7 +124,7 @@ def test_snapshot_rejects_changed_training_record_and_source():
 
 
 def test_review_camera_labels_match_video_layout():
-    from lerobot.data_platform.camera_layout import review_camera_order
+    from lerobot.data_platform.datasets.camera_layout import review_camera_order
 
     assert review_camera_order(["image", "left_wrist_image", "right_wrist_image"]) == [
         "left_wrist_image",
@@ -154,7 +154,7 @@ def install_fixture(remote):
 
 
 def test_training_review_enforces_scope_and_source(memory_remote):  # noqa: F811
-    from lerobot.data_platform.control_plane import DataMutationScope
+    from lerobot.data_platform.control.store import DataMutationScope
 
     remote = memory_remote
     install_fixture(remote)

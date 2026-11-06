@@ -1,5 +1,15 @@
 # 当前环境构成与日常更新手册
 
+日常操作从下表进入；后续专题保留各功能的部署前置条件和验收细节。
+源码目录和测试分工见 [开发指南](data_platform_development.md)。
+
+| 场景 | 章节 |
+| --- | --- |
+| 查环境、服务和目录 | [环境构成](#1-现在由哪些部分组成)、[存储位置](data_platform_storage_locations.md) |
+| 发布前核对与多分支集成 | [更新前检查](#2-每次更新前)、[统一合并发布](#21-多个功能并行开发统一合并发布) |
+| 常规发布与验收 | [先开发再生产](#4-先开发测试再更新生产常规发布)、[确认完成](#5-怎么确认更新完成) |
+| 缓存、任务、网络排障 | [结果同步](#7-viewer-缓存与结果同步排障)、[任务恢复](#8-远程任务停滞与恢复)、[HTTPS](#https-地址与证书) |
+
 ## Agent-local captions in the dataset selector
 
 Upgrade Server and Agent together for the caption selector's additive `caption_output_runs` location
@@ -355,7 +365,7 @@ read -r -p 'Verified new release version: ' RELEASE
 
 ```bash
 test -x .venv/bin/python
-.venv/bin/python -c 'import pytest; import lerobot.data_platform.releases; import scripts.build_data_platform_agent_bundle'
+.venv/bin/python -c 'import pytest; import lerobot.data_platform.ops.releases; import scripts.build_data_platform_agent_bundle'
 ```
 
 使用这个解释器运行相关验证。只有文档或源码同步时不需要构建或部署发行包。
@@ -815,11 +825,11 @@ account with mode 0700. This keeps development writes inside its existing system
 restart it after upgrading that environment. The service does not enable historical migration.
 Storage layout and retention are defined in [storage locations](data_platform_storage_locations.md#optional-object-archive).
 
-Use `python -m lerobot.data_platform.archive_cli --config /path/to/archive.json probe`, `enqueue`,
+Use `python -m lerobot.data_platform.artifacts.cli --config /path/to/archive.json probe`, `enqueue`,
 `flush`, `backup` and `cleanup --protected-keys /path/to/protected.json`. Backup accepts only a
 completed quiescent deployment backup; it checks inventory hashes and excludes environment files
 and management credentials. Source datasets and active database files are not archive inputs.
-For a continuously bounded uploader, run `python -m lerobot.data_platform.archive_worker --config /path/to/archive.json`
+For a continuously bounded uploader, run `python -m lerobot.data_platform.artifacts.worker --config /path/to/archive.json`
 under the existing service account/environment. Each minute it handles at most 20 pending files.
 It never scans the database or migrates history. `archive.dev.json.example` starts disabled;
 copy it to protected service configuration, choose the environment's own prefix and credentials,
@@ -868,7 +878,7 @@ rollback while references exist, including `--hard`. Restore inline reports befo
 Build-time browser validation does not establish installed acceptance. Run:
 
 ```bash
-python -m lerobot.data_platform.acceptance browser \
+python -m lerobot.data_platform.ops.acceptance browser \
   --origin https://data-platform.example:8443 \
   --release-root /var/lib/data-platform-releases/RELEASE \
   --browser-executable /usr/bin/google-chrome --username ACCEPTANCE_USER \

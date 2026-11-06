@@ -6,8 +6,10 @@ import numpy as np
 import pyarrow.parquet as pq
 import pytest
 
-from lerobot.data_platform.precompute.preprocess.pose_interpolate import run_pose_interpolate
-from lerobot.data_platform.precompute.preprocess.quality_flags import run_quality_flag_detection
+from lerobot.data_platform.operators.implementations.preprocess.pose_interpolate import run_pose_interpolate
+from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
+    run_quality_flag_detection,
+)
 from tests.datasets.test_lifecycle import _snapshot
 from tests.datasets.test_quality_eef import make_eef
 
@@ -101,7 +103,11 @@ def test_laundry_strategy_has_explicit_units_and_provenance(tmp_path):
 def test_manifest_pose_recipe_follows_stable_uid_after_episode_reindex(tmp_path, version):
     from dataclasses import asdict
 
-    from lerobot.data_platform.lifecycle import EpisodeRef, LifecycleStore, materialize_manifest
+    from lerobot.data_platform.datasets.lifecycle.service import (
+        EpisodeRef,
+        LifecycleStore,
+        materialize_manifest,
+    )
     from tests.datasets.test_lifecycle import _publish
 
     source = make_eef(tmp_path / "source", version)

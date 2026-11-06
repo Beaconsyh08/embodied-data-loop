@@ -14,9 +14,15 @@ from pathlib import Path
 
 from PIL import Image
 
-from lerobot.data_platform.execution import atomic_json
-from lerobot.data_platform.mem_export import SCHEMA, contained, digest, inspect_selection, write_json
-from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+from lerobot.data_platform.artifacts.mem_export import (
+    SCHEMA,
+    contained,
+    digest,
+    inspect_selection,
+    write_json,
+)
+from lerobot.data_platform.operators.implementations.caption.snapshot import caption_source_fingerprint
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 
 def export_episode(index, selection, staging, audit):

@@ -4,16 +4,19 @@ from __future__ import annotations
 
 from flask import jsonify, request
 
-from lerobot.data_platform.mcap_contract import McapImportConfig, default_output_root
+from lerobot.data_platform.operators.implementations.mcap.mcap_contract import (
+    McapImportConfig,
+    default_output_root,
+)
 
 
 def register_mcap_import_routes(app, store):
-    from lerobot.data_platform.job_management import JobConflictError
     from lerobot.data_platform.routes.control_plane import (
         _current_user,
         _role_denied,
         _validate_remote_output_path,
     )
+    from lerobot.data_platform.runtime.jobs import JobConflictError
 
     @app.post("/api/control/locations/<string:location_id>/mcap-jobs")
     def control_create_mcap_job(location_id):

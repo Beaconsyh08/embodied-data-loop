@@ -78,8 +78,8 @@ dependencies = [
 ]
 
 [project.scripts]
-data-platform-archive = "lerobot.data_platform.archive_cli:main"
-data-platform-agent = "lerobot.data_platform.agent:main"
+data-platform-archive = "lerobot.data_platform.artifacts.cli:main"
+data-platform-agent = "lerobot.data_platform.runtime.agent:main"
 
 [project.optional-dependencies]
 aloha = ["gym-aloha>=0.1.1 ; python_version < '4.0'"]

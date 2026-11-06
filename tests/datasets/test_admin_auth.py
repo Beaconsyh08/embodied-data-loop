@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform.admin_auth import AdminAuthStore
+from lerobot.data_platform.access.local_admin import AdminAuthStore
 
 
 def test_admin_password_is_hashed_and_sessions_persist_until_logout(tmp_path: Path):

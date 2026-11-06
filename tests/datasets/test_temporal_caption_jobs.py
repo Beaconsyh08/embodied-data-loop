@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform.execution import SpoolingClient
+from lerobot.data_platform.annotations.jobs import import_archive, publish_run, validate_options
 from lerobot.data_platform.routes.temporal_caption import register_temporal_caption_routes
-from lerobot.data_platform.temporal_caption_jobs import import_archive, publish_run, validate_options
+from lerobot.data_platform.runtime.supervisor import SpoolingClient
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_temporal_caption import result
 
@@ -289,8 +289,8 @@ def test_bad_options_do_not_queue(remote, options):
 def test_real_episode_agent_execution_round_trip(
     remote, tmp_path, monkeypatch, scheme, include_signals, dataset_version
 ):
-    from lerobot.data_platform import qwen
-    from lerobot.data_platform.temporal_caption_jobs import execute_caption_job
+    from lerobot.data_platform.ai_tools import qwen
+    from lerobot.data_platform.annotations.jobs import execute_caption_job
     from tests.datasets.test_temporal_caption import (
         test_export_reads_only_selected_episode_from_shared_v3_shard,
         test_export_v21_embedded_images_and_source_preservation,

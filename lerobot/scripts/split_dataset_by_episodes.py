@@ -3,8 +3,7 @@
 
 import sys
 
-from lerobot.data_platform import split_dataset_by_episodes as _implementation
-
+from lerobot.data_platform.operators.implementations.preprocess import split_cli as _implementation
 
 if __name__ == "__main__":
     _implementation.main()

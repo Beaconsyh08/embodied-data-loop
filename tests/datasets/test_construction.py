@@ -5,7 +5,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from lerobot.data_platform.precompute.construction import (
+from lerobot.data_platform.operators.implementations.construction import (
     ConstructionPlan,
     build_vocab,
     classify_task,
@@ -55,7 +55,10 @@ def _make_source_dataset(root: Path) -> None:
     }
     (root / "meta" / "info.json").write_text(json.dumps(info))
     _write_jsonl(root / "meta" / "tasks.jsonl", [{"task_index": 0, "task": "Pick up the yellow duck"}])
-    _write_jsonl(root / "meta" / "episodes.jsonl", [{"episode_index": 0, "tasks": ["Pick up the yellow duck"], "length": 3}])
+    _write_jsonl(
+        root / "meta" / "episodes.jsonl",
+        [{"episode_index": 0, "tasks": ["Pick up the yellow duck"], "length": 3}],
+    )
     _write_jsonl(root / "meta" / "episodes_stats.jsonl", [{"episode_index": 0, "stats": {}}])
 
     table = pa.table(
@@ -82,7 +85,9 @@ def _record(idx: int, task: str, selected=True):
         "episode_index": idx,
         "task": task,
         "parsed": {"target": task.removeprefix("Pick up the ").lower(), "direction": None, "reference": None},
-        "selected": {"bbox": {"left": 0, "top": 0, "right": 10, "bottom": 10}, "confidence": 0.8} if selected else None,
+        "selected": {"bbox": {"left": 0, "top": 0, "right": 10, "bottom": 10}, "confidence": 0.8}
+        if selected
+        else None,
         "relation_satisfied": True,
         "detections_target": [{"bbox": {"left": 0, "top": 0, "right": 10, "bottom": 10}, "confidence": 0.8}],
         "detections_ref": [],
@@ -110,13 +115,19 @@ def test_classify_task_and_prompt_templates():
     assert classify_task("Pick up the yellow duck to the right of the brown dog").name == "relative_pick"
     assert classify_task("Give me the yellow duck").name == "give"
     assert make_prompt("single_pick", "brown dog", {}, []) == "Pick up the brown dog"
-    assert make_prompt("directional_pick", "brown dog", {"direction": "right"}, []) == "Pick up the brown dog on the right"
-    assert make_prompt(
-        "relative_pick",
-        "orange lion",
-        {"direction": "left", "reference": "yellow duck"},
-        ["yellow duck"],
-    ) == "Pick up the orange lion to the left of the yellow duck"
+    assert (
+        make_prompt("directional_pick", "brown dog", {"direction": "right"}, [])
+        == "Pick up the brown dog on the right"
+    )
+    assert (
+        make_prompt(
+            "relative_pick",
+            "orange lion",
+            {"direction": "left", "reference": "yellow duck"},
+            ["yellow duck"],
+        )
+        == "Pick up the orange lion to the left of the yellow duck"
+    )
     assert make_prompt("give", "green dinosaur", {}, []) == "Give me the green dinosaur"
 
 
@@ -174,10 +185,7 @@ def test_select_sources_balances_source_visual_objects_and_oversamples():
 
 def test_select_sources_balances_object_count_buckets_when_tags_exist():
     vocab = {"yellow duck", "brown dog"}
-    labels = {
-        idx: _record(idx, "Pick up the yellow duck")
-        for idx in range(4)
-    }
+    labels = {idx: _record(idx, "Pick up the yellow duck") for idx in range(4)}
     tags = {
         0: {"episode_index": 0, "tags": {"object_count": 1}},
         1: {"episode_index": 1, "tags": {"object_count": 1}},

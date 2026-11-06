@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from flask import jsonify
 
-from lerobot.data_platform.lifecycle import LifecycleStore
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
 from lerobot.data_platform.memory.sources import read_preview
 from lerobot.data_platform.operators.execution import execute_registered
 from lerobot.data_platform.routes.curation import register_curation_routes
@@ -219,7 +219,7 @@ def test_prepare_job_publication_review_guards(memory_remote, tmp_path):
 
 
 def test_scope_rechecked_at_read_submission_and_claim(memory_remote):
-    from lerobot.data_platform.control_plane import DataMutationScope
+    from lerobot.data_platform.control.store import DataMutationScope
 
     remote = memory_remote
     user = remote.store.register_user(username="scoped", password="synthetic-password", role="operator")

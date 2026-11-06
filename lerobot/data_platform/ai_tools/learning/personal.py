@@ -4,8 +4,8 @@ from sqlalchemy import select
 
 from lerobot.data_platform.ai_tools.learning import evidence
 from lerobot.data_platform.ai_tools.learning.models import LearningEpisode, LearningProfile
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def snapshot(service, session, owner, location):

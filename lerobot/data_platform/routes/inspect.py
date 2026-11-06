@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 import pyarrow as pa
 from flask import Response, jsonify, render_template, request
 
-from lerobot.data_platform.precompute.inspection import (
+from lerobot.data_platform.operators.implementations.inspection import (
     MAX_RESPONSE_BYTES,
     DatasetInspection,
     contained_path,

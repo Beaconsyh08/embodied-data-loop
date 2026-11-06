@@ -3,7 +3,7 @@
 For integrated Agent Jobs, authenticated Review and causal video decoding, see
 [Text memory annotation](memory_annotation.md). The offline CLI below keeps its existing defaults.
 
-Run `python -m lerobot.data_platform.mem_export` on the host that can read the original
+Run `python -m lerobot.data_platform.artifacts.mem_export` on the host that can read the original
 LeRobot dataset and its selected Temporal Caption artifact. This is an offline CLI; it does
 not register a Job, add a web route, modify Viewer caches, or mark model review as human approval.
 Its companion consumer is `high-level-policy`'s `python -m mem_tools`.
@@ -40,9 +40,9 @@ part of the model input contract. Repeat manifest entries for additional full ep
 split an episode into independent train/test segments.
 
 ```bash
-python -m lerobot.data_platform.mem_export \
+python -m lerobot.data_platform.artifacts.mem_export \
   --manifest /data/mem/selection.json --output /data/mem/export-v1 --dry-run
-python -m lerobot.data_platform.mem_export \
+python -m lerobot.data_platform.artifacts.mem_export \
   --manifest /data/mem/selection.json --output /data/mem/export-v1
 ```
 
@@ -88,7 +88,7 @@ Validate the adapter with:
 
 ```bash
 .venv/bin/python -m pytest tests/datasets/test_mem_export.py -q
-.venv/bin/python -m ruff check lerobot/data_platform/mem_export.py tests/datasets/test_mem_export.py
+.venv/bin/python -m ruff check lerobot/data_platform/artifacts/mem_export.py tests/datasets/test_mem_export.py
 ```
 
 Fixtures include real tiny video files and shared v3 shards with visibly distinct adjacent

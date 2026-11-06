@@ -3,12 +3,14 @@
 import json
 from pathlib import Path
 
-from lerobot.data_platform.execution import atomic_json
-from lerobot.data_platform.precompute.preprocess.common import PreprocessResult, emit
+from lerobot.data_platform.operators.implementations.preprocess.common import PreprocessResult, emit
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 
 def apply_prompt_assignments(root: Path, static_dir: Path, pending: dict, progress_callback=None):
-    from lerobot.data_platform.precompute.preprocess.quality_flags import apply_task_assignment_choice
+    from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
+        apply_task_assignment_choice,
+    )
 
     path = Path(static_dir) / "prompt_assignments_pending.json"
     document = json.loads(path.read_text()) if path.is_file() else {"assignments": []}

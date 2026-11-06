@@ -31,11 +31,11 @@ from lerobot.data_platform.ai_tools.strategy_models import (
     StrategyVersion,
 )
 from lerobot.data_platform.ai_tools.strategy_worker import Experiment, IncompleteError, tick
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.routes.ai_assistant import register_ai_assistant_routes
 from lerobot.data_platform.routes.processing import register_processing_routes
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant  # noqa: F401
 from tests.datasets.test_ai_assistant_runtime import processing_setup  # noqa: F401
 from tests.datasets.test_ai_experience import history  # noqa: F401
@@ -226,7 +226,7 @@ def test_suite_disjoint_and_rejects_leakage():
 
 @pytest.mark.parametrize("fmt", ["v2.1", "v3.0"])
 def test_generated_fixtures_and_real_subset_preserve_source(tmp_path, fmt):
-    from lerobot.data_platform.precompute.preprocess.dataset_split import run_split
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_split import run_split
 
     root = create_fixture(tmp_path / "source", fmt)
     before = inventory(root)
@@ -410,7 +410,7 @@ def test_admin_routes_do_not_expose_private_records(assistant, tmp_path):  # noq
 def test_cross_account_evidence_is_structural_and_revocation_invalidates(history, monkeypatch):  # noqa: F811
     from lerobot.data_platform.ai_tools.strategy_evidence import collect
     from lerobot.data_platform.ai_tools.strategy_models import StrategyEvidence
-    from lerobot.data_platform.control_plane import ControlPlaneUser
+    from lerobot.data_platform.control.store import ControlPlaneUser
 
     service, _, owner, body, _ = history
     monkeypatch.setenv("DATA_PLATFORM_STRATEGIES_ENABLED", "1")
@@ -573,7 +573,7 @@ def test_two_generations_keep_old_strategy_until_admin_activation(configured, mo
 
 
 def test_conversion_output_and_statistics_are_verified(tmp_path):
-    from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 
     source = create_fixture(tmp_path / "source", "v2.1")
     output = tmp_path / "converted"
@@ -594,7 +594,7 @@ def test_conversion_output_and_statistics_are_verified(tmp_path):
 
 
 def test_synthetic_video_conversion_checks_frames_and_references(tmp_path):
-    from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 
     source = create_fixture(tmp_path / "source", "v2.1-video")
     before = inventory(source)

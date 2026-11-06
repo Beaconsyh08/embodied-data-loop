@@ -9,7 +9,7 @@ import math
 import time
 
 from lerobot.data_platform.evaluation.metrics import WEIGHTS, edges
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def digest(value):

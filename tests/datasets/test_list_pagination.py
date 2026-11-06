@@ -3,8 +3,8 @@
 import pytest
 from sqlalchemy import event
 
-from lerobot.data_platform.control_plane import RemoteJob
-from lerobot.data_platform.list_queries import ListPage
+from lerobot.data_platform.control.queries import ListPage
+from lerobot.data_platform.control.store import RemoteJob
 from tests.datasets.test_job_management import setup  # noqa: F401
 
 
@@ -77,7 +77,7 @@ def test_permission_filter_precedes_pages_and_checks_hidden_sources(setup):  # n
         row for row in store.list_jobs(actor=admin, summary=True) if row["job_id"] == hidden["job_id"]
     )
     assert internal["options"]["_source_locations"][0]["location_id"] == other["location_id"]
-    from lerobot.data_platform.control_plane_summaries import summarize_job
+    from lerobot.data_platform.control.summaries import summarize_job
 
     assert "_source_locations" not in summarize_job(internal)["options"]
     store.set_mutation_locations(owner["user_id"], [location["location_id"]], actor=admin)

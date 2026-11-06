@@ -10,7 +10,7 @@ Group=data-platform
 WorkingDirectory=/opt/data-platform
 EnvironmentFile=/etc/data-platform/server.env
 Environment=DATA_PLATFORM_REQUIRE_CGROUP=1
-ExecStart=/opt/data-platform/.venv/bin/python -m lerobot.data_platform.local_execution
+ExecStart=/opt/data-platform/.venv/bin/python -m lerobot.data_platform.runtime.local
 Restart=always
 RestartSec=5
 Delegate=yes

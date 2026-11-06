@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from lerobot.data_platform import viewer
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 from tests.datasets.test_data_platform_agent import _agent
 from tests.datasets.test_episode_deletion_requests import setup_requests
 from tests.datasets.test_preprocess_ops import _add_v21_stat_counts, _make_dataset
@@ -50,7 +50,7 @@ def test_trim_route_validates_role_capability_and_range(tmp_path):
 
 @pytest.mark.parametrize("v3", [False, True])
 def test_agent_trim_preserves_other_episode_and_backup(tmp_path, v3):
-    from lerobot.data_platform.precompute.dataset_io import read_episode_table
+    from lerobot.data_platform.operators.implementations.dataset_io import read_episode_table
 
     data = tmp_path / "datasets"
     source = data / "source"
@@ -169,7 +169,7 @@ def test_chart_hover_previews_signals_without_changing_playback_time():
 
 @pytest.mark.parametrize("v3", [False, True])
 def test_local_trim_applies_displayed_range_without_waiting_for_autosave(tmp_path, v3):
-    from lerobot.data_platform.precompute.dataset_io import read_episode_table
+    from lerobot.data_platform.operators.implementations.dataset_io import read_episode_table
 
     source = tmp_path / "source"
     _make_dataset(source)

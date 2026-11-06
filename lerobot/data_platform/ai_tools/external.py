@@ -15,12 +15,12 @@ from lerobot.data_platform.ai_tools.operation_state import action_status, inspec
 from lerobot.data_platform.ai_tools.repairs import bind_source_snapshot
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
 from lerobot.data_platform.ai_tools.service import TOOLS, _uuid
-from lerobot.data_platform.control_plane import DatasetLocation
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
+from lerobot.data_platform.control.store import DatasetLocation
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator, list_operators
 from lerobot.data_platform.operators.schema import _validate
 from lerobot.data_platform.processing.capabilities import OperatorCatalog
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 ID = {"type": "string", "maxLength": 36}
 LOCATION = {"location_id": ID}

@@ -7,10 +7,15 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from lerobot.data_platform.curation_execution import validate_parameters
-from lerobot.data_platform.precompute.data_profile import profile_from_info, quality_check_capabilities
-from lerobot.data_platform.precompute.preprocess.quality_flags import run_quality_flag_detection
-from lerobot.data_platform.precompute.quality_eef import motion_steps
+from lerobot.data_platform.operators.implementations.curation import validate_parameters
+from lerobot.data_platform.operators.implementations.data_profile import (
+    profile_from_info,
+    quality_check_capabilities,
+)
+from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
+    run_quality_flag_detection,
+)
+from lerobot.data_platform.operators.implementations.quality_eef import motion_steps
 from tests.datasets.test_lifecycle import _snapshot
 
 

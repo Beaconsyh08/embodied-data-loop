@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from lerobot.data_platform.datasets.lifecycle.repository import SQLiteLifecycleRepository
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
 from lerobot.data_platform.evaluation.metrics import (
     caption_quality,
     dense_counts,
@@ -15,10 +17,8 @@ from lerobot.data_platform.evaluation.metrics import (
     segmentation,
 )
 from lerobot.data_platform.evaluation.review import EvaluationStore, digest, draft
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.lifecycle import LifecycleStore
-from lerobot.data_platform.lifecycle_repository import SQLiteLifecycleRepository
-from lerobot.data_platform.temporal_caption import artifact_key
+from lerobot.data_platform.operators.implementations.caption.core import artifact_key
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_temporal_caption_flora import flora_artifact
 
 

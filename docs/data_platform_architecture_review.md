@@ -1,7 +1,8 @@
 # Architecture upgrade completion review
 
-This review covers the operator/pipeline implementation based on 当前公开源码, the source-cleanup baseline
-当前公开源码, and the subsequent legacy console separation. It distinguishes delivered contracts from
+Source review updated on 2026-11-06 with the domain-layout refactor based on the public source baseline. The original operator/pipeline review used
+the public source baseline, the source-cleanup baseline the public source baseline, and the subsequent legacy console separation;
+the table below also includes the later integrated features. It distinguishes delivered contracts from
 hardware-dependent acceptance. Installed release identity and online evidence belong to the immutable
 release directory and must be checked independently.
 
@@ -19,7 +20,7 @@ release directory and must be checked independently.
 | Discard stale responses on account/environment/dataset changes | Scoped read generations; late response/error tests; embedded editor disposal on context switch | Implemented |
 | Confirmed missing-source retirement and owned-cache reclamation | Existing source cleanup protocol, leases and ownership proofs retained; catalog removal clears shared runtime caches | Implemented; local/remote acceptance required for each release |
 | AI capability description, preview and execution interfaces | Operator and pipeline APIs | Implemented |
-| MCP, conversational UI and autonomous planning | Explicitly excluded from this round by the original plan | Deferred by design |
+| MCP and conversational UI | Later additions in `mcp_access.py`, `routes/mcp.py`, `ai_tools/` and shared web/CLI interfaces; see [MCP](data_platform_mcp.md) | Implemented after the original console plan; execution retains explicit confirmation |
 | Every model/media/conversion/build operator exercised on its real execution runtime | Contract and compatibility suites exist; some model backends/Embedding and local MCAP runtime were unavailable at the `.67` baseline | Full real-runtime acceptance remains outstanding |
 | Offline FLORA caption/reward pipeline | Native one-camera and existing two/three-camera layouts; statistics-independent inference metadata; existing caption Job/Attempt and publication contracts; isolated GPU environments; per-episode GPU pool leases (up to eight), reusable content hashes, streaming video preparation and raw-window disagreement review | Implemented; native A100 and local browser acceptance, online rollout separate |
 | Standalone FLORA HTTP API | Separate HTTPS/key authentication, private SQLite dataset/episode jobs, streaming checksummed uploads, and retained adapter dependencies; no fixed media duration or byte-size cap, while resource and stage timeouts apply; shares existing GPU locks without creating platform Jobs | Implemented; independent deployment and real-model acceptance required; see [API contract](flora_http_api.md) |
@@ -27,7 +28,9 @@ release directory and must be checked independently.
 | Usage learning | `ai_tools/learning`, typed source references, private analysis ledger and independent proposal lineage; explicit consent, zero-default budget, manual strategy activation | Implemented; offline acceptance and online release evidence remain separate |
 | General assistant chat | Account-only `general/account` scope with empty location; same durable Runner and account checks; only context and operator descriptions, no dataset lookup or execution tools | Implemented; dataset contexts remain separate and confirmations unchanged |
 | Caption result navigation | Permission-scoped published-result inventory plus Agent scan-time file counts; searchable dataset switching, explicit episode/result URL identity and offline labels; no remote reads or jobs on catalog requests | Implemented; additive `caption_output_runs` location metadata requires updated Agent discovery; no database or Job protocol migration |
-| Mixed evaluation Viewer | Opt-in per-episode camera and raw-signal metadata; Server and Agent capability gate preparation and claim; existing Viewer cache publication and permissions remain in force | Source implementation; deployment and online acceptance pending; direct FLORA jobs and general training are unsupported |
+| Mixed evaluation Viewer and FLORA | Per-episode original cameras/signals, read-only identity snapshots and FLORA admission through `mixed_episode_flora_protocol=1`; source identity and media validation remain required | Implemented; other caption methods, source edits and general training remain unsupported; installed acceptance is separate |
+| Human FLORA evaluation | `evaluation/` and `routes/evaluation.py` persist revisioned human references, semantic assessments and frozen-window prediction imports | Implemented; metrics use confirmed human references, model drafts are not approval; see [pilot contract](flora_evaluation_pilot.md) |
+| UMI processing and native viewers | Versioned diagnose/compare/replay/Cosmos operators, isolated external environments and authorized report/Viser sessions | Implemented; candidate quality and training approval remain separate; see [UMI](umi_dataset_support.md) and [runtime setup](data_laundry_setup.md) |
 | Standalone caption assistant | Review/Annotation reuse the shared sidebar; registered dataset/episode references pass existing authorization, local aliases resolve server-side; review text, scores and video are not injected | Implemented; no new execution tool or Agent protocol |
 | Text memory annotation | `memory/` pure causal contracts, Agent-only media/model execution, existing Jobs/artifact transport, lifecycle revision records and fixed MEM exports; source-bound read-only training snapshots reuse caption video and follow playback in Caption Review | Synthetic and browser acceptance; real-provider EE3 pilot and installed rollout are separate gates |
 | Production promotion | Same immutable package requires development evidence and the existing production approval mechanism | Separate release step |
@@ -65,3 +68,13 @@ falls back to ordinary planning. Per-case diagnostics and stratified development
 exact template-set duplicates are not independent candidates. Five additive control tables plus nullable Pipeline attribution retain versions and evidence.
 No new Agent protocol, model training, private-memory sharing or automatic business execution is added.
 Deployment and real-provider effectiveness require separate acceptance; see [the contract](data_platform_strategies.md).
+
+## Maintenance boundaries
+
+See [the source map](data_platform_development.md) for current module ownership and focused checks.
+Release test inventory, worker options and cache isolation live in `ops/validation.py`;
+`ops/releases.py` retains build/approve/install orchestration and its validation exports.
+Control storage, dataset lifecycle, execution and artifacts now have dedicated domain packages;
+computation lives in `operators/implementations/`. Historical imports share the canonical module object
+through `_compat.py`, including nested `precompute` imports and module commands. Worker resources and
+bundle checks use the new physical locations. The source move does not establish a new deployed release.

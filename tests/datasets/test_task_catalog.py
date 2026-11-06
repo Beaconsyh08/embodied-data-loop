@@ -14,20 +14,20 @@ import pytest
 from flask import Flask
 
 from lerobot.data_platform.cli import get_default_output_dir, run_precompute
-from lerobot.data_platform.lifecycle import LifecycleStore, materialize_manifest
-from lerobot.data_platform.precompute.analysis import build_dataset_analysis
-from lerobot.data_platform.precompute.annotation import compute_subtask_boundaries
-from lerobot.data_platform.precompute.dataset_io import load_task_records
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
-from lerobot.data_platform.routes import lifecycle as lifecycle_routes
-from lerobot.data_platform.routes import tasks as task_routes
-from lerobot.data_platform.task_catalog import (
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore, materialize_manifest
+from lerobot.data_platform.datasets.tasks.catalog import (
     TaskConfigSnapshot,
     builtin_catalog,
     content_digest,
     task_inventory,
 )
-from lerobot.data_platform.task_text import cached_subtask_names, generate_subtask_text
+from lerobot.data_platform.datasets.tasks.text import cached_subtask_names, generate_subtask_text
+from lerobot.data_platform.operators.implementations.analysis import build_dataset_analysis
+from lerobot.data_platform.operators.implementations.annotation import compute_subtask_boundaries
+from lerobot.data_platform.operators.implementations.dataset_io import load_task_records
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.routes import lifecycle as lifecycle_routes
+from lerobot.data_platform.routes import tasks as task_routes
 from tests.datasets.test_lifecycle import _make_dataset, _snapshot, _write_jsonl
 
 LAUNDRY_TASKS = [
@@ -44,7 +44,7 @@ def test_task_resolver_can_load_before_precompute_in_a_fresh_process():
         [
             sys.executable,
             "-c",
-            "from lerobot.data_platform.task_catalog import TaskConfigSnapshot; "
+            "from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot; "
             "assert TaskConfigSnapshot.from_dict(None).resolve("
             "'Grasp the clothes to the washing machine').family == 'load_clothes'",
         ],
@@ -434,7 +434,7 @@ def test_stage_dispatch_does_not_use_pick_for_explicit_custom_task(tmp_path):
 
 
 def test_agent_receives_portable_snapshot_and_matches_local_analysis(tmp_path):
-    from lerobot.data_platform.agent import discover_datasets
+    from lerobot.data_platform.runtime.agent import discover_datasets
     from tests.datasets.test_data_platform_agent import _agent
 
     root = tmp_path / "dataset"
@@ -485,7 +485,7 @@ def test_agent_receives_portable_snapshot_and_matches_local_analysis(tmp_path):
 
 
 def test_remote_mapping_upgrade_protocol_and_late_cache_completion(tmp_path):
-    from lerobot.data_platform.control_plane import ControlPlaneStore
+    from lerobot.data_platform.control.store import ControlPlaneStore
     from lerobot.data_platform.routes.control_plane import (
         register_control_plane_auth_routes,
         register_control_plane_routes,

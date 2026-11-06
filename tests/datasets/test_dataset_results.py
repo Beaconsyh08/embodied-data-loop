@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform.dataset_results import (
+from lerobot.data_platform.datasets.results import (
     ResultSnapshot,
     apply_results,
     mark_edited_csv,
@@ -18,7 +18,7 @@ from lerobot.data_platform.dataset_results import (
     result_lock,
     sync_agent_results,
 )
-from lerobot.data_platform.execution import atomic_json
+from lerobot.data_platform.runtime.supervisor import atomic_json
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 
 
@@ -380,7 +380,7 @@ def test_web_restart_migrates_legacy_cache_and_restores_the_same_dataset_key(tmp
 
 
 def test_partial_write_retries_and_retains_original_backup(tmp_path, monkeypatch):
-    from lerobot.data_platform import dataset_results
+    from lerobot.data_platform.datasets import results as dataset_results
 
     _, client, token, location, cache, output = setup_results(tmp_path)
     for name in ("flagged_episodes.json", "manual_flagged_episodes.json"):
@@ -446,7 +446,11 @@ def test_viewer_completion_publishes_stable_dataset_cache_and_preserves_flags(tm
 
 
 def test_compression_keeps_revision_and_syncs_edits_to_compressed_agent_cache(tmp_path):
-    from lerobot.data_platform.cache_files import compress_viewer_csvs, open_cached_csv, read_cache_bytes
+    from lerobot.data_platform.datasets.cache_files import (
+        compress_viewer_csvs,
+        open_cached_csv,
+        read_cache_bytes,
+    )
 
     _, client, token, location, cache, output = setup_results(tmp_path)
     for static in (cache / "static", output / "static"):
@@ -471,7 +475,7 @@ def test_compression_keeps_revision_and_syncs_edits_to_compressed_agent_cache(tm
 
 
 def test_rebuild_preserves_compressed_edited_csv(tmp_path):
-    from lerobot.data_platform.cache_files import compress_viewer_csvs, read_cache_bytes
+    from lerobot.data_platform.datasets.cache_files import compress_viewer_csvs, read_cache_bytes
 
     _, _, _, _, cache, output = setup_results(tmp_path)
     (cache / "static/csv").mkdir()

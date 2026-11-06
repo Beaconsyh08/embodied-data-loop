@@ -12,35 +12,35 @@ import pyarrow.parquet as pq
 import pytest
 
 from lerobot.data_platform import cli as prepare_script
-from lerobot.data_platform.precompute import annotation as annotation_module
-from lerobot.data_platform.precompute import video as video_module
-from lerobot.data_platform.precompute.analysis import (
+from lerobot.data_platform.operators.implementations import annotation as annotation_module
+from lerobot.data_platform.operators.implementations import video as video_module
+from lerobot.data_platform.operators.implementations.analysis import (
     build_dataset_analysis,
     infer_task_scene,
     parse_canonical_task,
 )
-from lerobot.data_platform.precompute.annotation import (
+from lerobot.data_platform.operators.implementations.annotation import (
     assign_subtask_states,
     compute_quality_flags,
     compute_subtask_boundaries,
     get_columns_info,
     write_episode_csv,
 )
-from lerobot.data_platform.precompute.image_io import iter_image_bytes, read_image_bytes
-from lerobot.data_platform.precompute.labeling.runner import _sync_missing_target_flags
-from lerobot.data_platform.precompute.mutations import fix_episode_indices
-from lerobot.data_platform.precompute.preprocess.delete_episodes import (
+from lerobot.data_platform.operators.implementations.image_io import iter_image_bytes, read_image_bytes
+from lerobot.data_platform.operators.implementations.labeling.runner import _sync_missing_target_flags
+from lerobot.data_platform.operators.implementations.mutations import fix_episode_indices
+from lerobot.data_platform.operators.implementations.preprocess.delete_episodes import (
     _reindex_construction_plan,
     delete_episodes_inplace,
     reindex_static_after_episode_delete,
 )
-from lerobot.data_platform.precompute.preprocess.quality_flags import (
+from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
     apply_task_assignment_choice,
     list_multiple_task_assignments,
     list_task_assignment_choices,
     run_quality_flag_detection,
 )
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
     DATA_VERSION_DVT2,
     normalize_gripper_columns,
@@ -1992,7 +1992,7 @@ def test_delete_episodes_inplace_rolls_back_all_files_on_failure(monkeypatch, tm
         raise RuntimeError("injected static reindex failure")
 
     monkeypatch.setattr(
-        "lerobot.data_platform.precompute.preprocess.delete_episodes.reindex_static_after_episode_delete",
+        "lerobot.data_platform.operators.implementations.preprocess.delete_episodes.reindex_static_after_episode_delete",
         _fail_static_reindex,
     )
 

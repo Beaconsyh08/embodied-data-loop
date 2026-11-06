@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass, field
 
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.operators.schema import validate_parameters
-from lerobot.data_platform.task_catalog import content_digest
 
 
 class PipelineValidationError(ValueError):
@@ -209,7 +209,7 @@ def availability(
         )
     if spec.operator_id not in caps.get("operations", []):
         return "Operator dependencies or authorization are unavailable on this node"
-    from lerobot.data_platform.precompute.data_profile import require_operation
+    from lerobot.data_platform.operators.implementations.data_profile import require_operation
 
     try:
         if spec.family == "umi" and validate_dataset:
@@ -223,16 +223,18 @@ def availability(
         ):
             require_operation(info, spec.operator_id)
         if spec.operator_id.startswith("curation.") and parameters is not None:
-            from lerobot.data_platform.curation_execution import validate_parameters as validate_curation
+            from lerobot.data_platform.operators.implementations.curation import (
+                validate_parameters as validate_curation,
+            )
 
             validate_curation(spec.operator_id, parameters or {})
         if spec.operator_id == "preprocess.pose_interpolate" and parameters is not None and validate_dataset:
-            from lerobot.data_platform.precompute.preprocess.pose_interpolate import PoseRepair
+            from lerobot.data_platform.operators.implementations.preprocess.pose_interpolate import PoseRepair
 
             for repair in parameters["repairs"]:
                 PoseRepair.parse(repair, info.get("features", {}))
         if spec.family == "caption":
-            from lerobot.data_platform.temporal_caption_jobs import validate_options, validate_source
+            from lerobot.data_platform.annotations.jobs import validate_options, validate_source
 
             if validate_dataset:
                 validate_source(info)
@@ -242,7 +244,9 @@ def availability(
             if not caps.get("mcap_import", {}).get("ready"):
                 return "MCAP import runtime is unavailable"
             if parameters is not None:
-                from lerobot.data_platform.mcap_contract import McapImportConfig
+                from lerobot.data_platform.operators.implementations.mcap.mcap_contract import (
+                    McapImportConfig,
+                )
 
                 McapImportConfig.from_dict(parameters.get("config") or {})
         if spec.operator_id == "curation.quality":
@@ -255,7 +259,7 @@ def availability(
                     "Selected quality checks are unavailable on this node", "invalid_parameters"
                 )
             if validate_dataset:
-                from lerobot.data_platform.precompute.data_profile import (
+                from lerobot.data_platform.operators.implementations.data_profile import (
                     profile_from_info,
                     quality_check_capabilities,
                 )

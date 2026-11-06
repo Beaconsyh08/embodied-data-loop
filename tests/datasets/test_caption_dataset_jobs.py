@@ -2,10 +2,10 @@
 
 from sqlalchemy import delete, func, select
 
-from lerobot.data_platform.caption_job_groups import GROUP_PREFIX
-from lerobot.data_platform.caption_job_storage import backfill_caption_parents
-from lerobot.data_platform.control_plane import CaptionDatasetJob, CaptionJobMember, RemoteJob
-from lerobot.data_platform.list_queries import ListPage
+from lerobot.data_platform.annotations.groups import GROUP_PREFIX
+from lerobot.data_platform.annotations.storage import backfill_caption_parents
+from lerobot.data_platform.control.queries import ListPage
+from lerobot.data_platform.control.store import CaptionDatasetJob, CaptionJobMember, RemoteJob
 from tests.datasets.test_control_plane import _app
 from tests.datasets.test_job_management import setup  # noqa: F401
 

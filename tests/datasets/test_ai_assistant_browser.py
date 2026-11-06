@@ -331,7 +331,7 @@ def test_assistant_enter_composition_confirmation_and_role(assistant, tmp_path, 
     if not executable:
         pytest.skip("Set DATA_PLATFORM_BROWSER_EXECUTABLE for real-browser acceptance")
     playwright = pytest.importorskip("playwright.sync_api")
-    from lerobot.data_platform.control_plane import ControlPlaneUser
+    from lerobot.data_platform.control.store import ControlPlaneUser
     from tests.datasets.test_ai_assistant import call
     from tests.datasets.test_ai_assistant_context import bind_lifecycle
 

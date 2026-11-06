@@ -9,12 +9,23 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from lerobot.data_platform.curation_execution import validate_parameters
-from lerobot.data_platform.precompute.data_profile import profile_from_info, quality_check_capabilities
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
-from lerobot.data_platform.precompute.preprocess.quality_flags import run_quality_flag_detection
-from lerobot.data_platform.precompute.quality_signals import SignalQualityConfig, detect_signal_quality
-from lerobot.data_platform.precompute.quality_video import VideoQualityConfig, scan_camera_quality
+from lerobot.data_platform.operators.implementations.curation import validate_parameters
+from lerobot.data_platform.operators.implementations.data_profile import (
+    profile_from_info,
+    quality_check_capabilities,
+)
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
+    run_quality_flag_detection,
+)
+from lerobot.data_platform.operators.implementations.quality_signals import (
+    SignalQualityConfig,
+    detect_signal_quality,
+)
+from lerobot.data_platform.operators.implementations.quality_video import (
+    VideoQualityConfig,
+    scan_camera_quality,
+)
 from tests.datasets.test_lifecycle import _snapshot
 from tests.datasets.test_preprocess_ops import _add_v21_stat_counts, _make_dataset
 

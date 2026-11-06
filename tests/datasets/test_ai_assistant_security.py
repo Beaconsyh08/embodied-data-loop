@@ -12,7 +12,7 @@ from sqlalchemy import select
 from lerobot.data_platform.ai_tools.models import AssistantConversation, AssistantTurn
 from lerobot.data_platform.ai_tools.security import REFUSAL, DisclosureGuard, restricted_request
 from lerobot.data_platform.ai_tools.service import SYSTEM
-from lerobot.data_platform.management_storage import AuditOutbox
+from lerobot.data_platform.control.storage import AuditOutbox
 from lerobot.data_platform.routes.ai_assistant import register_ai_assistant_routes
 from lerobot.data_platform.routes.processing import register_processing_routes
 from tests.datasets.test_ai_assistant import assistant, call, draft, processing_setup  # noqa: F401

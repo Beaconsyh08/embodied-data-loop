@@ -3,8 +3,8 @@
 import pytest
 from sqlalchemy import event
 
-from lerobot.data_platform.control_plane import DatasetLocation, RemoteJob, RemoteJobEvent, _utcnow
-from lerobot.data_platform.management_storage import JobControl
+from lerobot.data_platform.control.storage import JobControl
+from lerobot.data_platform.control.store import DatasetLocation, RemoteJob, RemoteJobEvent, _utcnow
 from tests.datasets.test_control_plane import _app
 from tests.datasets.test_job_management import setup  # noqa: F401 -- shared fixture
 

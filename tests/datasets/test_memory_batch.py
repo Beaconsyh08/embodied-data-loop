@@ -6,9 +6,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from lerobot.data_platform.execution import StopRequestedError
 from lerobot.data_platform.memory.batch import execute_batch
 from lerobot.data_platform.operators import ExecutionContext, OperatorResult
+from lerobot.data_platform.runtime.supervisor import StopRequestedError
 
 
 def request(count=4):

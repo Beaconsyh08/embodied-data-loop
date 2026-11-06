@@ -8,27 +8,27 @@ from pathlib import Path
 from flask import jsonify, render_template, request
 
 from lerobot.data_platform.cli import get_default_output_dir
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.precompute.construction import (
+from lerobot.data_platform.operators.implementations.construction import (
     default_synthetic_path,
     preview_construction,
     run_construction,
 )
-from lerobot.data_platform.precompute.construction.review import (
+from lerobot.data_platform.operators.implementations.construction.review import (
     finalize as finalize_construction,
 )
-from lerobot.data_platform.precompute.construction.review import (
+from lerobot.data_platform.operators.implementations.construction.review import (
     load_construction_doc,
     load_construction_records,
 )
-from lerobot.data_platform.precompute.construction.review import (
+from lerobot.data_platform.operators.implementations.construction.review import (
     save_decision as save_construction_decision,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     load_episode_record as load_labeling_episode_record,
 )
 from lerobot.data_platform.processing.commands import build_command
 from lerobot.data_platform.routes.context import RouteContext
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_construction_routes(app, ctx: RouteContext) -> None:

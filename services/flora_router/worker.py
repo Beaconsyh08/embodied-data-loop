@@ -55,7 +55,7 @@ def remote_capacity(command: list[str]) -> Capacity:
 
 
 def prepare_input(store: Store, job: dict, keys: KeyCatalog) -> dict:
-    from lerobot.data_platform.temporal_caption_flora import camera_roles
+    from lerobot.data_platform.operators.implementations.caption.flora import camera_roles
 
     directory = store.root / "jobs" / job["id"]
     manifest_path = directory / "forward.json"
@@ -68,8 +68,10 @@ def prepare_input(store: Store, job: dict, keys: KeyCatalog) -> dict:
             "videos": {role: str(directory / f"{role}.mp4") for role in settings["roles"]},
         }
     else:
-        from lerobot.data_platform.temporal_caption import prepare
-        from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+        from lerobot.data_platform.operators.implementations.caption.core import prepare
+        from lerobot.data_platform.operators.implementations.caption.snapshot import (
+            caption_source_fingerprint,
+        )
         from services.flora_api.datasets import resolve_dataset
 
         settings = json.loads((store.root / "jobs" / job["parent_id"] / "input.json").read_text())
@@ -108,10 +110,12 @@ def prepare_input(store: Store, job: dict, keys: KeyCatalog) -> dict:
 
 
 def finish(store: Store, job: dict, manifest: dict, value: dict) -> None:
-    from lerobot.data_platform.temporal_caption_flora import validate_flora
+    from lerobot.data_platform.operators.implementations.caption.flora import validate_flora
 
     if "meta" in manifest:
-        from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+        from lerobot.data_platform.operators.implementations.caption.snapshot import (
+            caption_source_fingerprint,
+        )
 
         meta = manifest["meta"]
         if value["frame_count"] != meta["frame_count"] or abs(value["fps"] - meta["fps"]) > 0.001:
@@ -137,7 +141,7 @@ def finish(store: Store, job: dict, manifest: dict, value: dict) -> None:
 
 
 def recover_completed(store: Store, job: dict) -> bool:
-    from lerobot.data_platform.temporal_caption_flora import validate_flora
+    from lerobot.data_platform.operators.implementations.caption.flora import validate_flora
 
     output = store.root / "jobs" / job["id"] / "output"
     try:

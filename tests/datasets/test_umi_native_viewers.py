@@ -10,11 +10,11 @@ from types import SimpleNamespace
 import pytest
 from flask import Flask, g
 
-from lerobot.data_platform.control_plane import RemoteJob
-from lerobot.data_platform.lifecycle import LifecycleStore
+from lerobot.data_platform.control.store import RemoteJob
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.routes.processing import register_processing_routes
-from lerobot.data_platform.umi_viewers import ViewerSessions
+from lerobot.data_platform.web.umi_viewers import ViewerSessions
 from tests.datasets import test_processing
 
 setup = test_processing.setup
@@ -103,7 +103,7 @@ def test_saved_operator_versions_remain_executable():
 
 
 def test_cpu_sessions_reuse_isolate_and_expire(tmp_path, monkeypatch):
-    from lerobot.data_platform.precompute.umi.runtime import LAUNDRY_COMMIT
+    from lerobot.data_platform.operators.implementations.umi.runtime import LAUNDRY_COMMIT
 
     config = tmp_path / "runtime.json"
     config.write_text(
@@ -128,8 +128,8 @@ def test_cpu_sessions_reuse_isolate_and_expire(tmp_path, monkeypatch):
         calls.append((args, kwargs))
         return Process()
 
-    monkeypatch.setattr("lerobot.data_platform.umi_viewers.subprocess.Popen", start)
-    monkeypatch.setattr("lerobot.data_platform.umi_viewers.os.killpg", lambda *args: None)
+    monkeypatch.setattr("lerobot.data_platform.web.umi_viewers.subprocess.Popen", start)
+    monkeypatch.setattr("lerobot.data_platform.web.umi_viewers.os.killpg", lambda *args: None)
     sessions = ViewerSessions(tmp_path / "sessions", idle_seconds=10)
     try:
         first = sessions.start("alice", "job", "variant", tmp_path)
@@ -158,7 +158,7 @@ def test_capture_persists_the_same_execution_including_partial_failure(tmp_path,
     if root:
         monkeypatch.syspath_prepend(str(Path(root) / "src"))
     pytest.importorskip("laundry.umi_replay.replay")
-    from lerobot.data_platform.precompute.umi import native_reports
+    from lerobot.data_platform.operators.implementations.umi import native_reports
 
     calls = []
 
@@ -192,8 +192,8 @@ def test_capture_persists_the_same_execution_including_partial_failure(tmp_path,
 
 
 def test_native_cache_binds_inputs_parameters_and_artifact_bytes(tmp_path, monkeypatch):
-    from lerobot.data_platform.precompute.umi.diagnostics import file_hash
-    from lerobot.data_platform.precompute.umi.native_cache import identity, lookup
+    from lerobot.data_platform.operators.implementations.umi.diagnostics import file_hash
+    from lerobot.data_platform.operators.implementations.umi.native_cache import identity, lookup
     from tests.datasets.test_quality_eef import make_eef
 
     source = make_eef(tmp_path / "source")
@@ -278,9 +278,9 @@ def test_original_viser_browser_uses_cached_execution(native_app, monkeypatch, t
 
 
 def test_cosmos_confirmation_binds_targets_and_same_input_diagnosis(setup):
-    from lerobot.data_platform.job_management import JobConflictError
-    from lerobot.data_platform.lifecycle import content_digest
+    from lerobot.data_platform.datasets.lifecycle.service import content_digest
     from lerobot.data_platform.processing.service import location_identity
+    from lerobot.data_platform.runtime.jobs import JobConflictError
 
     _, manager, actor, _, location = setup
     targets = [{"episode_index": 0, "part": "left", "start_frame": 2, "end_frame": 5}]

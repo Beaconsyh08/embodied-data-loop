@@ -181,8 +181,12 @@ def execute(store: Store, job: dict, infer, preparation_slots=None):
         store.update(job["id"], status="running", stage=stage)
         with preparation_slots or nullcontext():
             if job["kind"] == "episode":
-                from lerobot.data_platform.temporal_caption import prepare as prepare_episode
-                from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+                from lerobot.data_platform.operators.implementations.caption.core import (
+                    prepare as prepare_episode,
+                )
+                from lerobot.data_platform.operators.implementations.caption.snapshot import (
+                    caption_source_fingerprint,
+                )
                 from services.flora_api.datasets import resolve_dataset
 
                 settings = json.loads((store.root / "jobs" / job["parent_id"] / "input.json").read_text())
@@ -226,7 +230,11 @@ def execute(store: Store, job: dict, infer, preparation_slots=None):
 
 
 def main():
-    from lerobot.data_platform.temporal_caption_flora import FloraRuntime, infer_flora, validate_flora
+    from lerobot.data_platform.operators.implementations.caption.flora import (
+        FloraRuntime,
+        infer_flora,
+        validate_flora,
+    )
 
     store = Store(Path(os.environ["FLORA_API_STATE"]))
     with (store.root / "worker.lock").open("a") as lock:

@@ -24,51 +24,54 @@ from pathlib import Path
 import numpy as np
 
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
-from lerobot.data_platform.cache_files import (
+from lerobot.data_platform.cli import get_default_output_dir
+from lerobot.data_platform.datasets.cache_files import (
     cached_csv_files,
     resolve_cached_csv,
 )
-from lerobot.data_platform.cli import get_default_output_dir
-from lerobot.data_platform.precompute.construction.review import load_construction_records
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.operators.implementations.construction.review import load_construction_records
+from lerobot.data_platform.operators.implementations.data_profile import (
     dataset_semantics,
     has_body_joint_dimensions,
     resolve_data_profile,
     resolve_processing_profile,
 )
-from lerobot.data_platform.precompute.embedding import load_source as load_embedding_source
-from lerobot.data_platform.precompute.image_io import (
+from lerobot.data_platform.operators.implementations.embedding import load_source as load_embedding_source
+from lerobot.data_platform.operators.implementations.image_io import (
     cached_image_bytes,
     get_parquet_file,
     get_row_group_offsets,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     available_label_variants,
     labels_path,
     reviewed_path,
 )
-from lerobot.data_platform.precompute.mixed_episode_viewer import episode_viewer_spec, is_mixed_episode_viewer
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.mixed_episode_viewer import (
+    episode_viewer_spec,
+    is_mixed_episode_viewer,
+)
+from lerobot.data_platform.operators.implementations.tagging import (
     available_tag_variants,
     current_tags,
     tags_path,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     resolved_reviewed_path as tagging_resolved_reviewed_path,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     resolved_tags_path as tagging_resolved_tags_path,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     reviewed_path as tagging_reviewed_path,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     source_path as tagging_source_path,
 )
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
 )
-from lerobot.data_platform.precompute.viewer_manifest import (
+from lerobot.data_platform.operators.implementations.viewer_manifest import (
     load_viewer_manifest,
     manifest_episode_ids,
     write_viewer_manifest,

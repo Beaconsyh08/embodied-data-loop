@@ -7,9 +7,9 @@ import pandas as pd
 import pytest
 from flask import Flask
 
-from lerobot.data_platform.precompute.dataset_io import V3DatasetMetadata, read_episode_table
-from lerobot.data_platform.precompute.preprocess import run_convert_v3, run_value_edits
-from lerobot.data_platform.precompute.preprocess.common import PreprocessResult
+from lerobot.data_platform.operators.implementations.dataset_io import V3DatasetMetadata, read_episode_table
+from lerobot.data_platform.operators.implementations.preprocess import run_convert_v3, run_value_edits
+from lerobot.data_platform.operators.implementations.preprocess.common import PreprocessResult
 from lerobot.data_platform.routes import preprocess as preprocess_routes
 from tests.datasets.console_templates import template_source
 
@@ -189,7 +189,10 @@ def test_value_edit_route_forwards_multiple_edits_and_refreshes_in_place_cache(
 ):
     root = tmp_path / "source"
     _make_dataset(root)
-    from lerobot.data_platform.precompute.data_profile import profile_from_data_version, write_data_profile
+    from lerobot.data_platform.operators.implementations.data_profile import (
+        profile_from_data_version,
+        write_data_profile,
+    )
 
     write_data_profile(
         root, profile_from_data_version("DVT2", {}, resolution_source="test_fixture", confirmed=True)

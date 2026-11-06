@@ -20,10 +20,10 @@ from lerobot.data_platform.ai_tools.models import (
     AssistantTurn,
 )
 from lerobot.data_platform.ai_tools.service import AssistantService
-from lerobot.data_platform.control_plane import ControlPlaneUser, DatasetLocation, RemoteJob
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import JobAttempt, JobControl
+from lerobot.data_platform.control.storage import JobAttempt, JobControl
+from lerobot.data_platform.control.store import ControlPlaneUser, DatasetLocation, RemoteJob
 from lerobot.data_platform.processing.models import PipelineRun, PipelineVersion
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant  # noqa: F401
 from tests.datasets.test_ai_assistant_actions import prepared
 from tests.datasets.test_ai_assistant_context import text_response

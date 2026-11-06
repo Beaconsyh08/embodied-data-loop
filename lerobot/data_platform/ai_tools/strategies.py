@@ -21,9 +21,9 @@ from lerobot.data_platform.ai_tools.strategy_models import (
     StrategySuite,
     StrategyVersion,
 )
-from lerobot.data_platform.control_plane import DataMutationScope
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.control.store import DataMutationScope
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 DEFAULT_BUDGET = {"calls": 1000, "tokens": 1000000, "seconds": 14400, "pipelines": 12}
 RUNNING = {"queued", "generating", "development", "holdout", "execution"}

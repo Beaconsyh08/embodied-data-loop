@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
-from lerobot.data_platform.precompute.preprocess.h10w_kinematics import (
+from lerobot.data_platform.operators.implementations.preprocess.h10w_kinematics import (
     H10WDVT2ArmKinematics,
 )
-from lerobot.data_platform.precompute.preprocess.stage_return_height_alignment import (
+from lerobot.data_platform.operators.implementations.preprocess.stage_return_height_alignment import (
     _align_episode_height,
 )
 

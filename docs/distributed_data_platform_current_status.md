@@ -1,5 +1,7 @@
 # 多服务器统一数据平台当前情况说明
 
+> 源码核对：2026-11-06，基于 the public source baseline 完成领域目录整理，保留 UMI、混合 FLORA、人工评测和文本记忆能力。
+> 本次为源码结构重构，没有重新部署服务；安装身份与在线验收以发行记录为准。
 > 本文描述架构与能力，不替代线上部署状态。实际版本以 dev/prod `current`、发行包、Agent 心跳和验收记录为准。
 > [发行变更](data_platform_changelog.md) · [用户指南](data_platform_page_user_guide.md) · [运维手册](data_platform_operations.md)
 
@@ -24,10 +26,11 @@ flowchart TD
     R --> OSS[配置的 OSS 归档存储]
 ```
 
-- `operators/` 描述参数、输入输出、资源与节点可用能力；既有算法通过适配器接入。
-- `caption_job_storage.py` 持久化每个注册数据集的标注主任务与视频子任务关联；数据库全量聚合后分页展示，执行、租约、重试与产物继续绑定原子任务。
+- `operators/` 描述参数、输入输出、资源与节点可用能力，`operators/implementations/` 按领域组织实际计算。
+- `annotations/storage.py` 持久化每个注册数据集的标注主任务与视频子任务关联；数据库全量聚合后分页展示，执行、租约、重试与产物继续绑定原子任务。
+- `control/`、`runtime/`、`datasets/`、`artifacts/` 和 `ops/` 分别负责控制存储、任务执行、数据与生命周期、产物和运维。
 - `processing/` 负责顺序流程、版本固定、计划校验、复核等待和步骤推进，复用现有 Job/Attempt。
-- `console/`、`routes/` 与页面模块承接工作台功能；`viewer.py` 保留组合与共享运行状态职责。
+- `services/`、`routes/` 与 `templates/console/` 承接工作台功能；`viewer.py` 保留组合与共享运行状态职责。
 - 节点 Agent 在允许的真实路径内执行，回报进度并发布产物；上传完成后还需控制面确认。
 - 生命周期版本、lineage、Curation 草稿及审批保持各自的持久化和权限边界。
 
@@ -35,7 +38,11 @@ flowchart TD
 
 | 领域 | 当前能力与边界 |
 | --- | --- |
-| 数据格式 | 适配 LeRobot v2.1/v3.0，按元数据识别布局；共享 shard 的修改限制到目标 episode |
+| 数据格式 | 适配 LeRobot v2.1/v3.0 与 UMI，按元数据识别布局；共享 shard 的修改限制到目标 episode；混合评测集按 episode 读取真实相机与信号 |
+| UMI | 诊断、版本对比、Replay/Cosmos 候选与原版报告/Viser；独立外部运行环境、权重和校准资源需另行配置 |
+| 标注与评测 | Temporal Caption/FLORA、因果文本记忆及 AI 审查；人工参考有修订与冲突检查，只有人工确认的参考参与试点评分 |
+| 混合 FLORA | 支持只读来源快照及 FLORA Pipeline，按 episode 校验原视角、帧率与来源；不补造缺失视角，不开放通用训练或源修改 |
+| 独立 FLORA API | 独立认证、任务状态、流式上传和 GPU 后端路由；与平台部署及任务状态分别管理 |
 | 目录与权限 | 注册位置、按节点扫描、被动刷新；账号与环境隔离，数据范围和 Agent roots 双重校验 |
 | 算子与流程 | 能力目录、参数 Schema、预览、顺序流程图、不可变版本和步骤运行；内部数据版本绑定默认隐藏 |
 | 数据处理 | Viewer、Quality、Inspect、预处理、模型/媒体任务、转换及生命周期入口；以当前节点能力和预览为准 |
@@ -44,7 +51,7 @@ flowchart TD
 | 质量与复核 | 检测产生证据和候选，人工 Keep/Exclude 与发布保持独立，不把检测标记直接当成删除决定 |
 | 存储 | Viewer 缓存、结果同步、压缩 CSV、保留策略，以及已接入的 OSS 产物归档和有界读取 |
 | AI 助手 | 上下文问答、补齐流程前置步骤、预览与操作卡片；用户确认后经现有服务提交 Viewer/Quality |
-| 共享流程策略 | 管理员启用；当前意图匹配与服务端绑定，开发集分层门禁、独立隐藏验收和脱敏诊断；P0/P1 修正为待部署源码，未进行新一轮收费评测 |
+| 共享流程策略 | 管理员启用；当前意图匹配与服务端绑定，开发集分层门禁、独立隐藏验收和脱敏诊断；模型效果与实际启用状态需独立验收 |
 | 网页与 CLI | 常驻侧栏、历史恢复、显式个人偏好与长期记忆共用；已确认助手任务的终态总结可跨客户端读取；CLI 通过平台账号登录，无需个人模型密钥 |
 | 部署 | 不可变发行包、开发验收、生产批准、兼容滚动升级及执行器旧代收尾 |
 
@@ -81,10 +88,13 @@ flowchart TD
 | 代码或文档 | 职责 |
 | --- | --- |
 | [operators](../lerobot/data_platform/operators/) / [processing](../lerobot/data_platform/processing/) | 算子契约与流程编排 |
-| [control_plane.py](../lerobot/data_platform/control_plane.py) / [agent.py](../lerobot/data_platform/agent.py) | 控制面与节点执行 |
+| [control/store.py](../lerobot/data_platform/control/store.py) / [runtime/agent.py](../lerobot/data_platform/runtime/agent.py) | 控制面与节点执行 |
 | [ai_tools](../lerobot/data_platform/ai_tools/) / [CLI](../clients/data-platform-cli/) | 助手服务与终端客户端 |
 | [templates](../lerobot/data_platform/templates/) | 工作台、Viewer 与助手交互 |
+| [memory](../lerobot/data_platform/memory/) / [evaluation](../lerobot/data_platform/evaluation/) | 文本记忆与人工参考、修订和指标 |
+| [独立 FLORA 服务](../services/) / [API 契约](flora_http_api.md) | API、后端路由及独立部署边界 |
 | [deploy/data-platform](../deploy/data-platform/) | Server/Agent 安装与升级 |
+| [开发与源码导航](data_platform_development.md) | 模块职责、测试选择和渐进整理顺序 |
 | [运维手册](data_platform_operations.md) / [发行变更](data_platform_changelog.md) | 发布步骤、影响范围和验证要求 |
 
 每批升级在构建前同步上述文档。更改 Agent 协议、能力上报、执行或恢复逻辑时，一并更新兼容契约、

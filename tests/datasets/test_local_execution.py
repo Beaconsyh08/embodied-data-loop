@@ -7,8 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform import agent as agent_module
-from lerobot.data_platform import local_execution
+from lerobot.data_platform.runtime import agent as agent_module
+from lerobot.data_platform.runtime import local as local_execution
 
 
 class StopPolling(BaseException):
@@ -65,7 +65,7 @@ def worker(tmp_path, monkeypatch):
 
     monkeypatch.setattr(agent_module, "AgentClient", Client)
     monkeypatch.setattr(agent_module, "DataPlatformAgent", Agent)
-    monkeypatch.setattr("lerobot.data_platform.environment.check_server_environment", lambda: None)
+    monkeypatch.setattr("lerobot.data_platform.ops.environment.check_server_environment", lambda: None)
     monkeypatch.setattr(sys, "argv", ["local-execution", "--config", str(config)])
     return SimpleNamespace(config=config, state=state, clients=clients, agents=agents)
 
@@ -208,8 +208,8 @@ def test_confirmed_local_output_is_readable_by_the_next_pipeline_step(tmp_path):
     import shutil
     from pathlib import Path
 
-    from lerobot.data_platform.agent import _require_within
     from lerobot.data_platform.operators.registry import worker_manifest
+    from lerobot.data_platform.runtime.agent import _require_within
     from tests.datasets.test_control_plane import _app, _bootstrap, _store
     from tests.datasets.test_quality_eef import make_eef
 
@@ -305,7 +305,7 @@ def test_confirmed_local_output_is_readable_by_the_next_pipeline_step(tmp_path):
 @pytest.mark.parametrize("escape", [False, True])
 def test_local_derived_read_permission_rejects_unplanned_or_escaping_output(tmp_path, escape):
 
-    from lerobot.data_platform.local_execution import permit_local_derived_input
+    from lerobot.data_platform.runtime.local import permit_local_derived_input
 
     source = tmp_path / "source"
     source.mkdir()

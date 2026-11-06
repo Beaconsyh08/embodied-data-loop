@@ -3,8 +3,8 @@
 import pytest
 from sqlalchemy import select
 
-from lerobot.data_platform.control_plane import ControlPlaneStore, DataMutationGrant, DatasetLocation
-from lerobot.data_platform.management_storage import AuditOutbox
+from lerobot.data_platform.control.storage import AuditOutbox
+from lerobot.data_platform.control.store import ControlPlaneStore, DataMutationGrant, DatasetLocation
 from tests.datasets.test_episode_deletion_requests import setup_requests
 
 
@@ -144,7 +144,7 @@ def test_inactive_account_scopes_remain_editable_but_not_effective(tmp_path):
 def test_schema_upgrade_creates_grants_without_changing_existing_users(tmp_path):
     from sqlalchemy import delete, inspect
 
-    from lerobot.data_platform.management_storage import SchemaMigration
+    from lerobot.data_platform.control.storage import SchemaMigration
 
     store, admin, client, user, node, location, token, endpoint = setup_manager(tmp_path)
     before = store.list_users()
@@ -161,7 +161,7 @@ def test_schema_upgrade_creates_grants_without_changing_existing_users(tmp_path)
 
 @pytest.mark.parametrize("guard", ["agent", "confirmation", "reason"])
 def test_direct_mutation_preserves_execution_guards(tmp_path, guard):
-    from lerobot.data_platform.control_plane import ControlPlaneNode
+    from lerobot.data_platform.control.store import ControlPlaneNode
 
     store, admin, client, user, node, location, token, endpoint = setup_manager(tmp_path)
     admin.put(endpoint, json={"location_ids": [location["location_id"]]})
@@ -255,8 +255,8 @@ def test_default_all_scope_includes_new_locations_and_can_be_restricted(tmp_path
 def test_existing_grants_stay_restricted_when_scope_table_is_added(tmp_path):
     from sqlalchemy import delete
 
-    from lerobot.data_platform.control_plane import DataMutationScope
-    from lerobot.data_platform.management_storage import SchemaMigration
+    from lerobot.data_platform.control.storage import SchemaMigration
+    from lerobot.data_platform.control.store import DataMutationScope
 
     store, admin, client, user, node, location, token, endpoint = setup_manager(tmp_path)
     admin.put(endpoint, json={"location_ids": [location["location_id"]]})

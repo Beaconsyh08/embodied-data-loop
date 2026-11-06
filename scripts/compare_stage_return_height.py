@@ -11,11 +11,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyarrow.parquet as pq
 
-from lerobot.data_platform.precompute.preprocess.h10w_kinematics import (
+from lerobot.data_platform.operators.implementations.preprocess.h10w_kinematics import (
     DEFAULT_H10W_DVT2_URDF,
     H10WDVT2ArmKinematics,
 )
-from lerobot.data_platform.precompute.preprocess.stage_return_height_alignment import (
+from lerobot.data_platform.operators.implementations.preprocess.stage_return_height_alignment import (
     ARM_INDICES,
     STAGE_RETURN_HEIGHT_EPISODES,
     STAGE_RETURN_HEIGHT_META,

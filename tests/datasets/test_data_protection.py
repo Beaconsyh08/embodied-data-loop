@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform.data_protection import (
+from lerobot.data_platform.access.source_policy import (
     RETENTION_MANAGED,
     RETENTION_PROTECTED_SOURCE,
     evaluate_dataset_protection,
@@ -103,22 +103,18 @@ def test_console_protects_source_datasets_and_hides_cache_only_registration(
     )
     assert admin_setup.status_code == 200
 
-    source_payload = client.post("/api/datasets/register", json={"root": str(source)}).get_json()[
-        "dataset"
-    ]
-    managed_payload = client.post("/api/datasets/register", json={"root": str(managed)}).get_json()[
-        "dataset"
-    ]
+    source_payload = client.post("/api/datasets/register", json={"root": str(source)}).get_json()["dataset"]
+    managed_payload = client.post("/api/datasets/register", json={"root": str(managed)}).get_json()["dataset"]
     assert source_payload["source_protected"] is True
     assert source_payload["retention_class"] == RETENTION_PROTECTED_SOURCE
     assert managed_payload["source_protected"] is False
 
-    duplicate_a_payload = client.post(
-        "/api/datasets/register", json={"root": str(duplicate_a)}
-    ).get_json()["dataset"]
-    duplicate_b_payload = client.post(
-        "/api/datasets/register", json={"root": str(duplicate_b)}
-    ).get_json()["dataset"]
+    duplicate_a_payload = client.post("/api/datasets/register", json={"root": str(duplicate_a)}).get_json()[
+        "dataset"
+    ]
+    duplicate_b_payload = client.post("/api/datasets/register", json={"root": str(duplicate_b)}).get_json()[
+        "dataset"
+    ]
     assert duplicate_a_payload["key"] != duplicate_b_payload["key"]
 
     blocked = client.post(
@@ -141,9 +137,7 @@ def test_console_protects_source_datasets_and_hides_cache_only_registration(
     )
     assert dynamic_root.status_code == 200
     dynamic_managed = next(
-        item
-        for item in dynamic_root.get_json()["datasets"]
-        if item["key"] == managed_payload["key"]
+        item for item in dynamic_root.get_json()["datasets"] if item["key"] == managed_payload["key"]
     )
     assert dynamic_managed["source_protected"] is True
     removed_dynamic_root = client.patch(

@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
-from lerobot.data_platform.agent import AgentClient
-from lerobot.data_platform.management_storage import AuditOutbox, DatasetScan
+from lerobot.data_platform.control.storage import AuditOutbox, DatasetScan
 from lerobot.data_platform.routes.dataset_scans import register_dataset_scan_routes
+from lerobot.data_platform.runtime.agent import AgentClient
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_data_platform_agent import _agent, _make_dataset
 
@@ -111,7 +111,7 @@ def test_scan_requests_validate_roots_role_capability_and_deduplicate(scan_platf
 def test_scan_old_or_offline_agent_is_not_accepted(scan_platform):
     from datetime import timedelta
 
-    from lerobot.data_platform.control_plane import ControlPlaneNode, _utcnow
+    from lerobot.data_platform.control.store import ControlPlaneNode, _utcnow
 
     store, _, client, root, node, _ = scan_platform
     url = f"/api/control/nodes/{node['node_id']}/scans"
@@ -180,7 +180,7 @@ def test_old_generation_cannot_restore_previous_root_configuration(scan_platform
 
 
 def test_scoped_operator_and_revoked_queued_request_cannot_discover(scan_platform):
-    from lerobot.data_platform.control_plane import ControlPlaneUser
+    from lerobot.data_platform.control.store import ControlPlaneUser
 
     store, _, client, root, node, headers = scan_platform
     user = store.register_user(
@@ -227,7 +227,7 @@ def test_agent_rechecks_symlinks_and_reports_missing_or_broken_metadata(scan_pla
 
 
 def test_completed_scan_ack_retries_without_rescanning(tmp_path, monkeypatch):
-    from lerobot.data_platform import agent as module
+    from lerobot.data_platform.runtime import agent as module
 
     root = tmp_path / "datasets"
     _make_dataset(root / "new")
@@ -258,7 +258,7 @@ def test_completed_scan_ack_retries_without_rescanning(tmp_path, monkeypatch):
 
 
 def test_scan_state_survives_reopening_and_ack_is_idempotent(scan_platform):
-    from lerobot.data_platform.control_plane import ControlPlaneStore
+    from lerobot.data_platform.control.store import ControlPlaneStore
 
     store, _, client, root, node, headers = scan_platform
     request = client.post(f"/api/control/nodes/{node['node_id']}/scans", json={"path": str(root)}).get_json()[
@@ -290,7 +290,7 @@ def test_scan_state_survives_reopening_and_ack_is_idempotent(scan_platform):
 def test_scan_schema_migration_preserves_existing_locations(scan_platform):
     from sqlalchemy import delete
 
-    from lerobot.data_platform.management_storage import SchemaMigration, migrate_management
+    from lerobot.data_platform.control.storage import SchemaMigration, migrate_management
 
     store, _, _, root, node, _ = scan_platform
     store.sync_locations(node["node_id"], [{"root": str(root), "dataset_key": "local/existing"}])

@@ -7,6 +7,14 @@ must be checked separately from this source baseline.
 
 ## Boundaries
 
+Source layout (2026-11-06): operator definitions, parameter schemas and dispatch remain in `operators/`;
+the computation library lives in `operators/implementations/`, grouped by preprocessing, caption/FLORA,
+MCAP, UMI, labeling, tagging, embedding, comparison and construction. `processing/` coordinates these
+operators through `runtime/` and the existing Job/Attempt contracts. Dataset identities and lifecycle
+records belong to `datasets/`, while `annotations/` manages caption catalogs and publication workflows.
+See [the source map](../lerobot/data_platform/README.md) for ownership and historical import compatibility.
+This move preserves operator IDs, versions, parameter schemas and serialized plan contracts.
+
 The existing control plane owns authentication, dataset scopes, Job/Attempt admission, quotas, path locks,
 stop confirmation and immutable release installation. `processing/` owns saved plans and orchestration;
 `operators/` owns computation descriptions and dispatch. `TaskCatalog` continues to describe robot tasks.

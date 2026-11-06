@@ -10,8 +10,8 @@ from sqlalchemy.orm import load_only
 from lerobot.data_platform.ai_tools.context import normalize_context
 from lerobot.data_platform.ai_tools.models import AssistantConversation, AssistantPreferences
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
 from lerobot.data_platform.operators import list_operators
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 DEFAULTS = {"enabled": True, "language": "auto", "detail": "balanced", "favorite_operators": []}
 

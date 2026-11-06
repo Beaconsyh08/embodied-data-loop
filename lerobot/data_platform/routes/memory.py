@@ -12,15 +12,15 @@ from functools import wraps
 
 from flask import abort, jsonify, render_template, request, send_file
 
-from lerobot.data_platform.execution import atomic_json
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.mem_export import digest as file_digest
+from lerobot.data_platform.artifacts.mem_export import digest as file_digest
 from lerobot.data_platform.memory.batch import episode_run
 from lerobot.data_platform.memory.contracts import AnnotationConfig, digest
 from lerobot.data_platform.memory.review import MemoryReviewStore
 from lerobot.data_platform.memory.sources import select_pilot
 from lerobot.data_platform.processing.service import PipelineManager
 from lerobot.data_platform.routes.control_plane import _current_user
+from lerobot.data_platform.runtime.jobs import JobConflictError
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 
 def register_memory_routes(app, ctx):
@@ -352,7 +352,7 @@ def register_memory_routes(app, ctx):
         artifact_bytes = artifact.pop("_memory_raw_bytes", None) or json.dumps(artifact).encode()
         if artifact["episode_index"] != index:
             raise ValueError("FLORA run belongs to another episode")
-        from lerobot.data_platform.temporal_caption_flora import camera_roles
+        from lerobot.data_platform.operators.implementations.caption.flora import camera_roles
 
         info = location.get("metadata") or {}
         roles = camera_roles([k for k, v in info["features"].items() if v.get("dtype") in {"image", "video"}])

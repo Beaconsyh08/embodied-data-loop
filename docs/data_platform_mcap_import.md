@@ -88,7 +88,7 @@ SciPy 等适配依赖；复用该不可变 release 的 Torch 等基础库，不�
 开发环境可单独安装：
 
 ```bash
-python -m lerobot.data_platform.mcap_runtime --destination /tmp/mcap-runtime \
+python -m lerobot.data_platform.operators.implementations.mcap.mcap_runtime --destination /tmp/mcap-runtime \
   --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 export DATA_PLATFORM_MCAP_PYTHON=/tmp/mcap-runtime/bin/python
 ```

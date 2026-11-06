@@ -5,9 +5,9 @@ from __future__ import annotations
 import math
 from dataclasses import asdict, dataclass
 
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.operators.schema import parameter_schema
-from lerobot.data_platform.task_catalog import content_digest
 
 OPERATORS = (
     "curation.snapshot",

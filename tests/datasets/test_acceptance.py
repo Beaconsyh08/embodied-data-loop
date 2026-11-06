@@ -2,8 +2,8 @@
 
 import pytest
 
-from lerobot.data_platform.acceptance import collect_matrix
-from lerobot.data_platform.control_plane import RemoteJob
+from lerobot.data_platform.control.store import RemoteJob
+from lerobot.data_platform.ops.acceptance import collect_matrix
 from tests.datasets.test_artifact_store import archive  # noqa: F401
 from tests.datasets.test_job_management import setup  # noqa: F401
 from tests.datasets.test_report_migration import completed
@@ -43,7 +43,7 @@ def test_installed_login_url_predicate_accepts_playwright_string_urls(tmp_path, 
     import json
     from unittest.mock import MagicMock
 
-    from lerobot.data_platform.acceptance import installed_browser
+    from lerobot.data_platform.ops.acceptance import installed_browser
 
     (tmp_path / "release.json").write_text(json.dumps({"release": "candidate"}))
     runtime = MagicMock()

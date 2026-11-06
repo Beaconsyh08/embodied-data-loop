@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from lerobot.data_platform.precompute.dataset_io import load_episode_records
+from lerobot.data_platform.operators.implementations.dataset_io import load_episode_records
 
 
 def register_preprocess_result(store, result, parents, job_type):
@@ -75,8 +75,8 @@ def register_preprocess_result(store, result, parents, job_type):
 
 def register_local_preprocess(store, payload):
     """Retain the legacy local route's immutable output and episode-lineage registration."""
-    from lerobot.data_platform.lifecycle import dataset_snapshot
-    from lerobot.data_platform.precompute.preprocess.common import PreprocessResult
+    from lerobot.data_platform.datasets.lifecycle.service import dataset_snapshot
+    from lerobot.data_platform.operators.implementations.preprocess.common import PreprocessResult
 
     value = dict(payload["result"])
     value["src_roots"] = [Path(root) for root in value["src_roots"]]

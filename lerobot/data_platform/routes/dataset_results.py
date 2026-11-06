@@ -11,10 +11,10 @@ from pathlib import Path
 
 from flask import g, jsonify, request
 
-from lerobot.data_platform.cache_files import read_cache_bytes
-from lerobot.data_platform.dataset_results import dataset_signature, result_lock, result_path, sync_status
-from lerobot.data_platform.execution import atomic_json
-from lerobot.data_platform.operation_log import append_operation_event
+from lerobot.data_platform.artifacts.audit import append_operation_event
+from lerobot.data_platform.datasets.cache_files import read_cache_bytes
+from lerobot.data_platform.datasets.results import dataset_signature, result_lock, result_path, sync_status
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 
 def register_dataset_result_routes(app, store, remote_cache_root: Path):

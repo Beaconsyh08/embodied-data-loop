@@ -19,11 +19,11 @@ from pathlib import Path
 
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.common.datasets.utils import IterableNamespace
-from lerobot.data_platform.cache_files import (
+from lerobot.data_platform.datasets.cache_files import (
     cached_csv_files,
 )
-from lerobot.data_platform.dataset_metadata import MetaOnlyDataset
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.datasets.metadata import MetaOnlyDataset
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
     DATA_VERSION_DVT2,
 )

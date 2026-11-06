@@ -104,19 +104,11 @@ from lerobot import available_datasets
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.common.datasets.utils import IterableNamespace
 from lerobot.common.utils.utils import init_logging
-from lerobot.data_platform.admin_auth import ADMIN_SESSION_COOKIE, AdminAuthStore
-from lerobot.data_platform.cache_files import (
-    cached_csv_files,
-    logical_csv_path,
-    open_cached_csv,
-    resolve_cached_csv,
-)
-from lerobot.data_platform.cli import run_precompute
-from lerobot.data_platform.data_protection import (
+from lerobot.data_platform.access.local_admin import ADMIN_SESSION_COOKIE, AdminAuthStore
+from lerobot.data_platform.access.source_policy import (
     normalized_path,
 )
-from lerobot.data_platform.dataset_metadata import MetaOnlyDataset
-from lerobot.data_platform.operation_log import (
+from lerobot.data_platform.artifacts.audit import (
     append_operation_event,
     local_actor,
     read_operation_events,
@@ -124,37 +116,47 @@ from lerobot.data_platform.operation_log import (
     should_audit_agent_request,
     summarize_location_sync_request,
 )
-from lerobot.data_platform.precompute.analysis import (
+from lerobot.data_platform.cli import run_precompute
+from lerobot.data_platform.datasets.cache_files import (
+    cached_csv_files,
+    logical_csv_path,
+    open_cached_csv,
+    resolve_cached_csv,
+)
+from lerobot.data_platform.datasets.metadata import MetaOnlyDataset
+from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot
+from lerobot.data_platform.datasets.tasks.text import cached_subtask_names, generate_subtask_text
+from lerobot.data_platform.operators.implementations.analysis import (
     build_dataset_analysis,
     read_analysis_cache,
     write_analysis_cache,
 )
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.operators.implementations.data_profile import (
     STAGE_PROFILE_EQUAL_TIME,
     dataset_semantics,
     has_body_joint_dimensions,
     has_legacy_flag_dimension,
     resolve_processing_profile,
 )
-from lerobot.data_platform.precompute.dataset_io import (
+from lerobot.data_platform.operators.implementations.dataset_io import (
     is_v3_dataset,
     is_v3_metadata,
     load_episode_records,
     read_episode_table,
     upsert_episode_column,
 )
-from lerobot.data_platform.precompute.image_io import (
+from lerobot.data_platform.operators.implementations.image_io import (
     cached_image_bytes,
     get_parquet_file,
     get_row_group_offsets,
 )
-from lerobot.data_platform.precompute.labeling import (
+from lerobot.data_platform.operators.implementations.labeling import (
     get_capabilities as get_labeling_capabilities,
 )
-from lerobot.data_platform.precompute.labeling import (
+from lerobot.data_platform.operators.implementations.labeling import (
     run_labeling,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     available_label_variants,
     load_labels_jsonl,
     merge_reviewed_labels_to_metadata,
@@ -166,36 +168,39 @@ from lerobot.data_platform.precompute.labeling.review import (
     save_reviewed_record_for_variant,
     source_path,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     load_episode_record as load_labeling_episode_record,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     reason as labeling_reason,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     uncertainty as labeling_uncertainty,
 )
-from lerobot.data_platform.precompute.mixed_episode_viewer import episode_viewer_spec, is_mixed_episode_viewer
-from lerobot.data_platform.precompute.mutations import (
+from lerobot.data_platform.operators.implementations.mixed_episode_viewer import (
+    episode_viewer_spec,
+    is_mixed_episode_viewer,
+)
+from lerobot.data_platform.operators.implementations.mutations import (
     fix_episode_indices,
     update_episode_stats_for_subtask_state,
     update_info_features,
 )
-from lerobot.data_platform.precompute.preprocess.delete_episodes import (
+from lerobot.data_platform.operators.implementations.preprocess.delete_episodes import (
     delete_episodes_inplace,
     reindex_static_after_episode_delete,
 )
-from lerobot.data_platform.precompute.preprocess.flag_fixes import trim_v3_episode_inplace
-from lerobot.data_platform.precompute.preprocess.quality_flags import (
+from lerobot.data_platform.operators.implementations.preprocess.flag_fixes import trim_v3_episode_inplace
+from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
     apply_task_assignment_choice,
     list_task_assignment_choices,
 )
-from lerobot.data_platform.precompute.signal_columns import signal_columns
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.signal_columns import signal_columns
+from lerobot.data_platform.operators.implementations.tagging import (
     available_tag_variants,
     current_tags,
 )
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
     DATA_VERSION_DVT2,
     GRIPPER_NORMALIZE_COLUMNS,
@@ -203,16 +208,19 @@ from lerobot.data_platform.precompute.timeseries import (
     normalize_gripper_columns,
     normalize_gripper_csv_value,
 )
-from lerobot.data_platform.precompute.v3_viewer import run_v3_viewer_precompute
-from lerobot.data_platform.precompute.video import encode_episode_video
-from lerobot.data_platform.precompute.viewer_manifest import (
+from lerobot.data_platform.operators.implementations.v3_viewer import run_v3_viewer_precompute
+from lerobot.data_platform.operators.implementations.video import encode_episode_video
+from lerobot.data_platform.operators.implementations.viewer_manifest import (
     load_viewer_manifest,
     manifest_episode_ids,
     manifest_episode_info,
     manifest_task_episode_map,
     write_viewer_manifest,
 )
-from lerobot.data_platform.precompute.viewer_signals import viewer_csv_labels, viewer_signal_presentation
+from lerobot.data_platform.operators.implementations.viewer_signals import (
+    viewer_csv_labels,
+    viewer_signal_presentation,
+)
 from lerobot.data_platform.processing.console_submissions import ConsoleSubmissionService
 from lerobot.data_platform.routes import (
     RouteContext,
@@ -249,8 +257,6 @@ from lerobot.data_platform.services.options import (
 )
 from lerobot.data_platform.services.presentation import DatasetPresentation
 from lerobot.data_platform.services.state import ConsoleState
-from lerobot.data_platform.task_catalog import TaskConfigSnapshot
-from lerobot.data_platform.task_text import cached_subtask_names, generate_subtask_text
 
 
 def _prepare_episode_videos(
@@ -440,7 +446,7 @@ def _serve_csv_stripped(
 
 
 def _video_rank(filename: str) -> int:
-    from lerobot.data_platform.camera_layout import camera_rank
+    from lerobot.data_platform.datasets.camera_layout import camera_rank
 
     return camera_rank(filename)
 
@@ -672,7 +678,7 @@ def run_server(
         allowed_tabs.discard("quality_report")
         allowed_tabs.discard("pipelines")
     if database_url:
-        from lerobot.data_platform.control_plane import ControlPlaneStore
+        from lerobot.data_platform.control.store import ControlPlaneStore
 
         control_plane_store = ControlPlaneStore(database_url)
 
@@ -1543,7 +1549,7 @@ def run_server(
     @app.route("/api/jobs")
     def api_jobs():
         if control_plane_store is not None:
-            from lerobot.data_platform.local_execution import local_job_payload
+            from lerobot.data_platform.runtime.local import local_job_payload
 
             rows = control_plane_store.list_jobs(
                 limit=20, actor=getattr(g, "control_plane_user", None) or {}, local_only=True, summary=True
@@ -1569,7 +1575,7 @@ def run_server(
     @app.route("/api/jobs/<string:job_id>")
     def api_job(job_id):
         if control_plane_store is not None:
-            from lerobot.data_platform.local_execution import local_job_payload
+            from lerobot.data_platform.runtime.local import local_job_payload
 
             try:
                 row = control_plane_store.get_job(job_id)
@@ -2188,7 +2194,7 @@ def run_server(
         register_compare_routes(app, route_context)
 
     def _analysis_for_dataset(dataset_key: tuple[str, str], refresh: bool = False) -> dict:
-        from lerobot.data_platform.precompute.analysis import (
+        from lerobot.data_platform.operators.implementations.analysis import (
             AnalysisMetadata,
             analysis_input_digest,
             load_analysis_metadata,
@@ -4001,7 +4007,7 @@ def run_server(
                 if csv_path and _update_cached_csv_subtask_columns(
                     csv_path, transitions, include_hidden_state=True
                 ):
-                    from lerobot.data_platform.dataset_results import mark_edited_csv
+                    from lerobot.data_platform.datasets.results import mark_edited_csv
 
                     mark_edited_csv(Path(ds_static).parent, episode_id)
                     logging.info("Updated subtask_state and stage in CSV for episode %s", episode_id)

@@ -9,7 +9,7 @@ Group=data-platform-dev
 RuntimeDirectory=data-platform-promotion
 RuntimeDirectoryMode=0750
 UMask=0077
-ExecStart=/opt/data-platform/dev/current/.venv/bin/python -I -m lerobot.data_platform.promotion
+ExecStart=/opt/data-platform/dev/current/.venv/bin/python -I -m lerobot.data_platform.ops.promotion
 Restart=on-failure
 RestartSec=5
 

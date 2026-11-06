@@ -21,14 +21,14 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from lerobot.data_platform.cli import get_default_output_dir
-from lerobot.data_platform.data_protection import (
+from lerobot.data_platform.access.source_policy import (
     evaluate_dataset_protection,
     infer_dataset_stage,
     normalized_path,
 )
-from lerobot.data_platform.lifecycle import LifecycleStore
-from lerobot.data_platform.precompute.viewer_manifest import (
+from lerobot.data_platform.cli import get_default_output_dir
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
+from lerobot.data_platform.operators.implementations.viewer_manifest import (
     load_viewer_manifest,
     manifest_episode_ids,
 )
@@ -143,7 +143,7 @@ class DatasetCatalog:
         return manifest, ds_static
 
     def upsert_dataset_index(self, repo_id: str, root_path: Path, output_dir: Path) -> tuple[str, str]:
-        from lerobot.data_platform.environment import validate_dev_path
+        from lerobot.data_platform.ops.environment import validate_dev_path
 
         validate_dev_path(root_path)
         validate_dev_path(output_dir)
@@ -197,7 +197,7 @@ class DatasetCatalog:
             if not metadata.get("viewer_ready") or not cache_root:
                 continue
             try:
-                from lerobot.data_platform.dataset_results import migrate_cache
+                from lerobot.data_platform.datasets.results import migrate_cache
 
                 cache_base = (
                     Path(self.state.remote_cache_root).expanduser()

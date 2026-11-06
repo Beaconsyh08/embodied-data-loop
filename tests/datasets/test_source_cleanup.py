@@ -9,18 +9,18 @@ from types import SimpleNamespace
 import pytest
 from flask import Flask
 
-from lerobot.data_platform.control_plane import ControlPlaneStore
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.routes.source_cleanup import register_source_cleanup_routes
-from lerobot.data_platform.source_cleanup import SourceCleanupManager
-from lerobot.data_platform.source_cleanup_agent import SourceCleanupWorker
-from lerobot.data_platform.source_cleanup_files import (
+from lerobot.data_platform.control.store import ControlPlaneStore
+from lerobot.data_platform.datasets.cleanup.agent import SourceCleanupWorker
+from lerobot.data_platform.datasets.cleanup.files import (
     missing_witness,
     prune_node_job_cache,
     prune_server_location_cache,
     prune_viewer_cache,
     remove_owned,
 )
+from lerobot.data_platform.datasets.cleanup.service import SourceCleanupManager
+from lerobot.data_platform.routes.source_cleanup import register_source_cleanup_routes
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 @pytest.fixture
@@ -69,9 +69,9 @@ def missing(setup, monkeypatch):
         "status": "missing",
         "witness": missing_witness(setup.source, [setup.tmp]),
     }
-    monkeypatch.setattr("lerobot.data_platform.source_cleanup.time.time", lambda: 100)
+    monkeypatch.setattr("lerobot.data_platform.datasets.cleanup.service.time.time", lambda: 100)
     assert setup.manager.report(setup.node, body)["status"] == "observed"
-    monkeypatch.setattr("lerobot.data_platform.source_cleanup.time.time", lambda: 106)
+    monkeypatch.setattr("lerobot.data_platform.datasets.cleanup.service.time.time", lambda: 106)
     return body
 
 
@@ -128,7 +128,7 @@ def test_running_and_interrupted_jobs_hold_caches(setup, monkeypatch):
     assert confirmed(setup, monkeypatch) is None
     assert setup.store.get_job(job["job_id"])["status"] == "running"
     assert setup.cache.is_dir()
-    from lerobot.data_platform.control_plane import RemoteJob
+    from lerobot.data_platform.control.store import RemoteJob
 
     with setup.store.sessions.begin() as session:
         session.get(RemoteJob, job["job_id"]).status = "interrupted"
@@ -360,13 +360,13 @@ def test_worker_cleans_only_after_current_node_is_idle(setup, monkeypatch):
 
     worker.request = request
     monkeypatch.setattr(
-        "lerobot.data_platform.source_cleanup_agent.ExecutionSupervisor",
+        "lerobot.data_platform.datasets.cleanup.agent.ExecutionSupervisor",
         lambda agent: SimpleNamespace(pending_here=lambda: True),
     )
     worker.once()
     assert setup.cache.exists() and len(calls) == 1
     monkeypatch.setattr(
-        "lerobot.data_platform.source_cleanup_agent.ExecutionSupervisor",
+        "lerobot.data_platform.datasets.cleanup.agent.ExecutionSupervisor",
         lambda agent: SimpleNamespace(pending_here=lambda: False),
     )
     worker.once()
@@ -374,7 +374,7 @@ def test_worker_cleans_only_after_current_node_is_idle(setup, monkeypatch):
 
 
 def test_maintenance_defers_proof_and_cleanup(setup, monkeypatch):
-    from lerobot.data_platform.maintenance import set_maintenance
+    from lerobot.data_platform.ops.maintenance import set_maintenance
 
     body = missing(setup, monkeypatch)
     set_maintenance(setup.store, True)
@@ -433,8 +433,8 @@ def test_missing_secondary_merge_input_cancels_queued_job(setup, monkeypatch):
 def test_mysql_cleanup_clock_has_double_precision_and_renews_legacy_proofs(monkeypatch):
     from sqlalchemy.dialects import mysql
 
-    from lerobot.data_platform import management_storage
-    from lerobot.data_platform.source_cleanup import SourceCleanup
+    from lerobot.data_platform.control import storage as management_storage
+    from lerobot.data_platform.datasets.cleanup.service import SourceCleanup
 
     dialect = mysql.dialect()
     for name in ("first_seen", "updated_at", "lease_until"):

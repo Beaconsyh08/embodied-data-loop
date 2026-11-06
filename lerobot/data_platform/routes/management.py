@@ -3,7 +3,7 @@
 from flask import g, jsonify, request
 from sqlalchemy import select
 
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def register_management_routes(app, store):
@@ -164,7 +164,7 @@ def register_management_routes(app, store):
 
     @app.get("/api/control/jobs/<string:job_id>/events")
     def job_events(job_id):
-        from lerobot.data_platform.control_plane import RemoteJobEvent
+        from lerobot.data_platform.control.store import RemoteJobEvent
 
         try:
             store.get_job(job_id)

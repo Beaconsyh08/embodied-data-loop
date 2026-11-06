@@ -16,7 +16,7 @@ from lerobot.data_platform.ai_tools.runtime_repository import (
     RuntimeRepository,
 )
 from lerobot.data_platform.ai_tools.service import AssistantService
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 class AssistantRunner:

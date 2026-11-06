@@ -10,6 +10,8 @@ from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
 
+from lerobot.data_platform._compat import canonical_name
+
 from .contracts import OperatorSpec
 
 _INTERNAL = {
@@ -83,6 +85,7 @@ def parameter_schema(spec: OperatorSpec) -> dict:
     properties, required = {}, []
     if spec.entry_point:
         module, name = spec.entry_point.split(":")
+        module = canonical_name(module) or module
         path = Path(__file__).parents[3] / Path(*module.split(".")).with_suffix(".py")
         if path.is_file():
             tree = ast.parse(path.read_text())

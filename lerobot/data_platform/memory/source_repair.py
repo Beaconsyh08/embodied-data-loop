@@ -12,7 +12,7 @@ from PIL import Image
 
 from lerobot.data_platform.memory.contracts import AnnotationConfig, digest
 from lerobot.data_platform.memory.generation import call_model, request_payload, response_json
-from lerobot.data_platform.temporal_caption_flora import review_partition, validate_flora
+from lerobot.data_platform.operators.implementations.caption.flora import review_partition, validate_flora
 
 PROMPT = """Describe only visually supported activity or state in the TARGET interval.
 Images are chronological synchronized mosaics, left to right: main, left wrist, right wrist.
@@ -126,7 +126,7 @@ def repair(
     progress=lambda value: None,
 ):
     """Receipts resume by exact model payload; invalid responses are never silently repaired."""
-    from lerobot.data_platform.execution import atomic_json
+    from lerobot.data_platform.runtime.supervisor import atomic_json
 
     planned = repair_plan(original)
     output.mkdir(parents=True, exist_ok=True)

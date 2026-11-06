@@ -190,7 +190,7 @@ def input_binding(pin):
 def provider_config_digest(model):
     import os
 
-    from lerobot.data_platform.qwen import DEFAULT_DASHSCOPE_BASE_URL
+    from lerobot.data_platform.ai_tools.qwen import DEFAULT_DASHSCOPE_BASE_URL
 
     return digest(
         {

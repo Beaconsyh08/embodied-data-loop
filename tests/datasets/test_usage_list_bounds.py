@@ -2,7 +2,7 @@
 
 from sqlalchemy import event
 
-from lerobot.data_platform.management_storage import UsageLogStore
+from lerobot.data_platform.control.storage import UsageLogStore
 
 
 def test_usage_summary_projection_order_and_lazy_detail(tmp_path):

@@ -6,9 +6,9 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import inspect, select, text
 
-from lerobot.data_platform.account_passwords import PasswordReset, issue_reset, redeem_reset
-from lerobot.data_platform.control_plane import ControlPlaneStore, _token_digest, _utcnow
-from lerobot.data_platform.management_storage import AuditOutbox
+from lerobot.data_platform.access.passwords import PasswordReset, issue_reset, redeem_reset
+from lerobot.data_platform.control.storage import AuditOutbox
+from lerobot.data_platform.control.store import ControlPlaneStore, _token_digest, _utcnow
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 
 

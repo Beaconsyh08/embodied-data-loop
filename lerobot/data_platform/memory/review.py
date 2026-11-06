@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import copy
 
-from lerobot.data_platform.job_management import JobConflictError
 from lerobot.data_platform.memory.contracts import checkpoints, digest, validate_point
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def review_payload(record):

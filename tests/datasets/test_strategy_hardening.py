@@ -20,8 +20,8 @@ from lerobot.data_platform.ai_tools.strategy_evaluation import (
 from lerobot.data_platform.ai_tools.strategy_models import StrategyExperiment
 from lerobot.data_platform.ai_tools.strategy_selection import bind_template, request_intent, semantic_digest
 from lerobot.data_platform.ai_tools.strategy_worker import Experiment, tick
-from lerobot.data_platform.job_management import JobConflictError
 from lerobot.data_platform.operators import get_operator
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant, call, draft  # noqa: F401
 from tests.datasets.test_ai_assistant_runtime import processing_setup  # noqa: F401
 from tests.datasets.test_ai_strategies import configured, version  # noqa: F401
@@ -29,7 +29,7 @@ from tests.datasets.test_ai_strategies import configured, version  # noqa: F401
 
 @pytest.fixture(autouse=True)
 def no_provider(monkeypatch):
-    from lerobot.data_platform.qwen import QwenClient
+    from lerobot.data_platform.ai_tools.qwen import QwenClient
 
     def forbidden(*args, **kwargs):
         raise AssertionError("This regression suite must never call a model provider")
@@ -57,7 +57,7 @@ def chain(*operators):
 
 @pytest.fixture
 def capable(configured):
-    from lerobot.data_platform.control_plane import ControlPlaneNode
+    from lerobot.data_platform.control.store import ControlPlaneNode
 
     strategies, _, _, config = configured
     with strategies.store.sessions.begin() as session:
@@ -389,7 +389,7 @@ def test_selection_deduplicates_bound_plans_and_keeps_scope(capable, monkeypatch
     monkeypatch.setenv("DATA_PLATFORM_STRATEGIES_ENABLED", "1")
     key = version(strategies.assistant)
     from lerobot.data_platform.ai_tools.strategy_models import StrategyVersion
-    from lerobot.data_platform.task_catalog import content_digest
+    from lerobot.data_platform.datasets.tasks.catalog import content_digest
 
     with strategies.store.sessions.begin() as session:
         row = session.get(StrategyVersion, key)

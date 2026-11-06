@@ -2,7 +2,7 @@
 
 from flask import jsonify, request
 
-from lerobot.data_platform.dataset_references import dataset_references
+from lerobot.data_platform.datasets.references import dataset_references
 
 
 def check_dataset_access(store, user):

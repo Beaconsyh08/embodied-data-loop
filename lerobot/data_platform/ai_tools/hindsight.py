@@ -14,8 +14,8 @@ from urllib.parse import urlsplit
 
 from lerobot.data_platform.ai_tools.experience import Snapshot, encode
 from lerobot.data_platform.ai_tools.experience_evidence import cohort
+from lerobot.data_platform.ai_tools.qwen import QwenClient, _NoRedirect
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
-from lerobot.data_platform.qwen import QwenClient, _NoRedirect
 
 MISSION = (
     "本 bank 是同一用户、同一数据集的已核验执行记录。优先提炼可复用的参数与处理流程经验，"

@@ -11,12 +11,12 @@ from pathlib import Path
 import numpy as np
 import pyarrow.parquet as pq
 
-from lerobot.data_platform.precompute.preprocess.common import parquet_paths
-from lerobot.data_platform.precompute.preprocess.h10w_kinematics import (
+from lerobot.data_platform.operators.implementations.preprocess.common import parquet_paths
+from lerobot.data_platform.operators.implementations.preprocess.h10w_kinematics import (
     DEFAULT_H10W_DVT2_URDF,
     H10WDVT2ArmKinematics,
 )
-from lerobot.data_platform.precompute.preprocess.stage_return_alignment import (
+from lerobot.data_platform.operators.implementations.preprocess.stage_return_alignment import (
     ACTION_COLUMN,
     STAGE_COLUMN,
     STATE_COLUMN,

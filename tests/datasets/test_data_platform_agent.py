@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform import agent as agent_module
-from lerobot.data_platform.agent import DataPlatformAgent, discover_datasets
-from lerobot.data_platform.precompute.preprocess.common import PreprocessResult
+from lerobot.data_platform.operators.implementations.preprocess.common import PreprocessResult
+from lerobot.data_platform.runtime import agent as agent_module
+from lerobot.data_platform.runtime.agent import DataPlatformAgent, discover_datasets
 
 
 def _make_dataset(root: Path, *, episodes: int = 2) -> None:
@@ -85,8 +85,9 @@ def test_agent_installer_uses_service_accessible_system_python_and_recovers_enro
 
 
 def test_local_identity_survives_repeated_agent_heartbeats(tmp_path, monkeypatch):
-    from lerobot.data_platform import curation_execution, mcap_import
-    from lerobot.data_platform.control_plane import ControlPlaneStore
+    from lerobot.data_platform.control.store import ControlPlaneStore
+    from lerobot.data_platform.operators.implementations import curation as curation_execution
+    from lerobot.data_platform.operators.implementations.mcap import mcap_import
 
     monkeypatch.setattr(curation_execution, "worker_capabilities", lambda: {"curation_operations": []})
     monkeypatch.setattr(mcap_import, "runtime_status", lambda: {"ready": False})
@@ -498,8 +499,8 @@ def test_dispatcher_runs_independent_job_types(tmp_path, monkeypatch, slots):
     from threading import Event, Lock
     from types import SimpleNamespace
 
-    from lerobot.data_platform.agent import _ExecutionDispatcher
-    from lerobot.data_platform.execution import ExecutionSupervisor
+    from lerobot.data_platform.runtime.agent import _ExecutionDispatcher
+    from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor
 
     monkeypatch.setenv("DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS", str(slots))
     agent = SimpleNamespace(state_path=tmp_path / "agent.json")
@@ -560,8 +561,8 @@ def test_caption_dispatcher_reconciles_each_attempt_once(tmp_path, monkeypatch):
     from threading import Event
     from types import SimpleNamespace
 
-    from lerobot.data_platform.agent import _ExecutionDispatcher
-    from lerobot.data_platform.execution import ExecutionSupervisor, atomic_json
+    from lerobot.data_platform.runtime.agent import _ExecutionDispatcher
+    from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor, atomic_json
 
     monkeypatch.setenv("DATA_PLATFORM_CAPTION_RUNNING_LIMIT", "2")
     agent = SimpleNamespace(state_path=tmp_path / "agent.json")
@@ -616,8 +617,8 @@ def test_agent_discovers_new_datasets_while_job_is_running(tmp_path, monkeypatch
     from threading import Event
     from types import SimpleNamespace
 
-    from lerobot.data_platform.agent import AgentClient, _ExecutionDispatcher
-    from lerobot.data_platform.execution import ExecutionSupervisor
+    from lerobot.data_platform.runtime.agent import AgentClient, _ExecutionDispatcher
+    from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor
 
     monkeypatch.setenv("DATA_PLATFORM_AGENT_MAX_RUNNING_JOBS", str(slots))
     source = tmp_path / "datasets"
@@ -665,7 +666,7 @@ def test_agent_discovers_new_datasets_while_job_is_running(tmp_path, monkeypatch
     monkeypatch.setattr(agent_module, "_ExecutionDispatcher", lambda _agent: dispatcher)
     sync_results = []
     monkeypatch.setattr(
-        "lerobot.data_platform.dataset_results.sync_agent_results", lambda _agent: sync_results.append(True)
+        "lerobot.data_platform.datasets.results.sync_agent_results", lambda _agent: sync_results.append(True)
     )
     ticks = [100.0]
     monkeypatch.setattr(agent_module.time, "monotonic", lambda: ticks[0])
@@ -714,7 +715,7 @@ def test_agent_discovers_new_datasets_while_job_is_running(tmp_path, monkeypatch
 def test_result_transfer_does_not_block_agent_heartbeats_or_claims(tmp_path, monkeypatch):
     from threading import Event
 
-    from lerobot.data_platform.agent import AgentClient
+    from lerobot.data_platform.runtime.agent import AgentClient
 
     agent = _agent(tmp_path, tmp_path, tmp_path)
 
@@ -744,7 +745,7 @@ def test_result_transfer_does_not_block_agent_heartbeats_or_claims(tmp_path, mon
         entered.set()
         assert release.wait(5)
 
-    monkeypatch.setattr("lerobot.data_platform.dataset_results.sync_agent_results", transfer)
+    monkeypatch.setattr("lerobot.data_platform.datasets.results.sync_agent_results", transfer)
     try:
         agent.run_once(sync=False, dispatch=lambda job: None)
         assert entered.wait(1)
@@ -771,7 +772,7 @@ def test_once_finishes_result_sync_before_returning(tmp_path, monkeypatch):
     monkeypatch.setattr(agent, "capabilities", lambda: {})
     monkeypatch.setattr(agent_module.time, "monotonic", lambda: 100.0)
     monkeypatch.setattr(
-        "lerobot.data_platform.dataset_results.sync_agent_results", lambda _agent: completed.append(True)
+        "lerobot.data_platform.datasets.results.sync_agent_results", lambda _agent: completed.append(True)
     )
     assert not agent.run_once(sync=False)
     assert completed == [True]

@@ -7,14 +7,14 @@ import pytest
 from flask import Flask, g, jsonify
 from sqlalchemy import create_engine, inspect
 
-from lerobot.data_platform.control_plane import ControlPlaneStore
-from lerobot.data_platform.dev_roles import seed_test_users
-from lerobot.data_platform.environment import (
+from lerobot.data_platform.access.dev_roles import seed_test_users
+from lerobot.data_platform.control.store import ControlPlaneStore
+from lerobot.data_platform.ops.environment import (
     check_server_environment,
     session_cookie_name,
     verify_database_environment,
 )
-from lerobot.data_platform.maintenance import set_maintenance
+from lerobot.data_platform.ops.maintenance import set_maintenance
 from lerobot.data_platform.routes.control_plane import register_control_plane_auth_routes
 
 
@@ -199,7 +199,7 @@ def test_maintenance_blocks_submission_and_claims_but_preserves_logout(environme
     set_maintenance(store, True)
     assert post(client, "/api/test/write").status_code == 503
     assert store.claim_job(node["node_id"], worker_instance_id="test-worker") is None
-    from lerobot.data_platform.maintenance import MaintenanceError
+    from lerobot.data_platform.ops.maintenance import MaintenanceError
 
     with pytest.raises(MaintenanceError):
         store.create_job(
@@ -223,8 +223,8 @@ def test_disabled_test_identity_can_return_without_gaining_business_permissions(
 
 
 def test_agent_checks_remote_identity_before_enrollment(environment):
-    from lerobot.data_platform.agent import DataPlatformAgent
-    from lerobot.data_platform.environment import verify_directory
+    from lerobot.data_platform.ops.environment import verify_directory
+    from lerobot.data_platform.runtime.agent import DataPlatformAgent
 
     state = environment / "agent"
     verify_directory(state, "agent", initialize=True)
@@ -291,7 +291,7 @@ vm.runInNewContext(fs.readFileSync(process.argv[2], 'utf8'), context);
 
 
 def test_production_promotion_requires_real_admin_and_confirmation(environment, monkeypatch):
-    from lerobot.data_platform import promotion
+    from lerobot.data_platform.ops import promotion
 
     app, store = app_and_store(environment)
     client = app.test_client()
@@ -312,7 +312,7 @@ def test_production_promotion_requires_real_admin_and_confirmation(environment, 
 
 
 def test_promotion_rejects_stale_confirmation(tmp_path, monkeypatch):
-    from lerobot.data_platform import promotion
+    from lerobot.data_platform.ops import promotion
 
     monkeypatch.setattr(promotion.os, "geteuid", lambda: 0)
     monkeypatch.setattr(
@@ -331,7 +331,7 @@ def test_promotion_snapshot_blocks_legacy_production(tmp_path, monkeypatch, prod
     import json
     from types import SimpleNamespace
 
-    from lerobot.data_platform import promotion, releases
+    from lerobot.data_platform.ops import promotion, releases
 
     root = tmp_path / "R2"
     root.mkdir()
@@ -383,7 +383,7 @@ def test_password_changes_require_csrf_and_real_identity(environment):
 
 
 def test_web_acceptance_requires_real_admin_complete_evidence_and_records_actor(environment, monkeypatch):
-    from lerobot.data_platform import promotion
+    from lerobot.data_platform.ops import promotion
 
     app, store = app_and_store(environment)
     client = app.test_client()
@@ -426,7 +426,7 @@ def test_web_acceptance_requires_real_admin_complete_evidence_and_records_actor(
 
 
 def test_web_acceptance_conflict_is_reported(environment, monkeypatch):
-    from lerobot.data_platform import promotion
+    from lerobot.data_platform.ops import promotion
 
     app, store = app_and_store(environment)
     client = app.test_client()
@@ -444,7 +444,7 @@ def test_web_acceptance_conflict_is_reported(environment, monkeypatch):
 def test_acceptance_helper_rechecks_revision_and_never_deploys(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
-    from lerobot.data_platform import deployment, promotion, releases
+    from lerobot.data_platform.ops import deployment, promotion, releases
 
     monkeypatch.setattr(promotion.os, "geteuid", lambda: 0)
     monkeypatch.setattr(
@@ -486,7 +486,7 @@ def test_approval_receipt_binds_evidence_and_actor_to_artifact(tmp_path, monkeyp
     import json
     from types import SimpleNamespace
 
-    from lerobot.data_platform import releases
+    from lerobot.data_platform.ops import releases
 
     (tmp_path / "release.json").write_text('{"commit": "test"}')
     monkeypatch.setenv("DATA_PLATFORM_INSTANCE_ID", "dev-instance")

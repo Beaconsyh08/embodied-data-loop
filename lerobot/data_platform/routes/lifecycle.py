@@ -10,7 +10,7 @@ from pathlib import Path
 from flask import g, jsonify, request
 
 from lerobot.data_platform.cli import get_default_output_dir, run_precompute
-from lerobot.data_platform.lifecycle import (
+from lerobot.data_platform.datasets.lifecycle.service import (
     MANIFEST_PUBLISHED,
     EpisodeRef,
     LifecycleStore,
@@ -18,7 +18,7 @@ from lerobot.data_platform.lifecycle import (
     execute_preprocessing_profile,
     materialize_manifest,
 )
-from lerobot.data_platform.local_execution import launch_background
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_lifecycle_routes(app, ctx) -> None:

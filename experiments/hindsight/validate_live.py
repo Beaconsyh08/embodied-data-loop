@@ -21,9 +21,9 @@ from sqlalchemy import select  # noqa: E402
 
 from lerobot.data_platform.ai_tools import experience, experience_worker, hindsight  # noqa: E402
 from lerobot.data_platform.ai_tools.models import AssistantExperience  # noqa: E402
+from lerobot.data_platform.ai_tools.qwen import QwenClient  # noqa: E402
 from lerobot.data_platform.ai_tools.runner import AssistantRunner  # noqa: E402
 from lerobot.data_platform.ai_tools.service import AssistantService  # noqa: E402
-from lerobot.data_platform.qwen import QwenClient  # noqa: E402
 from tests.datasets.test_ai_assistant import FakeQwen  # noqa: E402
 from tests.datasets.test_ai_experience import history  # noqa: E402
 from tests.datasets.test_ai_memory_followups import save  # noqa: E402

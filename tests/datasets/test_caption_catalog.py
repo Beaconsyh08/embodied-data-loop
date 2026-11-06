@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform.caption_catalog import caption_datasets, saved_run_count
+from lerobot.data_platform.annotations.catalog import caption_datasets, saved_run_count
+from lerobot.data_platform.operators.implementations.caption.core import artifact_key
 from lerobot.data_platform.routes.temporal_caption import register_temporal_caption_routes
-from lerobot.data_platform.temporal_caption import artifact_key
 from tests.datasets.test_analysis_metadata import _remote_context
 from tests.datasets.test_control_plane import _bootstrap
 

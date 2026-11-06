@@ -8,11 +8,11 @@ from lerobot.data_platform.ai_tools.experience_evidence import failure_code
 from lerobot.data_platform.ai_tools.followups import _acknowledged
 from lerobot.data_platform.ai_tools.strategy_contracts import OPERATORS
 from lerobot.data_platform.ai_tools.strategy_models import StrategyEvidence
-from lerobot.data_platform.control_plane import RemoteJob
-from lerobot.data_platform.management_storage import JobAttempt, JobControl
+from lerobot.data_platform.control.storage import JobAttempt, JobControl
+from lerobot.data_platform.control.store import RemoteJob
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.processing.models import PipelineRun, PipelineStepRun, PipelineVersion
 from lerobot.data_platform.processing.service import location_identity
-from lerobot.data_platform.task_catalog import content_digest
 
 
 def projection(manager, session, administrator, run):

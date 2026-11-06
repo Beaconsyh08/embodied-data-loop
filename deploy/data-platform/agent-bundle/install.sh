@@ -196,7 +196,7 @@ printf '%s\n' "$BUNDLE_DIGEST" > "$RELEASE_DIR/bundle.sha256"
 fi
 if [[ ! -f "$RELEASE_DIR/mcap-runtime/.ready" ]]; then
     UV_CACHE_DIR="$CACHE_DIR/uv" "$RELEASE_DIR/.venv/bin/python" \
-        -m lerobot.data_platform.mcap_runtime \
+        -m lerobot.data_platform.operators.implementations.mcap.mcap_runtime \
         --destination "$RELEASE_DIR/mcap-runtime" --uv "$RELEASE_DIR/uv"
     touch "$RELEASE_DIR/mcap-runtime/.ready"
 fi
@@ -205,7 +205,7 @@ if ((ADOPT_LEGACY)); then
     "$RELEASE_DIR/.venv/bin/python" - "$CONFIG_FILE" "$STATE_DIR" "$INSTANCE_ID" "$BUNDLE_VERSION" "$BUNDLE_DIGEST" <<'PYADOPT'
 import sys
 from pathlib import Path
-from lerobot.data_platform.agent_install import adopt_legacy
+from lerobot.data_platform.ops.agent_install import adopt_legacy
 adopt_legacy(Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5])
 PYADOPT
 fi
@@ -261,22 +261,22 @@ fi
 
 # Verify task-path dependencies before switching the live release.
 "$RELEASE_DIR/.venv/bin/python" -c \
-    "from lerobot.data_platform.execution import SpoolingClient; from lerobot.data_platform.management_storage import EventSpool"
+    "from lerobot.data_platform.runtime.supervisor import SpoolingClient; from lerobot.data_platform.control.storage import EventSpool"
 # Bind the state directory before starting, and keep credentials out of command arguments.
 "$RELEASE_DIR/.venv/bin/python" - "$CONFIG_FILE" "$STATE_DIR" "$DEPLOY_ENV" "$BUNDLE_VERSION" "$BUNDLE_DIGEST" "$ROLLING" "$INSTALL_ROOT" <<'PYENV'
 import os, sys
 from pathlib import Path
-from lerobot.data_platform.deployment import read_environment_file
-from lerobot.data_platform.environment import EnvironmentIdentity, verify_directory
-from lerobot.data_platform.rolling_deployment import ROLLING_DEPLOY_PROTOCOL, compatible_contracts
-from lerobot.data_platform.releases import SCHEMA_VERSION
+from lerobot.data_platform.ops.deployment import read_environment_file
+from lerobot.data_platform.ops.environment import EnvironmentIdentity, verify_directory
+from lerobot.data_platform.ops.rolling import ROLLING_DEPLOY_PROTOCOL, compatible_contracts
+from lerobot.data_platform.ops.releases import SCHEMA_VERSION
 import json
 values = read_environment_file(Path(sys.argv[1]))
 if values.get("DATA_PLATFORM_ENV") != sys.argv[3]:
     raise SystemExit("Agent environment mismatch")
 os.environ.update(values)
 identity = EnvironmentIdentity.from_env()
-from lerobot.data_platform.agent import AgentClient
+from lerobot.data_platform.runtime.agent import AgentClient
 client = AgentClient(values["DATA_PLATFORM_SERVER_URL"])
 health = client._request("GET", "/healthz")
 if (health.get("release"), health.get("agent_manifest_sha256")) != (sys.argv[4], sys.argv[5]):
@@ -300,8 +300,8 @@ printf 'DATA_PLATFORM_RELEASE=%s\n' "$BUNDLE_VERSION" > "$RELEASE_DIR/release.en
 "$RELEASE_DIR/.venv/bin/python" - "$RELEASE_DIR" <<'PYCONTRACT'
 import json, sys
 from pathlib import Path
-from lerobot.data_platform.releases import SCHEMA_VERSION
-from lerobot.data_platform.rolling_deployment import ROLLING_DEPLOY_PROTOCOL
+from lerobot.data_platform.ops.releases import SCHEMA_VERSION
+from lerobot.data_platform.ops.rolling import ROLLING_DEPLOY_PROTOCOL
 root = Path(sys.argv[1])
 (root / "deployment-contract.json").write_text(json.dumps({
     "rolling_deploy_protocol": ROLLING_DEPLOY_PROTOCOL, "schema_min": SCHEMA_VERSION,

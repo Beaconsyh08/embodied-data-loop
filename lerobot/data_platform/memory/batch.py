@@ -8,8 +8,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 
-from lerobot.data_platform.execution import StopRequestedError, atomic_json
 from lerobot.data_platform.operators import OperatorResult
+from lerobot.data_platform.runtime.supervisor import StopRequestedError, atomic_json
 
 
 def parallel_episodes(resources=None):

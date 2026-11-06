@@ -14,13 +14,13 @@ from sqlalchemy.orm import object_session
 from lerobot.data_platform.ai_tools.actions import ALLOWED_ACTIONS
 from lerobot.data_platform.ai_tools.context import bounded, normalize_context, resolve_context, safe_summary
 from lerobot.data_platform.ai_tools.models import AssistantConversation, AssistantExecution, AssistantTurn
+from lerobot.data_platform.ai_tools.qwen import DEFAULT_DASHSCOPE_MODEL, QwenClient, dashscope_env_api_key
 from lerobot.data_platform.ai_tools.security import REFUSAL, DisclosureGuard, restricted_request
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator, list_operators
 from lerobot.data_platform.processing.capabilities import OperatorCatalog
 from lerobot.data_platform.processing.service import location_identity
-from lerobot.data_platform.qwen import DEFAULT_DASHSCOPE_MODEL, QwenClient, dashscope_env_api_key
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 
 class AssistantUnavailableError(RuntimeError):

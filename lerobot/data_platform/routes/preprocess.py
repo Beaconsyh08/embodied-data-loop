@@ -9,20 +9,19 @@ import numpy as np
 import pyarrow.parquet as pq
 from flask import jsonify, render_template, request
 
-from lerobot.data_platform.cache_files import cached_csv_files
 from lerobot.data_platform.cli import get_default_output_dir, run_precompute
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.datasets.cache_files import cached_csv_files
+from lerobot.data_platform.operators.implementations.data_profile import (
     require_dataset_operation,
     resolve_processing_profile,
 )
-from lerobot.data_platform.precompute.dataset_io import (
+from lerobot.data_platform.operators.implementations.dataset_io import (
     V3DatasetMetadata,
     is_v3_dataset,
     load_episode_records,
     read_episode_table,
 )
-from lerobot.data_platform.precompute.preprocess import (
+from lerobot.data_platform.operators.implementations.preprocess import (
     DEFAULT_DATA_FILE_SIZE_IN_MB,
     DEFAULT_PROMPT_PATTERN,
     DEFAULT_PROMPT_REPLACEMENT,
@@ -55,20 +54,23 @@ from lerobot.data_platform.precompute.preprocess import (
     run_subtract,
     run_value_edits,
 )
-from lerobot.data_platform.precompute.preprocess import (
+from lerobot.data_platform.operators.implementations.preprocess import (
     get_capabilities as get_preprocess_capabilities,
 )
-from lerobot.data_platform.precompute.preprocess.common import format_data_path, load_json
-from lerobot.data_platform.precompute.preprocess.dataset_merge import validate_merge_sources
-from lerobot.data_platform.precompute.preprocess.quality_flags import apply_task_assignment_choice
-from lerobot.data_platform.precompute.preprocess.smooth_action import SMOOTH_ACTION_META
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.operators.implementations.preprocess.common import format_data_path, load_json
+from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import validate_merge_sources
+from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
+    apply_task_assignment_choice,
+)
+from lerobot.data_platform.operators.implementations.preprocess.smooth_action import SMOOTH_ACTION_META
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
     DATA_VERSION_DVT2,
 )
 from lerobot.data_platform.processing.commands import build_command, standardize_command
 from lerobot.data_platform.processing.compatibility import apply_prompt_assignments
 from lerobot.data_platform.routes.context import RouteContext
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_preprocess_routes(app, ctx: RouteContext) -> None:

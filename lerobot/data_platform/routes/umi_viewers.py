@@ -9,9 +9,9 @@ from contextlib import suppress
 
 from flask import Response, jsonify, render_template, request
 
-from lerobot.data_platform.curation import artifact_path
+from lerobot.data_platform.datasets.curation import artifact_path
 from lerobot.data_platform.routes.control_plane import _current_user
-from lerobot.data_platform.umi_viewers import ViewerSessions
+from lerobot.data_platform.web.umi_viewers import ViewerSessions
 
 
 def register_umi_viewer_routes(app, manager, ledger, checked, owner):
@@ -44,7 +44,7 @@ def register_umi_viewer_routes(app, manager, ledger, checked, owner):
         return data
 
     def audit(job_id, operation, session_id):
-        from lerobot.data_platform.control_plane import RemoteJob
+        from lerobot.data_platform.control.store import RemoteJob
 
         with manager.store.sessions.begin() as db:
             manager.store.job_manager.audit(
@@ -146,7 +146,7 @@ def register_umi_viewer_routes(app, manager, ledger, checked, owner):
 
     @sock.route("/api/umi-viewer-sessions/<session_id>/socket")
     def umi_viewer_socket(ws, session_id):
-        from lerobot.data_platform.environment import session_cookie_name
+        from lerobot.data_platform.ops.environment import session_cookie_name
 
         token = request.cookies.get(session_cookie_name())
         import websocket

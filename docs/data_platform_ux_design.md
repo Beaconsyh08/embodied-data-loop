@@ -3,6 +3,8 @@
 本轮以公开源码为基础，结合页面代码和隔离测试服务的浏览器操作检查。
 覆盖 Data Platform、Data Curation，以及 Viewer / Analysis / Review 的共享导航。
 本文描述源码设计和验收范围；发布与线上生效状态应另外核对。
+当前页面操作以 [用户手册](data_platform_page_user_guide.md) 为准，当前模块分工见
+[开发与源码导航](data_platform_development.md)。
 
 ## 设计原则
 

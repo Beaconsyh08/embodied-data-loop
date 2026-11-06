@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from lerobot.data_platform.cli import run_precompute
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 from tests.datasets.test_preprocess_ops import _add_v21_stat_counts, _make_dataset, _png_bytes
 
 

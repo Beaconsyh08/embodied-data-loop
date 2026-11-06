@@ -170,7 +170,8 @@ def test_forward_streams_and_resumes_same_remote_job(tmp_path, monkeypatch):
 
 
 def test_episode_result_preserves_source_identity_and_rejects_changed_source(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora, temporal_caption_snapshot
+    from lerobot.data_platform.operators.implementations.caption import flora as temporal_caption_flora
+    from lerobot.data_platform.operators.implementations.caption import snapshot as temporal_caption_snapshot
     from services.flora_router import worker
 
     store = Store(tmp_path)

@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pytest
 
-from lerobot.data_platform.artifact_store import (
+from lerobot.data_platform.artifacts.store import (
     ArchiveCapacityError,
     ArchiveConfig,
     ArtifactStore,

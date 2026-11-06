@@ -16,10 +16,10 @@ from lerobot.data_platform.ai_tools.learning.models import (
     LearningProfile,
 )
 from lerobot.data_platform.ai_tools.models import AssistantConversation, AssistantTurn
-from lerobot.data_platform.control_plane import RemoteJob
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
+from lerobot.data_platform.control.store import RemoteJob
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.processing.models import Pipeline, PipelineRun
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 
 def now_ms():

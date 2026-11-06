@@ -6,7 +6,10 @@ import io
 import pytest
 from flask import Flask
 
-from lerobot.data_platform.precompute.viewer_signals import viewer_csv_labels, viewer_signal_presentation
+from lerobot.data_platform.operators.implementations.viewer_signals import (
+    viewer_csv_labels,
+    viewer_signal_presentation,
+)
 from lerobot.data_platform.viewer import _columns_from_csv_header, _serve_csv_stripped
 
 

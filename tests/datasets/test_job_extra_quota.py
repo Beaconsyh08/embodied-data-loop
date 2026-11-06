@@ -5,10 +5,10 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from sqlalchemy import select
 
-from lerobot.data_platform.control_plane import ControlPlaneNode, ControlPlaneStore, RemoteJob
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.maintenance import set_maintenance
-from lerobot.data_platform.management_storage import AuditOutbox, JobControl, migrate_management
+from lerobot.data_platform.control.storage import AuditOutbox, JobControl, migrate_management
+from lerobot.data_platform.control.store import ControlPlaneNode, ControlPlaneStore, RemoteJob
+from lerobot.data_platform.ops.maintenance import set_maintenance
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_control_plane import _app
 from tests.datasets.test_job_management import command, setup  # noqa: F401 -- shared fixture
 

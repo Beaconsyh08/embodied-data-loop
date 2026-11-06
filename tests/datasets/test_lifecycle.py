@@ -7,8 +7,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import lerobot.data_platform.lifecycle as lifecycle_module
-from lerobot.data_platform.lifecycle import (
+import lerobot.data_platform.datasets.lifecycle.service as lifecycle_module
+from lerobot.data_platform.datasets.lifecycle.service import (
     MANIFEST_APPROVED,
     MANIFEST_IN_REVIEW,
     MANIFEST_PUBLISHED,
@@ -17,9 +17,9 @@ from lerobot.data_platform.lifecycle import (
     execute_preprocessing_profile,
     materialize_manifest,
 )
-from lerobot.data_platform.precompute.preprocess.dataset_merge import run_merge
-from lerobot.data_platform.precompute.preprocess.dataset_split import run_split
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import run_merge
+from lerobot.data_platform.operators.implementations.preprocess.dataset_split import run_split
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 
 
 def _write_jsonl(path: Path, rows: list[dict]) -> None:

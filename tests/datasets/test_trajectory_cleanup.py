@@ -8,8 +8,8 @@ import pandas as pd
 import pyarrow.parquet as pq
 import pytest
 
-from lerobot.data_platform.precompute.dataset_io import V3DatasetMetadata, read_episode_table
-from lerobot.data_platform.precompute.preprocess.trajectory_cleanup import (
+from lerobot.data_platform.operators.implementations.dataset_io import V3DatasetMetadata, read_episode_table
+from lerobot.data_platform.operators.implementations.preprocess.trajectory_cleanup import (
     _butterworth_zero_phase,
     _probe_video_frames,
     _rewrite_video_without_ranges,

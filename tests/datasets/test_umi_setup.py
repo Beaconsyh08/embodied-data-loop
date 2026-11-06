@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform.precompute.umi.runtime import LAUNDRY_COMMIT
+from lerobot.data_platform.operators.implementations.umi.runtime import LAUNDRY_COMMIT
 
 SCRIPT = Path(__file__).resolve().parents[2] / "deploy/data-platform/setup-umi.py"
 spec = importlib.util.spec_from_file_location("umi_setup", SCRIPT)

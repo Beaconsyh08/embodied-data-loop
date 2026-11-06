@@ -10,7 +10,7 @@ import pyarrow.parquet as pq
 import pytest
 from PIL import Image
 
-from lerobot.data_platform import mem_export as mem
+from lerobot.data_platform.artifacts import mem_export as mem
 
 
 def fixture(tmp_path, version="v3.0", video=False):

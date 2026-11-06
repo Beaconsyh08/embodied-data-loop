@@ -5,16 +5,16 @@ import json
 
 import pytest
 
-from lerobot.data_platform.routes.temporal_caption_jobs import caption_scheme_status
-from lerobot.data_platform.temporal_caption import prepare
-from lerobot.data_platform.temporal_caption_flora import (
+from lerobot.data_platform.annotations.jobs import publish_run, validate_options, validate_source
+from lerobot.data_platform.operators.implementations.caption.core import prepare
+from lerobot.data_platform.operators.implementations.caption.flora import (
     build_artifact,
     camera_roles,
     disagreement_intervals,
     review_partition,
     validate_flora,
 )
-from lerobot.data_platform.temporal_caption_jobs import publish_run, validate_options, validate_source
+from lerobot.data_platform.routes.temporal_caption_jobs import caption_scheme_status
 from tests.datasets import test_temporal_caption_jobs as job_fixtures
 
 
@@ -329,7 +329,7 @@ def test_browser_flora_review_seek_switch_mobile_and_readonly(remote, tmp_path, 
             None,
         )
         monkeypatch.setattr(
-            "lerobot.data_platform.local_execution.agent_capabilities_for_local",
+            "lerobot.data_platform.runtime.local.agent_capabilities_for_local",
             lambda: {
                 "caption_schemes": ["flora"],
                 "caption_flora_protocol": 1,
@@ -877,7 +877,7 @@ def test_parent_death_stops_worker_and_its_children(tmp_path):
     pid_file = tmp_path / "pids.json"
     worker = (
         "import json,subprocess,sys,time;from pathlib import Path;"
-        "from lerobot.data_platform.temporal_caption_flora_worker import guard_parent;"
+        "from lerobot.data_platform.operators.implementations.caption.flora_worker import guard_parent;"
         "guard_parent();"
         "child=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']);"
         f"Path({str(pid_file)!r}).write_text(json.dumps([__import__('os').getpid(),child.pid]));"
@@ -922,8 +922,9 @@ def test_executor_exports_visual_only_and_publishes_without_api_key(tmp_path, mo
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from lerobot.data_platform import qwen, temporal_caption_flora
-    from lerobot.data_platform.temporal_caption_jobs import execute_caption_job, validate_run
+    from lerobot.data_platform.ai_tools import qwen
+    from lerobot.data_platform.annotations.jobs import execute_caption_job, validate_run
+    from lerobot.data_platform.operators.implementations.caption import flora as temporal_caption_flora
     from tests.datasets.test_temporal_caption import (
         test_export_reads_only_selected_episode_from_shared_v3_shard,
     )
@@ -1095,7 +1096,7 @@ def test_two_wrist_long_episode_chunks_keep_frame_count(tmp_path):
 
     import av
 
-    from lerobot.data_platform.temporal_caption_flora_worker import caption_inputs
+    from lerobot.data_platform.operators.implementations.caption.flora_worker import caption_inputs
 
     videos = {}
     for role, color in [("left", "red"), ("right", "blue")]:
@@ -1180,7 +1181,7 @@ def test_native_caption_calls_preserve_original_views(tmp_path, monkeypatch, rol
     import sys
     from types import ModuleType, SimpleNamespace
 
-    from lerobot.data_platform.temporal_caption_flora_worker import caption_stage
+    from lerobot.data_platform.operators.implementations.caption.flora_worker import caption_stage
 
     calls = []
     paths = {role: str(tmp_path / f"{role}.mp4") for role in roles}
@@ -1251,7 +1252,7 @@ def test_flora_long_episode_output_and_many_segments_remain_valid():
 
 
 def test_flora_long_episode_reaches_gpu_allocation(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora
+    from lerobot.data_platform.operators.implementations.caption import flora as temporal_caption_flora
 
     bundle = tmp_path / "bundle"
     bundle.mkdir()
@@ -1276,7 +1277,9 @@ def test_flora_long_episode_reaches_gpu_allocation(tmp_path, monkeypatch):
 
 
 def test_long_flora_input_uses_bounded_chunks_without_losing_frames(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora_worker
+    from lerobot.data_platform.operators.implementations.caption import (
+        flora_worker as temporal_caption_flora_worker,
+    )
 
     commands = []
     monkeypatch.setattr(

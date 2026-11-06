@@ -12,8 +12,8 @@ from lerobot.data_platform.ai_tools.service import (
     AssistantService,
     AssistantUnavailableError,
 )
-from lerobot.data_platform.job_management import JobConflictError
 from lerobot.data_platform.routes.control_plane import _current_user
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def register_ai_assistant_routes(app, ctx):

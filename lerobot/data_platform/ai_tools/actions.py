@@ -9,12 +9,12 @@ from lerobot.data_platform.ai_tools.followups import register as register_follow
 from lerobot.data_platform.ai_tools.models import AssistantTurn
 from lerobot.data_platform.ai_tools.repairs import bind_source_snapshot
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.operators.schema import parameter_schema
 from lerobot.data_platform.processing.models import PipelineRun
 from lerobot.data_platform.processing.service import location_identity
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 ALLOWED_ACTIONS = {"viewer.prepare": "Prepare Viewer", "curation.quality": "Run Quality checks"}
 ACTION_PARAMETERS = {

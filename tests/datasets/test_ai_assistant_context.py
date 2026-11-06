@@ -7,10 +7,10 @@ import uuid
 import pytest
 
 from lerobot.data_platform.ai_tools.context import TOOL_BYTES, bounded, resolve_context, safe_text
-from lerobot.data_platform.control_plane import ControlPlaneNode, ControlPlaneUser, RemoteJob
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.lifecycle import LifecycleStore
-from lerobot.data_platform.management_storage import JobControl
+from lerobot.data_platform.control.storage import JobControl
+from lerobot.data_platform.control.store import ControlPlaneNode, ControlPlaneUser, RemoteJob
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant, call, draft, processing_setup  # noqa: F401
 
 
@@ -288,7 +288,7 @@ def test_job_context_does_not_bypass_owner_visibility(assistant):  # noqa: F811
 def test_legacy_conversation_schema_migrates_additively(assistant):  # noqa: F811
     from sqlalchemy import inspect
 
-    from lerobot.data_platform.management_storage import migrate_management
+    from lerobot.data_platform.control.storage import migrate_management
 
     service, _, owner, value = assistant
     service.submit(owner, value)
@@ -429,7 +429,7 @@ def test_episode_page_reference_and_scope_revocation(assistant, tmp_path, monkey
 
 def test_episode_alias_lookup_is_literal_and_rejects_ambiguity(assistant, tmp_path):  # noqa: F811
     from lerobot.data_platform.ai_tools.context import page_context
-    from lerobot.data_platform.control_plane import DatasetLocation
+    from lerobot.data_platform.control.store import DatasetLocation
 
     service, _, owner, value = assistant
     episode_fixture(service, value["location_id"], tmp_path)

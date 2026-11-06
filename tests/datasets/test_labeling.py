@@ -1,32 +1,29 @@
 import json
 from pathlib import Path
 
-import lerobot.data_platform.precompute.labeling.qwen_remote as qwen_remote
-import lerobot.data_platform.precompute.labeling.runner as labeling_runner
-from lerobot.data_platform.precompute.labeling import normalize_object_name, parse_task, select_bbox
-from lerobot.data_platform.precompute.labeling.bbox_select import select_bbox_with_context
-from lerobot.data_platform.precompute.labeling.qwen_dashscope import (
+import lerobot.data_platform.operators.implementations.labeling.qwen_remote as qwen_remote
+import lerobot.data_platform.operators.implementations.labeling.runner as labeling_runner
+from lerobot.data_platform.operators.implementations.labeling import (
+    normalize_object_name,
+    parse_task,
+    select_bbox,
+)
+from lerobot.data_platform.operators.implementations.labeling.bbox_select import select_bbox_with_context
+from lerobot.data_platform.operators.implementations.labeling.qwen_dashscope import (
     DASHSCOPE_MODELS,
     QwenDashScopeDetector,
+)
+from lerobot.data_platform.operators.implementations.labeling.qwen_dashscope import (
     normalize_base_url as normalize_dashscope_base_url,
 )
-from lerobot.data_platform.precompute.labeling.runner import (
-    _context_warnings_for_labeling,
-    _tag_context_for_labeling,
-    _target_prompt_for_backend,
-    _value_is_zero,
-    labeling_task_type,
-    run_labeling,
-    sample_episodes_by_task_type,
-)
-from lerobot.data_platform.precompute.labeling.qwen_remote import (
+from lerobot.data_platform.operators.implementations.labeling.qwen_remote import (
     DEFAULT_QWEN_ENDPOINT,
     PUBLIC_QWEN_ENDPOINT,
     QwenRemoteDetector,
     normalize_endpoint,
     parse_qwen_detections,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     available_label_variants,
     labels_path,
     load_episode_record,
@@ -39,6 +36,15 @@ from lerobot.data_platform.precompute.labeling.review import (
     save_reviewed_record,
     source_path,
     uncertainty,
+)
+from lerobot.data_platform.operators.implementations.labeling.runner import (
+    _context_warnings_for_labeling,
+    _tag_context_for_labeling,
+    _target_prompt_for_backend,
+    _value_is_zero,
+    labeling_task_type,
+    run_labeling,
+    sample_episodes_by_task_type,
 )
 
 
@@ -134,7 +140,7 @@ def test_trial_sampling_by_task_type(tmp_path: Path):
 
     meta = Meta()
     tasks = []
-    for idx in range(25):
+    for _ in range(25):
         tasks.append("Pick up the red cube")
         tasks.append("Pick up the dinosaur on the left")
         tasks.append("Pick up the brown dog to the right of the yellow duck")
@@ -143,7 +149,9 @@ def test_trial_sampling_by_task_type(tmp_path: Path):
 
     assert labeling_task_type(parse_task("Pick up the red cube")) == "single"
     assert labeling_task_type(parse_task("Pick up the dinosaur on the left")) == "absolute"
-    assert labeling_task_type(parse_task("Pick up the brown dog to the right of the yellow duck")) == "relative"
+    assert (
+        labeling_task_type(parse_task("Pick up the brown dog to the right of the yellow duck")) == "relative"
+    )
     assert labeling_task_type(parse_task("Give me the blue ball")) == "give"
 
     sample = sample_episodes_by_task_type(tmp_path, meta, per_type=20, seed=123)
@@ -383,7 +391,9 @@ def test_qwen_dashscope_detection_parsing_from_chat_completion():
         api_key="test-key",
         model="qwen3-vl-plus",
     )
-    assert normalize_dashscope_base_url(detector.base_url) == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert (
+        normalize_dashscope_base_url(detector.base_url) == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    )
     detected = detector.detect_for_prompt(DummyImage(), "duck")[0]
     assert detected["bbox"] == {"top": 10, "left": 10, "bottom": 20, "right": 30}
     assert detected["confidence"] == 0.9
@@ -498,7 +508,11 @@ def test_run_labeling_missing_mode_keeps_existing_and_runs_only_missing(monkeypa
     reviewed_path(labeling_dir, "qwen_dashscope").write_text(json.dumps(reviewed_record) + "\n")
 
     monkeypatch.setattr(labeling_runner, "load_detector", lambda *args, **kwargs: DummyDetector())
-    monkeypatch.setattr(labeling_runner, "read_first_frame_image", lambda *args, **kwargs: (object(), "observation.images.front"))
+    monkeypatch.setattr(
+        labeling_runner,
+        "read_first_frame_image",
+        lambda *args, **kwargs: (object(), "observation.images.front"),
+    )
     monkeypatch.setattr(labeling_runner, "_episode_exist_label_zero", lambda *args, **kwargs: False)
 
     result = run_labeling(
@@ -551,10 +565,16 @@ def test_run_labeling_full_mode_replaces_selected_and_clears_reviewed(monkeypatc
         "selected": None,
     }
     labels_path(labeling_dir, "qwen_dashscope").write_text(json.dumps(old_record) + "\n")
-    reviewed_path(labeling_dir, "qwen_dashscope").write_text(json.dumps({**old_record, "reviewed": True}) + "\n")
+    reviewed_path(labeling_dir, "qwen_dashscope").write_text(
+        json.dumps({**old_record, "reviewed": True}) + "\n"
+    )
 
     monkeypatch.setattr(labeling_runner, "load_detector", lambda *args, **kwargs: DummyDetector())
-    monkeypatch.setattr(labeling_runner, "read_first_frame_image", lambda *args, **kwargs: (object(), "observation.images.front"))
+    monkeypatch.setattr(
+        labeling_runner,
+        "read_first_frame_image",
+        lambda *args, **kwargs: (object(), "observation.images.front"),
+    )
     monkeypatch.setattr(labeling_runner, "_episode_exist_label_zero", lambda *args, **kwargs: False)
 
     result = run_labeling(

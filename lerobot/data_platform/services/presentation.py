@@ -18,14 +18,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.operators.implementations.data_profile import (
     dataset_semantics,
     has_body_joint_dimensions,
 )
-from lerobot.data_platform.precompute.labeling.review import (
+from lerobot.data_platform.operators.implementations.labeling.review import (
     labels_path,
 )
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
 )
 from lerobot.data_platform.services.cache import DatasetCacheService

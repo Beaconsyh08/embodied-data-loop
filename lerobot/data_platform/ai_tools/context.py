@@ -10,11 +10,11 @@ from urllib.parse import urlencode
 
 from sqlalchemy import or_, select
 
-from lerobot.data_platform.control_plane import DatasetLocation, RemoteJob, RemoteJobEvent
-from lerobot.data_platform.dataset_references import dataset_references
-from lerobot.data_platform.job_management import JobConflictError
-from lerobot.data_platform.management_storage import JobControl
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.control.storage import JobControl
+from lerobot.data_platform.control.store import DatasetLocation, RemoteJob, RemoteJobEvent
+from lerobot.data_platform.datasets.references import dataset_references
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 KINDS = {"general", "pipeline", "dataset", "quality", "job", "episode"}
 TOOL_BYTES = 20 * 1024

@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform import temporal_caption_snapshot as snapshots
-from lerobot.data_platform.lifecycle import build_content_manifest
-from lerobot.data_platform.temporal_caption_flora import FloraRuntime, acquire_gpu
+from lerobot.data_platform.datasets.lifecycle.service import build_content_manifest
+from lerobot.data_platform.operators.implementations.caption import snapshot as snapshots
+from lerobot.data_platform.operators.implementations.caption.flora import FloraRuntime, acquire_gpu
 
 
 @pytest.fixture
@@ -109,7 +109,7 @@ def _hold_gpu(config, ready, release):
 
 @pytest.mark.parametrize("count", [4, 8])
 def test_parallel_processes_get_distinct_gpus(tmp_path, monkeypatch, count):
-    from lerobot.data_platform import temporal_caption_flora as flora
+    from lerobot.data_platform.operators.implementations.caption import flora as flora
 
     monkeypatch.setattr(flora.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout="81920, 81916"))
     monkeypatch.setattr(flora, "_gpu_has_processes", lambda _: False)
@@ -134,7 +134,7 @@ def test_parallel_processes_get_distinct_gpus(tmp_path, monkeypatch, count):
 
 
 def test_old_executor_lock_and_busy_external_gpu_are_skipped(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora as flora
+    from lerobot.data_platform.operators.implementations.caption import flora as flora
 
     monkeypatch.setattr(
         flora.subprocess,
@@ -155,7 +155,7 @@ def test_old_executor_lock_and_busy_external_gpu_are_skipped(tmp_path, monkeypat
 
 
 def test_process_exit_releases_gpu_lock(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora as flora
+    from lerobot.data_platform.operators.implementations.caption import flora as flora
 
     monkeypatch.setattr(flora.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout="81920, 81916"))
     monkeypatch.setattr(flora, "_gpu_has_processes", lambda _: False)
@@ -174,7 +174,7 @@ def test_process_exit_releases_gpu_lock(tmp_path, monkeypatch):
 
 
 def test_gpu_pool_skips_low_memory_external_process(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora as flora
+    from lerobot.data_platform.operators.implementations.caption import flora as flora
 
     def query(args, **kwargs):
         if "-q" not in args:
@@ -197,7 +197,7 @@ def test_gpu_pool_skips_low_memory_external_process(tmp_path, monkeypatch):
     ],
 )
 def test_gpu_pool_rejects_missing_process_information(tmp_path, monkeypatch, xml):
-    from lerobot.data_platform import temporal_caption_flora as flora
+    from lerobot.data_platform.operators.implementations.caption import flora as flora
 
     def query(args, **kwargs):
         return SimpleNamespace(stdout=xml if "-q" in args else "81920, 80000")
@@ -211,7 +211,7 @@ def test_gpu_pool_rejects_missing_process_information(tmp_path, monkeypatch, xml
 
 
 def test_gpu_pool_timeout_when_all_locked(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora as flora
+    from lerobot.data_platform.operators.implementations.caption import flora as flora
 
     ticks = iter([0, 61])
     monkeypatch.setattr(flora.time, "monotonic", lambda: next(ticks))
@@ -231,7 +231,7 @@ def test_streaming_camera_pixels_match_previous_lossless_encoder(tmp_path, monke
     import numpy as np
     from PIL import Image
 
-    from lerobot.data_platform.temporal_caption_media import video_encoder
+    from lerobot.data_platform.operators.implementations.caption.media import video_encoder
 
     monkeypatch.setenv("DATA_PLATFORM_VIDEO_THREADS", "1")
     rng = np.random.default_rng(2)
@@ -324,7 +324,7 @@ def test_parallel_caption_checks_share_one_cold_scan(source, tmp_path, monkeypat
 
 
 def test_gpu_with_small_memory_process_is_not_selected(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora as flora
+    from lerobot.data_platform.operators.implementations.caption import flora as flora
 
     def smi(args, **kwargs):
         if "-q" in args:

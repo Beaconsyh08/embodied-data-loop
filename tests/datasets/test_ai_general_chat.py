@@ -6,8 +6,8 @@ import uuid
 import pytest
 
 from lerobot.data_platform.ai_tools.personalization import conversations
-from lerobot.data_platform.control_plane import ControlPlaneUser
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.control.store import ControlPlaneUser
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant, call, draft  # noqa: F401
 from tests.datasets.test_ai_assistant_context import text_response
 from tests.datasets.test_ai_assistant_runtime import processing_setup  # noqa: F401

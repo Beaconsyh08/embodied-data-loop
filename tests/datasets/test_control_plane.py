@@ -8,8 +8,8 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.schema import CreateTable
 
-from lerobot.data_platform import control_plane
-from lerobot.data_platform.control_plane import Base, ControlPlaneStore
+from lerobot.data_platform.control import store as control_plane
+from lerobot.data_platform.control.store import Base, ControlPlaneStore
 from lerobot.data_platform.routes.control_plane import (
     register_control_plane_auth_routes,
     register_control_plane_routes,
@@ -1048,7 +1048,7 @@ def test_heartbeat_coalesces_presence_and_disk_but_keeps_capability_changes(tmp_
 
 
 def test_catalog_sync_reports_real_changes_without_counting_presence_refresh(tmp_path, monkeypatch):
-    from lerobot.data_platform.control_plane import LocationSyncChanges
+    from lerobot.data_platform.control.store import LocationSyncChanges
 
     now = datetime(2026, 10, 10, 10)
     monkeypatch.setattr(control_plane, "_utcnow", lambda: now)

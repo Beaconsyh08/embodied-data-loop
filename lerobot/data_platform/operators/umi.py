@@ -110,7 +110,7 @@ def umi_operators(*, legacy=False):
                 description,
                 "umi",
                 "cache",
-                entry_point="lerobot.data_platform.precompute.umi." + entry,
+                entry_point="lerobot.data_platform.operators.implementations.umi." + entry,
                 parallel=True,
                 cancellable=True,
                 output_type="artifact",

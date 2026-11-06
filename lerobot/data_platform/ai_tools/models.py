@@ -4,7 +4,7 @@ from sqlalchemy import JSON, BigInteger, Double, Integer, LargeBinary, String, T
 from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from lerobot.data_platform.management_storage import ManagementBase
+from lerobot.data_platform.control.storage import ManagementBase
 
 
 class AssistantConversation(ManagementBase):

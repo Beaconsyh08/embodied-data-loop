@@ -91,7 +91,7 @@ def test_registered_operator_executes_and_publishes_without_agent_dispatch_chang
 
     from flask import Flask
 
-    from lerobot.data_platform.curation import validate_bundle
+    from lerobot.data_platform.datasets.curation import validate_bundle
     from lerobot.data_platform.operators import OperatorSpec, register_operator, registry
     from lerobot.data_platform.routes.processing import register_processing_routes
     from tests.datasets.test_data_platform_agent import _agent

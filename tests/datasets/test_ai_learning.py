@@ -19,7 +19,7 @@ from lerobot.data_platform.ai_tools.learning.models import (
 )
 from lerobot.data_platform.ai_tools.learning.service import Learning
 from lerobot.data_platform.ai_tools.models import AssistantTurn
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_ai_assistant import assistant  # noqa: F401
 from tests.datasets.test_ai_assistant_runtime import processing_setup  # noqa: F401
 from tests.datasets.test_ai_experience import history  # noqa: F401
@@ -255,7 +255,7 @@ def test_backfill_resume_dedup_and_source_revoke(history):  # noqa: F811
     import math
     from datetime import datetime
 
-    from lerobot.data_platform.control_plane import RemoteJob
+    from lerobot.data_platform.control.store import RemoteJob
     from lerobot.data_platform.processing.models import PipelineRun
 
     service, _, owner, body, snapshot = history
@@ -312,7 +312,7 @@ def test_backfill_resume_dedup_and_source_revoke(history):  # noqa: F811
 
 
 def test_manual_job_receipt_and_missing_receipt(learning, processing_setup):  # noqa: F811
-    from lerobot.data_platform.control_plane import RemoteJob
+    from lerobot.data_platform.control.store import RemoteJob
     from lerobot.data_platform.operators import get_operator
     from tests.datasets.test_processing import acknowledge
 
@@ -365,7 +365,7 @@ def test_budget_exhaustion_resumes_only_verification(learning):
 
 
 def test_role_revocation_and_source_deletion(learning):
-    from lerobot.data_platform.control_plane import ControlPlaneUser
+    from lerobot.data_platform.control.store import ControlPlaneUser
 
     learning, fake, owner, body, admin = learning
     enable(learning, admin, calls=10, tokens=100000)
@@ -646,7 +646,7 @@ def test_events_retention_runs_while_disabled_and_feedback_can_be_withdrawn(lear
 def test_legacy_turn_table_additive_migration(learning):
     from sqlalchemy import inspect
 
-    from lerobot.data_platform.management_storage import migrate_management
+    from lerobot.data_platform.control.storage import migrate_management
 
     learning, _, _, _, _ = learning
     engine = learning.store.engine
@@ -721,7 +721,7 @@ def test_manual_failure_classes_do_not_conflate_infrastructure(learning, process
 
 
 def test_missing_final_receipt_is_observation_until_verified(history):  # noqa: F811
-    from lerobot.data_platform.management_storage import JobControl
+    from lerobot.data_platform.control.storage import JobControl
     from lerobot.data_platform.processing.models import PipelineStepRun
 
     service, _, owner, _, snapshot = history
@@ -816,7 +816,7 @@ def test_case_review_provenance_and_renamed_hidden_case_rejection(history):  # n
 def test_live_collection_catches_delayed_coordinator_completion(history):  # noqa: F811
     from datetime import datetime
 
-    from lerobot.data_platform.control_plane import RemoteJob
+    from lerobot.data_platform.control.store import RemoteJob
     from lerobot.data_platform.processing.models import PipelineRun
 
     service, _, owner, _, _ = history

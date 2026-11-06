@@ -12,8 +12,8 @@ from lerobot.data_platform.operators import get_operator
 
 
 def execute_local_operator(agent, job: dict) -> dict:
-    from lerobot.data_platform.agent import _dataset_payload, _json_value, _require_within
-    from lerobot.data_platform.dataset_metadata import MetaOnlyDataset
+    from lerobot.data_platform.datasets.metadata import MetaOnlyDataset
+    from lerobot.data_platform.runtime.agent import _dataset_payload, _json_value, _require_within
 
     if not agent.name.startswith("local-"):
         raise PermissionError("Local computations require the registered local executor")
@@ -100,7 +100,7 @@ def execute_local_operator(agent, job: dict) -> dict:
         parameters["log"] = lambda message: agent.client.event(agent.state, job["job_id"], message)
     fingerprints = {}
     if spec.effect == "dataset" and spec.family == "preprocess":
-        from lerobot.data_platform.lifecycle import dataset_snapshot
+        from lerobot.data_platform.datasets.lifecycle.service import dataset_snapshot
 
         roots = parameters.get("src_roots") or [source, *(parameters.get("subtract_roots") or [])]
         fingerprints = {str(Path(root).resolve()): dataset_snapshot(Path(root))[0] for root in roots}

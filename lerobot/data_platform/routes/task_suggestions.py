@@ -9,15 +9,15 @@ from functools import wraps
 
 from flask import g, jsonify, request
 
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.qwen import QwenClient, dashscope_env_api_key
-from lerobot.data_platform.task_catalog import TaskConfigSnapshot
-from lerobot.data_platform.task_suggestions import (
+from lerobot.data_platform.ai_tools.qwen import QwenClient, dashscope_env_api_key
+from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot
+from lerobot.data_platform.datasets.tasks.suggestions import (
     PROMPT_VERSION,
     accepted_definitions,
     generate_suggestions,
     task_model,
 )
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_task_suggestion_routes(app, ctx, *, preview) -> None:
@@ -44,7 +44,7 @@ def register_task_suggestion_routes(app, ctx, *, preview) -> None:
 
     def job_by_id(job_id):
         if app.extensions.get("data_platform_route_context") is ctx and ctx.control_plane_store is not None:
-            from lerobot.data_platform.local_execution import local_job_payload
+            from lerobot.data_platform.runtime.local import local_job_payload
 
             try:
                 persistent = ctx.control_plane_store.get_job(job_id)

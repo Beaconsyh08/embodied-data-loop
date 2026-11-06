@@ -11,9 +11,14 @@ from urllib.parse import urlencode
 from flask import Response, abort, g, jsonify, render_template, request, send_file, stream_with_context
 from werkzeug.http import parse_range_header
 
-from lerobot.data_platform.caption_reads import VIDEO_CHUNK_BYTES
-from lerobot.data_platform.temporal_caption import artifact_key, validate_result
-from lerobot.data_platform.temporal_caption_demo import REVIEW_SCHEMES, SCHEMES, review_context, scheme_info
+from lerobot.data_platform.annotations.reads import VIDEO_CHUNK_BYTES
+from lerobot.data_platform.operators.implementations.caption.core import artifact_key, validate_result
+from lerobot.data_platform.operators.implementations.caption.demo import (
+    REVIEW_SCHEMES,
+    SCHEMES,
+    review_context,
+    scheme_info,
+)
 
 
 def register_temporal_caption_routes(app, ctx) -> None:
@@ -75,7 +80,7 @@ def register_temporal_caption_routes(app, ctx) -> None:
 
     @app.get("/api/temporal-caption/datasets")
     def temporal_caption_datasets():
-        from lerobot.data_platform.caption_catalog import caption_datasets
+        from lerobot.data_platform.annotations.catalog import caption_datasets
 
         rows, warnings = caption_datasets(ctx, getattr(g, "control_plane_user", None), caption_root())
         response = jsonify(datasets=rows, warnings=warnings)
@@ -127,7 +132,7 @@ def register_temporal_caption_routes(app, ctx) -> None:
                 max_segments=None if artifact.get("scheme_id") == "flora" else 40,
             )
             if artifact.get("scheme_id") == "flora":
-                from lerobot.data_platform.temporal_caption_flora import validate_flora
+                from lerobot.data_platform.operators.implementations.caption.flora import validate_flora
 
                 validate_flora(artifact)
         except (ValueError, KeyError, TypeError):
@@ -152,7 +157,7 @@ def register_temporal_caption_routes(app, ctx) -> None:
         return cameras if isinstance(cameras, list) and all(isinstance(c, str) for c in cameras) else []
 
     def memory_video_cameras(location_id, run):
-        from lerobot.data_platform.camera_layout import review_camera_order
+        from lerobot.data_platform.datasets.camera_layout import review_camera_order
 
         key, _, root, _, _ = resolve(location_id=location_id)
         artifact = read_artifact(root, run, "caption", key)
@@ -312,7 +317,7 @@ def register_temporal_caption_routes(app, ctx) -> None:
         path = root / run / "video.mp4"
         if not path.resolve().is_relative_to(root.resolve()) or not path.is_file():
             abort(404)
-        from lerobot.data_platform.camera_layout import ordered_review_video
+        from lerobot.data_platform.datasets.camera_layout import ordered_review_video
 
         cameras = review_video_cameras(root, run, artifact)
         path = ordered_review_video(path, cameras, root.parent / ".display-videos")

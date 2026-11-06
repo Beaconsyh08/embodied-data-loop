@@ -6,7 +6,7 @@ import time
 from dataclasses import asdict, dataclass
 
 from lerobot.data_platform.ai_tools.strategy_models import StrategySuite
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 
 
 @dataclass(frozen=True)

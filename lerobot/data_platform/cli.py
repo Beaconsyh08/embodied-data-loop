@@ -29,26 +29,27 @@ from tqdm.auto import tqdm
 
 from lerobot.common.datasets.lerobot_dataset import LeRobotDatasetMetadata
 from lerobot.common.utils.utils import init_logging
-from lerobot.data_platform.cache_files import resolve_cached_csv
-from lerobot.data_platform.operation_log import audit_cli_main
-from lerobot.data_platform.precompute.annotation import (
+from lerobot.data_platform.artifacts.audit import audit_cli_main
+from lerobot.data_platform.datasets.cache_files import resolve_cached_csv
+from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot
+from lerobot.data_platform.operators.implementations.annotation import (
     DEFAULT_FALLBACK_STAGE_COUNT,
     write_episode_csv,
 )
-from lerobot.data_platform.precompute.compare import CompareResult, run_compare_build
-from lerobot.data_platform.precompute.construction import (
+from lerobot.data_platform.operators.implementations.compare import CompareResult, run_compare_build
+from lerobot.data_platform.operators.implementations.construction import (
     ConstructionResult,
     default_synthetic_path,
     run_construction,
 )
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.operators.implementations.data_profile import (
     require_dataset_operation,
     resolve_data_profile,
     resolve_processing_profile,
 )
-from lerobot.data_platform.precompute.dataset_io import V3DatasetMetadata, is_v3_dataset
-from lerobot.data_platform.precompute.embedding import EmbeddingResult, run_embedding
-from lerobot.data_platform.precompute.labeling import (
+from lerobot.data_platform.operators.implementations.dataset_io import V3DatasetMetadata, is_v3_dataset
+from lerobot.data_platform.operators.implementations.embedding import EmbeddingResult, run_embedding
+from lerobot.data_platform.operators.implementations.labeling import (
     DEFAULT_BACKEND,
     DEFAULT_DASHSCOPE_BASE_URL,
     DEFAULT_DASHSCOPE_MODEL,
@@ -56,25 +57,25 @@ from lerobot.data_platform.precompute.labeling import (
     DEFAULT_QWEN_ENDPOINT,
     DEFAULT_QWEN_MODEL,
 )
-from lerobot.data_platform.precompute.labeling.review import merge_reviewed_labels_to_metadata
-from lerobot.data_platform.precompute.labeling.runner import (
+from lerobot.data_platform.operators.implementations.labeling.review import merge_reviewed_labels_to_metadata
+from lerobot.data_platform.operators.implementations.labeling.runner import (
     LabelingResult,
     run_labeling,
     sample_episodes_by_task_type,
 )
-from lerobot.data_platform.precompute.mixed_episode_viewer import (
+from lerobot.data_platform.operators.implementations.mixed_episode_viewer import (
     episode_viewer_spec,
     is_mixed_episode_viewer,
     write_mixed_episode_csv,
 )
-from lerobot.data_platform.precompute.mutations import (
+from lerobot.data_platform.operators.implementations.mutations import (
     fix_episode_indices,
     update_episode_stats_for_subtask_state,
     update_info_features,
     write_subtask_state_to_parquet,
     write_subtask_text_to_parquet,
 )
-from lerobot.data_platform.precompute.preprocess import (
+from lerobot.data_platform.operators.implementations.preprocess import (
     DEFAULT_V3_CONVERT_WORKERS,
     IMAGE_VIDEO_MODE_LEROBOT_OFFICIAL,
     IMAGE_VIDEO_MODES,
@@ -89,23 +90,28 @@ from lerobot.data_platform.precompute.preprocess import (
     run_standardize_dataset,
     run_subtract,
 )
-from lerobot.data_platform.precompute.signal_columns import SIGNAL_COLUMNS_VERSION, signal_columns
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.signal_columns import (
+    SIGNAL_COLUMNS_VERSION,
+    signal_columns,
+)
+from lerobot.data_platform.operators.implementations.tagging import (
     DEFAULT_VLM_BACKEND,
     DEFAULT_VLM_MODEL,
     TaggingResult,
     merge_tags_to_metadata,
     run_tagging,
 )
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
     DATA_VERSION_DVT2,
 )
-from lerobot.data_platform.precompute.v3_viewer import _load_episode_metadata, video_work_items
-from lerobot.data_platform.precompute.video import encode_episode_video
-from lerobot.data_platform.precompute.viewer_manifest import load_viewer_manifest, write_viewer_manifest
-from lerobot.data_platform.precompute.viewer_work import ViewerWork, run_viewer_work
-from lerobot.data_platform.task_catalog import TaskConfigSnapshot
+from lerobot.data_platform.operators.implementations.v3_viewer import _load_episode_metadata, video_work_items
+from lerobot.data_platform.operators.implementations.video import encode_episode_video
+from lerobot.data_platform.operators.implementations.viewer_manifest import (
+    load_viewer_manifest,
+    write_viewer_manifest,
+)
+from lerobot.data_platform.operators.implementations.viewer_work import ViewerWork, run_viewer_work
 
 
 @dataclass

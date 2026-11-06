@@ -4,10 +4,10 @@ from dataclasses import replace
 
 import pytest
 
-from lerobot.data_platform.control_plane import RemoteJob, _utcnow
-from lerobot.data_platform.management_storage import JobAttempt, JobControl
-from lerobot.data_platform.report_archive import archived_fields, hydrate_result
-from lerobot.data_platform.report_migration import ReportMigrator, checksum
+from lerobot.data_platform.artifacts.migration import ReportMigrator, checksum
+from lerobot.data_platform.artifacts.reports import archived_fields, hydrate_result
+from lerobot.data_platform.control.storage import JobAttempt, JobControl
+from lerobot.data_platform.control.store import RemoteJob, _utcnow
 from tests.datasets.test_artifact_store import archive  # noqa: F401
 from tests.datasets.test_job_management import setup  # noqa: F401
 
@@ -100,7 +100,7 @@ def test_restore_refuses_changed_records(setup, archive):  # noqa: F811
 
 
 def test_rollback_requires_inline_restore(setup, archive):  # noqa: F811
-    from lerobot.data_platform.report_archive import require_reader_compatibility
+    from lerobot.data_platform.artifacts.reports import require_reader_compatibility
 
     store, job_id, _ = completed(setup)
     archive.config = replace(archive.config, migration_enabled=True)

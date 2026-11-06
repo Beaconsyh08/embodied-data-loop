@@ -10,10 +10,14 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from lerobot.data_platform import mcap_contract, mcap_import
-from lerobot.data_platform.agent import discover_datasets
-from lerobot.data_platform.execution import input_fingerprint
-from lerobot.data_platform.mcap_contract import McapImportConfig, default_output_root
+from lerobot.data_platform._paths import PACKAGE_ROOT
+from lerobot.data_platform.operators.implementations.mcap import mcap_contract, mcap_import
+from lerobot.data_platform.operators.implementations.mcap.mcap_contract import (
+    McapImportConfig,
+    default_output_root,
+)
+from lerobot.data_platform.runtime.agent import discover_datasets
+from lerobot.data_platform.runtime.supervisor import input_fingerprint
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_data_platform_agent import _agent
 
@@ -70,7 +74,7 @@ def test_convert_page_selection_output_and_job_handoff():
     node = shutil.which("node")
     if node is None:
         pytest.skip("Node is required for the MCAP page behavior check")
-    template = (Path(mcap_import.__file__).parent / "templates" / "mcap_import.html").read_text()
+    template = (PACKAGE_ROOT / "templates" / "mcap_import.html").read_text()
     script = template.split("<script>", 1)[1].split("</script>", 1)[0]
     checks = """
 const assert = require('node:assert/strict');
@@ -417,7 +421,7 @@ def test_checkpoint_reuse_requires_matching_content(worker, tmp_path):
     ],
 )
 def test_conversion_worker_budget(monkeypatch, cpu, memory_gib, node_workers, inherited_workers, expected):
-    from lerobot.data_platform.execution_resources import ExecutionResources
+    from lerobot.data_platform.runtime.resources import ExecutionResources
 
     budget = ExecutionResources(cpu, memory_gib * 1024**3, node_workers, 4, 4)
     monkeypatch.setattr(ExecutionResources, "resolve", lambda: budget)

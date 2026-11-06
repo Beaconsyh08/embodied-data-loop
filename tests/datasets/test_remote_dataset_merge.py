@@ -11,8 +11,8 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pytest
 
-from lerobot.data_platform.precompute.dataset_io import V3DatasetMetadata, read_episode_table
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.operators.implementations.dataset_io import V3DatasetMetadata, read_episode_table
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 from tests.datasets.console_templates import template_source
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_data_platform_agent import _agent, _FakeClient
@@ -460,7 +460,7 @@ def test_prefix_tail_mapping_ui_preserves_source_order_and_requires_confirmation
     [("pad", None), ("min", [{"action": ["left", "right"]}, {"action": ["right", "body", "left"]}])],
 )
 def test_new_alignment_options_require_agent_capability(tmp_path, policy, mappings):
-    from lerobot.data_platform.control_plane import ControlPlaneNode
+    from lerobot.data_platform.control.store import ControlPlaneNode
 
     store, client, agent, locations, _ = _remote_setup(tmp_path)
     with store.sessions.begin() as session:
@@ -615,7 +615,7 @@ def test_index_position_form_builds_mappings_and_previews():
 
 @pytest.mark.parametrize("protocol", [2, 3])
 def test_remote_index_merge_is_gated_and_executed(tmp_path, protocol):
-    from lerobot.data_platform.control_plane import ControlPlaneNode
+    from lerobot.data_platform.control.store import ControlPlaneNode
 
     store, client, agent, locations, roots = _remote_setup(tmp_path)
     with store.sessions.begin() as session:

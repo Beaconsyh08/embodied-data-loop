@@ -5,9 +5,8 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-import lerobot.data_platform.precompute.tagging.vlm_backend as tag_vlm
-from lerobot.data_platform.precompute.tagging.schema import DEFAULT_SELECTED_TAG_NAMES, selected_tag_defs
-from lerobot.data_platform.precompute.tagging.review import (
+import lerobot.data_platform.operators.implementations.tagging.vlm_backend as tag_vlm
+from lerobot.data_platform.operators.implementations.tagging.review import (
     available_tag_variants,
     current_tags,
     load_episode_record,
@@ -19,12 +18,16 @@ from lerobot.data_platform.precompute.tagging.review import (
     source_path,
     tags_path,
 )
-from lerobot.data_platform.precompute.tagging.runner import (
+from lerobot.data_platform.operators.implementations.tagging.runner import (
     _prompt_action_allowed_objects,
     _sync_prompt_action_mismatch_flags,
     run_tagging,
 )
-from lerobot.data_platform.precompute.tagging.vlm_backend import (
+from lerobot.data_platform.operators.implementations.tagging.schema import (
+    DEFAULT_SELECTED_TAG_NAMES,
+    selected_tag_defs,
+)
+from lerobot.data_platform.operators.implementations.tagging.vlm_backend import (
     DashScopeVLMTagger,
     VLMTagger,
     _build_prompt_action_match_prompt,
@@ -36,7 +39,9 @@ from lerobot.data_platform.precompute.tagging.vlm_backend import (
 def test_background_tag_schema_matches_supported_classes():
     tags = {
         tag["name"]: tag
-        for tag in selected_tag_defs(["background", "background_color", "object_count", "prompt_action_match"])
+        for tag in selected_tag_defs(
+            ["background", "background_color", "object_count", "prompt_action_match"]
+        )
     }
     assert tags["background"]["options"] == ["round_table", "square_table", "tv_cabinet", "sofa"]
     assert tags["background_color"]["dtype"] == "str"
@@ -56,7 +61,11 @@ def test_dashscope_tagging_capabilities_include_qwen37_plus():
 def test_remote_qwen_tagging_value_normalization():
     tag_defs = selected_tag_defs(["background", "background_color", "object_count"])
     values = _normalize_values(
-        {"background_type": "rectangular table", "surface_color": "Light Brown", "num_objects": "three objects"},
+        {
+            "background_type": "rectangular table",
+            "surface_color": "Light Brown",
+            "num_objects": "three objects",
+        },
         tag_defs,
     )
     assert values == {"background": "square_table", "background_color": "light brown", "object_count": 3}
@@ -76,9 +85,12 @@ def test_remote_qwen_tagging_value_normalization():
     match_tag = selected_tag_defs(["prompt_action_match"])
     assert _normalize_values({"status": "incorrect object"}, match_tag) == {"prompt_action_match": "mismatch"}
     assert _normalize_values({"match": "yes"}, match_tag) == {"prompt_action_match": "match"}
-    assert _normalize_prompt_action_payload(
-        {"prompt_action_match": "mismatch", "observed_object": "beige bear"}
-    )["observed_object"] == "brown dog"
+    assert (
+        _normalize_prompt_action_payload(
+            {"prompt_action_match": "mismatch", "observed_object": "beige bear"}
+        )["observed_object"]
+        == "brown dog"
+    )
     assert _normalize_prompt_action_payload(
         {"prompt_action_match": "mismatch", "observed_object": "beige bear"},
         allowed_objects=["yellow duck", "brown dog"],
@@ -119,7 +131,10 @@ def test_remote_qwen_tagger_client_mock(monkeypatch):
     class DummyClient:
         def predict(self, **kwargs):
             captured.update(kwargs)
-            return ("preview", '```json\n{"background":"sofa","background_color":"gray","object_count":2}\n```')
+            return (
+                "preview",
+                '```json\n{"background":"sofa","background_color":"gray","object_count":2}\n```',
+            )
 
     class DummyImage:
         def convert(self, mode):
@@ -209,7 +224,9 @@ def test_prompt_action_mismatch_flags_sync(tmp_path: Path):
 
     issues = json.loads((static_dir / "annotation_issues.json").read_text())
     assert summary["mismatch_episode_count"] == 1
-    assert any(issue.get("episode") == 0 and issue.get("reason") == "prompt_action_mismatch" for issue in issues)
+    assert any(
+        issue.get("episode") == 0 and issue.get("reason") == "prompt_action_mismatch" for issue in issues
+    )
     assert {"episode": 2, "type": "error", "reason": "existing_stage_issue"} in issues
     assert json.loads((static_dir / "flagged_episodes.json").read_text())["flagged_episodes"] == [0, 2, 3]
 

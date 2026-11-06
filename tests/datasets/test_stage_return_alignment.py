@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
-from lerobot.data_platform.precompute.preprocess.stage_return_alignment import (
+from lerobot.data_platform.operators.implementations.preprocess.stage_return_alignment import (
     DEFAULT_ARM_INDICES,
     _align_episode_action,
     run_stage_return_alignment,

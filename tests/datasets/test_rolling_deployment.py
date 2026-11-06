@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform.rolling_deployment import (
+from lerobot.data_platform.ops.rolling import (
     ExecutorGeneration,
     compatible_contracts,
     execution_belongs_here,
@@ -68,7 +68,7 @@ def test_generation_only_reconciles_its_own_attempts(monkeypatch):
 
 
 def test_same_release_supervision_lock_is_exclusive_and_recoverable(tmp_path):
-    from lerobot.data_platform.execution import ExecutionSupervisor
+    from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor
     from tests.datasets.test_execution_supervisor import Client, fake_agent
 
     first = ExecutionSupervisor(fake_agent(tmp_path, Client()))
@@ -85,8 +85,8 @@ def test_same_release_supervision_lock_is_exclusive_and_recoverable(tmp_path):
 
 
 def test_pruning_preserves_all_running_executor_releases(tmp_path, monkeypatch):
-    from lerobot.data_platform.deployment import Deployment
-    from lerobot.data_platform.releases import prune_deployment_history
+    from lerobot.data_platform.ops.deployment import Deployment
+    from lerobot.data_platform.ops.releases import prune_deployment_history
 
     monkeypatch.setattr(Deployment, "root", property(lambda self: tmp_path))
     parent = tmp_path / "releases"
@@ -105,7 +105,7 @@ def test_pruning_preserves_all_running_executor_releases(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("release", [None, "old", "new"])
 def test_old_generation_cannot_claim_new_tasks_but_can_finish_its_attempt(setup, monkeypatch, release):
-    from lerobot.data_platform.control_plane import ControlPlaneNode
+    from lerobot.data_platform.control.store import ControlPlaneNode
 
     store, _, owner, node, _, create = setup
     old_caps = {**node["capabilities"], "release": "old", "rolling_deploy_protocol": 1}
@@ -131,7 +131,7 @@ def test_old_generation_cannot_claim_new_tasks_but_can_finish_its_attempt(setup,
 
 
 def test_new_release_does_not_reconcile_old_live_markers(tmp_path, monkeypatch):
-    from lerobot.data_platform.execution import ExecutionSupervisor, atomic_json
+    from lerobot.data_platform.runtime.supervisor import ExecutionSupervisor, atomic_json
     from tests.datasets.test_execution_supervisor import Client, fake_agent
 
     monkeypatch.setenv("DATA_PLATFORM_EXECUTOR_RELEASE", "/releases/new")
@@ -178,9 +178,9 @@ def test_node_slots_are_shared_by_old_and_new_generations(setup, monkeypatch):
 
 
 def test_persistent_pending_attempt_protects_release_during_executor_restart(tmp_path, monkeypatch):
-    from lerobot.data_platform.deployment import Deployment
-    from lerobot.data_platform.execution import atomic_json
-    from lerobot.data_platform.releases import prune_deployment_history
+    from lerobot.data_platform.ops.deployment import Deployment
+    from lerobot.data_platform.ops.releases import prune_deployment_history
+    from lerobot.data_platform.runtime.supervisor import atomic_json
 
     monkeypatch.setattr(Deployment, "root", property(lambda self: tmp_path / "installed"))
     monkeypatch.setenv("DATA_PLATFORM_OUTPUT_DIR", str(tmp_path / "output"))
@@ -206,9 +206,9 @@ def test_persistent_pending_attempt_protects_release_during_executor_restart(tmp
 def test_rolling_readiness_checks_live_agents_and_every_retained_generation(
     tmp_path, monkeypatch, setup, bad
 ):
-    from lerobot.data_platform.control_plane import RemoteJob
-    from lerobot.data_platform.deployment import Deployment
-    from lerobot.data_platform.execution import atomic_json
+    from lerobot.data_platform.control.store import RemoteJob
+    from lerobot.data_platform.ops.deployment import Deployment
+    from lerobot.data_platform.runtime.supervisor import atomic_json
 
     store, _, _, _, _, create = setup
     monkeypatch.setattr(Deployment, "root", property(lambda self: tmp_path))
@@ -256,9 +256,10 @@ def test_rolling_readiness_checks_live_agents_and_every_retained_generation(
 def test_running_compute_survives_live_server_upgrade_and_health_failure(
     tmp_path, monkeypatch, setup, failure
 ):
-    from lerobot.data_platform import deployment_backup, environment, maintenance, release_cli, releases
-    from lerobot.data_platform.deployment import AgentTarget, Deployment
-    from lerobot.data_platform.execution import atomic_json
+    from lerobot.data_platform.ops import backup as deployment_backup
+    from lerobot.data_platform.ops import environment, maintenance, release_cli, releases
+    from lerobot.data_platform.ops.deployment import AgentTarget, Deployment
+    from lerobot.data_platform.runtime.supervisor import atomic_json
 
     store, _, _, _, _, _ = setup
     monkeypatch.setattr(Deployment, "root", property(lambda self: tmp_path / "installed"))
@@ -269,9 +270,7 @@ def test_running_compute_survives_live_server_upgrade_and_health_failure(
     monkeypatch.setattr(release_cli, "agent_targets", lambda: [AgentTarget("host", "key", ("remote",))])
     monkeypatch.setattr(release_cli, "agent_preflight", lambda _: None)
     monkeypatch.setattr(releases, "verify_release", lambda *_args, **_kwargs: (tmp_path, contract()))
-    monkeypatch.setattr(
-        "lerobot.data_platform.rolling_deployment.rolling_ready", lambda *_args, **_kwargs: True
-    )
+    monkeypatch.setattr("lerobot.data_platform.ops.rolling.rolling_ready", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(
         maintenance, "wait_until_idle", lambda *_: pytest.fail("Live upgrade must not wait for compute")
     )
@@ -326,8 +325,8 @@ def test_running_compute_survives_live_server_upgrade_and_health_failure(
 
 
 def test_rolling_backup_cannot_restore_mid_attempt_state(tmp_path, monkeypatch):
-    from lerobot.data_platform.deployment import Deployment
-    from lerobot.data_platform.deployment_backup import validate_backup
+    from lerobot.data_platform.ops.backup import validate_backup
+    from lerobot.data_platform.ops.deployment import Deployment
 
     monkeypatch.setenv("DATA_PLATFORM_INSTANCE_ID", "instance")
     (tmp_path / "backup.json").write_text(

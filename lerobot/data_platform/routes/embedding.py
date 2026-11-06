@@ -6,24 +6,24 @@ from pathlib import Path
 
 from flask import jsonify, render_template, request
 
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.precompute.data_profile import require_dataset_operation
-from lerobot.data_platform.precompute.embedding import (
+from lerobot.data_platform.operators.implementations.data_profile import require_dataset_operation
+from lerobot.data_platform.operators.implementations.embedding import (
     get_capabilities as get_embedding_capabilities,
 )
-from lerobot.data_platform.precompute.embedding import (
+from lerobot.data_platform.operators.implementations.embedding import (
     load_points as load_embedding_points,
 )
-from lerobot.data_platform.precompute.embedding import (
+from lerobot.data_platform.operators.implementations.embedding import (
     load_source as load_embedding_source,
 )
-from lerobot.data_platform.precompute.embedding import (
+from lerobot.data_platform.operators.implementations.embedding import (
     project_existing_embeddings,
     reducer_capabilities,
     run_embedding,
 )
 from lerobot.data_platform.processing.commands import build_command
 from lerobot.data_platform.routes.context import RouteContext
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_embedding_routes(app, ctx: RouteContext) -> None:

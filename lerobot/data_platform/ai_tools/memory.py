@@ -9,7 +9,7 @@ from sqlalchemy import update
 
 from lerobot.data_platform.ai_tools.models import AssistantFollowup, AssistantMemory
 from lerobot.data_platform.ai_tools.security import DisclosureGuard
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 DEFAULTS = {"enabled": True, "followups_enabled": True}
 LIMIT = 20

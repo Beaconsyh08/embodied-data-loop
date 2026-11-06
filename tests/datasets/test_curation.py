@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from lerobot.data_platform.curation import (
+from lerobot.data_platform.datasets.curation import (
     CurationSnapshot,
     CurationTarget,
     artifact_path,
@@ -14,8 +14,8 @@ from lerobot.data_platform.curation import (
     register_snapshot,
     scan_snapshot,
 )
-from lerobot.data_platform.curation_execution import validate_parameters
-from lerobot.data_platform.lifecycle import LifecycleStore
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
+from lerobot.data_platform.operators.implementations.curation import validate_parameters
 from tests.datasets.test_lifecycle import _make_dataset, _snapshot
 
 
@@ -104,8 +104,8 @@ def test_input_download_checks_lease_credentials_and_content(tmp_path, monkeypat
     import hashlib
     from types import SimpleNamespace
 
-    from lerobot.data_platform.agent import AgentClient
-    from lerobot.data_platform.execution import StopRequestedError
+    from lerobot.data_platform.runtime.agent import AgentClient
+    from lerobot.data_platform.runtime.supervisor import StopRequestedError
 
     client = AgentClient("https://curation.invalid", verify=False)
     calls = []

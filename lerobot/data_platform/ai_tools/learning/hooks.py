@@ -24,9 +24,9 @@ def job_admitted(store, session, job, location):
 
     from lerobot.data_platform.ai_tools.learning.models import LearningJobReceipt
     from lerobot.data_platform.ai_tools.strategy_contracts import OPERATORS
+    from lerobot.data_platform.datasets.tasks.catalog import content_digest
     from lerobot.data_platform.operators import get_operator
     from lerobot.data_platform.processing.service import location_identity
-    from lerobot.data_platform.task_catalog import content_digest
 
     try:
         with session.begin_nested():

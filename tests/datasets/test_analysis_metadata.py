@@ -7,16 +7,16 @@ from types import SimpleNamespace
 import pytest
 
 from lerobot.data_platform import viewer
-from lerobot.data_platform.agent import discover_datasets
-from lerobot.data_platform.lifecycle import LifecycleStore
-from lerobot.data_platform.precompute.analysis import (
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
+from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot, builtin_catalog
+from lerobot.data_platform.operators.implementations.analysis import (
     AnalysisMetadata,
     analysis_input_digest,
     build_dataset_analysis,
 )
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 from lerobot.data_platform.routes.analysis import register_remote_analysis_routes
-from lerobot.data_platform.task_catalog import TaskConfigSnapshot, builtin_catalog
+from lerobot.data_platform.runtime.agent import discover_datasets
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_lifecycle import _make_dataset, _snapshot, _write_jsonl
 

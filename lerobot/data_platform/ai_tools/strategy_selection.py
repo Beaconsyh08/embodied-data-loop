@@ -7,10 +7,10 @@ import re
 from dataclasses import dataclass
 
 from lerobot.data_platform.ai_tools.strategy_contracts import PARAMETERS, validate_strategy
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
 from lerobot.data_platform.operators import get_operator
 from lerobot.data_platform.operators.schema import validate_parameters
 from lerobot.data_platform.processing.planner import PipelineSpec, availability
-from lerobot.data_platform.task_catalog import content_digest
 
 
 @dataclass(frozen=True)

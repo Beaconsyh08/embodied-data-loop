@@ -6,8 +6,8 @@ from flask import jsonify, render_template, request
 
 from lerobot.data_platform.ai_tools.learning import cases
 from lerobot.data_platform.ai_tools.learning.service import Learning
-from lerobot.data_platform.job_management import JobConflictError
 from lerobot.data_platform.routes.control_plane import _current_user
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def register_learning_routes(app, ctx):

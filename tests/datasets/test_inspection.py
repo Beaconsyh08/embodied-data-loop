@@ -10,7 +10,7 @@ import pyarrow.parquet as pq
 import pytest
 from flask import Flask
 
-from lerobot.data_platform.precompute.inspection import MAX_RESPONSE_BYTES, DatasetInspection
+from lerobot.data_platform.operators.implementations.inspection import MAX_RESPONSE_BYTES, DatasetInspection
 from lerobot.data_platform.routes.inspect import register_inspect_routes
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_lifecycle import _make_dataset

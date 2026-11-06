@@ -14,8 +14,8 @@ import pyarrow.parquet as pq
 import pytest
 from flask import request
 
-from lerobot.data_platform.caption_reads import MAX_REPLY_BYTES, CaptionReadRelay
-from lerobot.data_platform.dataset_captions import read_dataset_caption
+from lerobot.data_platform.annotations.dataset import read_dataset_caption
+from lerobot.data_platform.annotations.reads import MAX_REPLY_BYTES, CaptionReadRelay
 from lerobot.data_platform.routes.temporal_caption import register_temporal_caption_routes
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_temporal_caption import result
@@ -116,8 +116,8 @@ def test_fresh_discovery_does_not_depend_on_registry_or_accept_incomplete_episod
 
 
 def test_scan_counts_agent_outputs_without_loading_caption_json_or_video(tmp_path, monkeypatch):
-    from lerobot.data_platform import dataset_captions
-    from lerobot.data_platform.agent import discover_datasets
+    from lerobot.data_platform.annotations import dataset as dataset_captions
+    from lerobot.data_platform.runtime.agent import discover_datasets
 
     root = dataset(tmp_path / "source")
     first = episode(root)
@@ -213,7 +213,9 @@ def live(tmp_path, monkeypatch):
     client = app.test_client()
     _bootstrap(client)
     worker = SimpleNamespace(allowed_roots=[tmp_path], state_path=tmp_path / "state/agent.json")
-    monkeypatch.setattr("lerobot.data_platform.camera_layout.ordered_review_video", lambda path, *_: path)
+    monkeypatch.setattr(
+        "lerobot.data_platform.datasets.camera_layout.ordered_review_video", lambda path, *_: path
+    )
     stop = threading.Event()
     failures = []
 
@@ -249,7 +251,7 @@ def test_agent_catalog_real_browser(live, tmp_path, monkeypatch):
     """Switch between two Agent-only datasets using the real authenticated catalog and relay."""
     from werkzeug.serving import make_server
 
-    from lerobot.data_platform.agent import discover_datasets
+    from lerobot.data_platform.runtime.agent import discover_datasets
 
     playwright = pytest.importorskip("playwright.sync_api")
     executable = os.environ.get("DATA_PLATFORM_BROWSER_EXECUTABLE")
@@ -388,7 +390,7 @@ def test_video_change_during_read_is_rejected(live):
 
 
 def test_offline_source_read_does_not_hide_existing_published_results(live, tmp_path, monkeypatch):
-    from lerobot.data_platform.temporal_caption_jobs import publish_run
+    from lerobot.data_platform.annotations.jobs import publish_run
     from tests.datasets.test_temporal_caption_jobs import make_hybrid_run
 
     client, store, _, location, _, _, published, _ = live
@@ -405,7 +407,7 @@ def test_offline_source_read_does_not_hide_existing_published_results(live, tmp_
 
 
 def test_video_larger_than_one_reply_is_streamed_in_bounded_chunks(live):
-    from lerobot.data_platform.caption_reads import VIDEO_CHUNK_BYTES
+    from lerobot.data_platform.annotations.reads import VIDEO_CHUNK_BYTES
 
     client, _, root, location, _, _, published, ctx = live
     video = root / "output/hybrid_window_event/episode_000000/video.mp4"

@@ -11,16 +11,16 @@ from lerobot.data_platform.operators.schema import validate_parameters
 
 
 def execute_registered(agent, job, source: Path, location: dict) -> dict:
-    from lerobot.data_platform.agent import (
+    from lerobot.data_platform.datasets.curation import bundle_manifest
+    from lerobot.data_platform.runtime.agent import (
         _dataset_payload,
         _json_value,
         _require_safe_output,
         _require_within,
     )
-    from lerobot.data_platform.curation import bundle_manifest
-    from lerobot.data_platform.execution import atomic_json
-    from lerobot.data_platform.execution_pools import check_stop
-    from lerobot.data_platform.execution_resources import ExecutionResources
+    from lerobot.data_platform.runtime.pools import check_stop
+    from lerobot.data_platform.runtime.resources import ExecutionResources
+    from lerobot.data_platform.runtime.supervisor import atomic_json
 
     spec = get_operator(job["operation"], job.get("_operator_version"))
     options = job["options"]
@@ -83,12 +83,12 @@ def execute_registered(agent, job, source: Path, location: dict) -> dict:
             or Path(value.derived_datasets[0]["root"]).resolve() != output.resolve()
         ):
             raise ValueError("Operator must return its one declared dataset output")
-        from lerobot.data_platform.lifecycle import validate_materialized_dataset
-        from lerobot.data_platform.precompute.dataset_io import load_episode_records
+        from lerobot.data_platform.datasets.lifecycle.service import validate_materialized_dataset
+        from lerobot.data_platform.operators.implementations.dataset_io import load_episode_records
 
         validate_materialized_dataset(output, expected_episode_count=len(load_episode_records(output)))
         result["dataset_location"] = _dataset_payload(output, node_name=agent.name)
-        from lerobot.data_platform.precompute.preprocess.common import PreprocessResult
+        from lerobot.data_platform.operators.implementations.preprocess.common import PreprocessResult
 
         info = result["dataset_location"]["metadata"]
         result["preprocess"] = _json_value(

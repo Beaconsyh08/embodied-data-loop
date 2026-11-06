@@ -9,13 +9,13 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
+from lerobot.data_platform.access.mcp import McpCredential, authenticate, credentials
 from lerobot.data_platform.ai_tools.actions import confirm
 from lerobot.data_platform.ai_tools.external import ExternalTools
 from lerobot.data_platform.ai_tools.models import AssistantTurn
 from lerobot.data_platform.ai_tools.service import AssistantConfig, AssistantService
-from lerobot.data_platform.control_plane import ControlPlaneUser
-from lerobot.data_platform.management_storage import AuditOutbox
-from lerobot.data_platform.mcp_access import McpCredential, authenticate, credentials
+from lerobot.data_platform.control.storage import AuditOutbox
+from lerobot.data_platform.control.store import ControlPlaneUser
 from lerobot.data_platform.routes.ai_assistant import register_ai_assistant_routes
 from lerobot.data_platform.routes.mcp import register_mcp_routes
 from tests.datasets.test_ai_assistant_context import bind_lifecycle
@@ -236,7 +236,7 @@ def test_cookie_cannot_call_mcp_and_bearer_cannot_manage_credentials(mcp):
 
 def test_dataset_scope_revocation_hides_context_and_prepared_action(mcp):
     service, client, owner, location, credential = mcp
-    from lerobot.data_platform.control_plane import DataMutationScope
+    from lerobot.data_platform.control.store import DataMutationScope
 
     args = {
         "location_id": location,

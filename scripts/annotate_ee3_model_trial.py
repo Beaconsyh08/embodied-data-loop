@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from lerobot.data_platform.execution import atomic_json
-from lerobot.data_platform.mem_export import digest as file_digest
+from lerobot.data_platform.ai_tools.qwen import QwenClient
+from lerobot.data_platform.artifacts.mem_export import digest as file_digest
 from lerobot.data_platform.memory import ai_review
 from lerobot.data_platform.memory.contracts import checkpoints, digest, provider_config_digest
 from lerobot.data_platform.memory.model_trial import BALANCED_CHECK, CHECK, DRAFT, TEXT_TARGET_RULES, annotate
 from lerobot.data_platform.memory.source_repair import CAMERAS
-from lerobot.data_platform.qwen import QwenClient
-from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+from lerobot.data_platform.operators.implementations.caption.snapshot import caption_source_fingerprint
+from lerobot.data_platform.runtime.supervisor import atomic_json
 
 
 def main():

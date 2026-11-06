@@ -45,7 +45,7 @@ class ConsoleJobService:
         controls = {}
         control_id = job.get("control_job_id") or job.get("persistent_job_id")
         if self.control_plane_store is not None and control_id:
-            from lerobot.data_platform.local_execution import local_job_payload
+            from lerobot.data_platform.runtime.local import local_job_payload
 
             if persistent is None:
                 persistent = self.control_plane_store.job_manager.decorate(

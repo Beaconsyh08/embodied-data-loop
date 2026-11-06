@@ -15,11 +15,15 @@ from scipy.spatial.transform import Rotation
 
 from lerobot.data_platform.operators import ExecutionContext, get_operator
 from lerobot.data_platform.operators.execution import execute_registered
+from lerobot.data_platform.operators.implementations.umi.comparison import run_comparison
+from lerobot.data_platform.operators.implementations.umi.diagnostics import (
+    diagnose,
+    diagnose_part,
+    episode_table,
+)
+from lerobot.data_platform.operators.implementations.umi.runtime import runtime_unavailable
+from lerobot.data_platform.operators.implementations.umi.worker import apply_frozen_alignment
 from lerobot.data_platform.operators.schema import validate_parameters
-from lerobot.data_platform.precompute.umi.comparison import run_comparison
-from lerobot.data_platform.precompute.umi.diagnostics import diagnose, diagnose_part, episode_table
-from lerobot.data_platform.precompute.umi.runtime import runtime_unavailable
-from lerobot.data_platform.precompute.umi.worker import apply_frozen_alignment
 from lerobot.data_platform.processing.planner import PipelineSpec
 from tests.datasets.test_lifecycle import _snapshot
 from tests.datasets.test_quality_eef import make_eef
@@ -248,8 +252,8 @@ def test_replay_freezes_world_hand_head_mapping_and_initial_height():
 
 
 def test_gpu_worker_publishes_evidence_without_private_conversion(tmp_path, monkeypatch):
-    from lerobot.data_platform import temporal_caption_flora
-    from lerobot.data_platform.precompute.umi import runtime
+    from lerobot.data_platform.operators.implementations.caption import flora as temporal_caption_flora
+    from lerobot.data_platform.operators.implementations.umi import runtime
 
     source = native(tmp_path / "source")
     work = tmp_path / "attempt/bundle/static"
@@ -296,7 +300,7 @@ def test_gpu_worker_publishes_evidence_without_private_conversion(tmp_path, monk
 
 
 def test_umi_diagnose_job_publishes_verified_artifacts(tmp_path):
-    from lerobot.data_platform.curation import validate_bundle
+    from lerobot.data_platform.datasets.curation import validate_bundle
     from tests.datasets.test_data_platform_agent import _agent
 
     source = native(tmp_path / "source")
@@ -423,7 +427,7 @@ def test_foreign_python_workers_do_not_inherit_host_site_packages(tmp_path, monk
     import subprocess
     import sys
 
-    from lerobot.data_platform.precompute.umi import diagnostics, worker
+    from lerobot.data_platform.operators.implementations.umi import diagnostics, worker
 
     source = native(tmp_path / "source")
     out = tmp_path / "output"

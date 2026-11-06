@@ -91,13 +91,14 @@ def test_missing_dataset_file_reaches_child_parent_and_owner_only(api, monkeypat
     monkeypatch.setattr("services.flora_api.worker.shutil.disk_usage", lambda _: SimpleNamespace(free=10**12))
     monkeypatch.setattr("services.flora_api.datasets.resolve_dataset", lambda *args: source)
     monkeypatch.setattr(
-        "lerobot.data_platform.temporal_caption_snapshot.caption_source_fingerprint", lambda *a: "same"
+        "lerobot.data_platform.operators.implementations.caption.snapshot.caption_source_fingerprint",
+        lambda *a: "same",
     )
 
     def missing(*args, **kwargs):
         raise FileNotFoundError(2, "No such file", str(source / "meta/episodes_stats.jsonl"))
 
-    monkeypatch.setattr("lerobot.data_platform.temporal_caption.prepare", missing)
+    monkeypatch.setattr("lerobot.data_platform.operators.implementations.caption.core.prepare", missing)
     child = store.claim()
     execute(store, child, lambda *a, **k: pytest.fail("Inference must not run"))
     response = client.get(f"/v1/flora/jobs/{child['id']}", headers=headers["a"])
@@ -306,16 +307,18 @@ def test_shared_platform_gpu_lock_is_respected(tmp_path, monkeypatch):
     import fcntl
     from types import SimpleNamespace
 
-    from lerobot.data_platform.temporal_caption_flora import FloraRuntime, acquire_gpu
+    from lerobot.data_platform.operators.implementations.caption.flora import FloraRuntime, acquire_gpu
 
     config = FloraRuntime(
         Path("/python"), Path("/python"), Path("/code"), Path("/weights"), tmp_path, gpus=(0, 1)
     )
     monkeypatch.setattr(
-        "lerobot.data_platform.temporal_caption_flora.subprocess.run",
+        "lerobot.data_platform.operators.implementations.caption.flora.subprocess.run",
         lambda *a, **k: SimpleNamespace(stdout="81920,81000"),
     )
-    monkeypatch.setattr("lerobot.data_platform.temporal_caption_flora._gpu_has_processes", lambda _: False)
+    monkeypatch.setattr(
+        "lerobot.data_platform.operators.implementations.caption.flora._gpu_has_processes", lambda _: False
+    )
     with (tmp_path / "gpu-0.lock").open("a") as platform_lock:
         fcntl.flock(platform_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with acquire_gpu(config, lambda _: None) as allocated:

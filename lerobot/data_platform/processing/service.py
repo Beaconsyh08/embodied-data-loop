@@ -10,11 +10,11 @@ from pathlib import PurePosixPath
 
 from sqlalchemy import select
 
-from lerobot.data_platform.job_management import JobConflictError, scheduler_lock
-from lerobot.data_platform.management_storage import enqueue_event
-from lerobot.data_platform.operation_log import build_operation_event
+from lerobot.data_platform.artifacts.audit import build_operation_event
+from lerobot.data_platform.control.storage import enqueue_event
+from lerobot.data_platform.datasets.tasks.catalog import TaskConfigSnapshot, content_digest
 from lerobot.data_platform.operators import get_operator
-from lerobot.data_platform.task_catalog import TaskConfigSnapshot, content_digest
+from lerobot.data_platform.runtime.jobs import JobConflictError, scheduler_lock
 
 from .models import Pipeline, PipelineRun, PipelineStepRun, PipelineVersion
 from .planner import PipelineSpec, availability
@@ -67,7 +67,7 @@ class PipelineManager:
         self.lifecycle = lifecycle
 
     def _actor(self, session, owner: str, *, write: bool = True):
-        from lerobot.data_platform.control_plane import ControlPlaneUser
+        from lerobot.data_platform.control.store import ControlPlaneUser
 
         actor = session.get(ControlPlaneUser, owner)
         if not actor or not actor.active or write and actor.role not in {"admin", "data_manager", "operator"}:
@@ -84,7 +84,7 @@ class PipelineManager:
         write=True,
         allow_retired=False,
     ):
-        from lerobot.data_platform.control_plane import ControlPlaneNode, DatasetLocation
+        from lerobot.data_platform.control.store import ControlPlaneNode, DatasetLocation
 
         actor = self._actor(session, owner, write=write)
         location = session.get(DatasetLocation, location_id)
@@ -479,7 +479,7 @@ class PipelineManager:
                 query = query.where(PipelineRun.location_id == location_id)
             from sqlalchemy.orm import load_only
 
-            from lerobot.data_platform.list_queries import parse_time
+            from lerobot.data_platform.control.queries import parse_time
 
             filters = filters or {}
             if filters.get("status"):
@@ -666,7 +666,7 @@ class PipelineManager:
         elif spec.family == "viewer":
             options["task_config"] = task_config
         elif spec.family == "caption":
-            from lerobot.data_platform.temporal_caption_jobs import validate_options, validate_source
+            from lerobot.data_platform.annotations.jobs import validate_options, validate_source
 
             validate_source(self._info(location))
             options = validate_options(options)
@@ -772,8 +772,8 @@ class PipelineManager:
         return target
 
     def tick(self, run_id: str) -> None:
-        from lerobot.data_platform.control_plane import RemoteJob
-        from lerobot.data_platform.maintenance import is_maintenance
+        from lerobot.data_platform.control.store import RemoteJob
+        from lerobot.data_platform.ops.maintenance import is_maintenance
 
         self._reconcile_action(run_id)
         with self.store.sessions.begin() as session:
@@ -998,7 +998,7 @@ class PipelineManager:
         return {"workspace_id": workspace.workspace_id, "workspace_revision": workspace.revision}
 
     def action(self, owner: str, run_id: str, action: str, body: dict) -> dict:
-        from lerobot.data_platform.control_plane import RemoteJob
+        from lerobot.data_platform.control.store import RemoteJob
 
         if action not in {"cancel", "retry"}:
             raise ValueError("Unknown pipeline action")

@@ -104,8 +104,8 @@ def test_viewer_signal_groups_remain_visible_after_refresh_and_toggles(robot):
     import shutil
     import subprocess
 
-    from lerobot.data_platform.precompute.signal_columns import signal_columns
-    from lerobot.data_platform.precompute.viewer_signals import viewer_signal_presentation
+    from lerobot.data_platform.operators.implementations.signal_columns import signal_columns
+    from lerobot.data_platform.operators.implementations.viewer_signals import viewer_signal_presentation
 
     node = shutil.which("node")
     if node is None:

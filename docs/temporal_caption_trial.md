@@ -43,7 +43,7 @@ and never writes them into training metadata. Human verification is still requir
 Run preparation on the Agent host, with its existing environment. The output must not already exist:
 
 ```bash
-python -m lerobot.data_platform.temporal_caption prepare \
+python -m lerobot.data_platform.operators.implementations.caption.core prepare \
   --root /path/to/image-backed-dataset --episode 0 --output /path/to/episode-bundle
 ```
 
@@ -57,11 +57,11 @@ Use a dedicated experiment root (or the console's lifecycle `temporal_captions` 
 ```bash
 export CAPTION_ROOT=/path/to/caption-artifacts
 export DATASET_KEY=namespace/registered-dataset
-CAPTION_KEY=$(python -c 'import os; from lerobot.data_platform.temporal_caption import artifact_key; print(artifact_key(os.environ["DATASET_KEY"]))')
-python -m lerobot.data_platform.temporal_caption infer \
+CAPTION_KEY=$(python -c 'import os; from lerobot.data_platform.operators.implementations.caption.core import artifact_key; print(artifact_key(os.environ["DATASET_KEY"]))')
+python -m lerobot.data_platform.operators.implementations.caption.core infer \
   --bundle /path/to/episode-bundle --dataset-key "$DATASET_KEY" \
   --output "$CAPTION_ROOT/$CAPTION_KEY/trial_001"
-python -m lerobot.data_platform.temporal_caption preview \
+python -m lerobot.data_platform.operators.implementations.caption.core preview \
   --artifact-root "$CAPTION_ROOT" --dataset-key "$DATASET_KEY" --port 8766
 ```
 
@@ -243,10 +243,10 @@ Rewarder rejects quantization and non-BF16 engine configuration.
 For a standalone acceptance on the data/GPU host:
 
 ```bash
-python -m lerobot.data_platform.temporal_caption prepare \
+python -m lerobot.data_platform.operators.implementations.caption.core prepare \
   --root /path/to/dataset --episode 0 --output /path/to/flora-bundle --flora
 DATA_PLATFORM_FLORA_RUNTIME=/etc/data-platform/flora-runtime.json \
-python -m lerobot.data_platform.temporal_caption infer \
+python -m lerobot.data_platform.operators.implementations.caption.core infer \
   --scheme flora --bundle /path/to/flora-bundle --dataset-key namespace/registered-dataset \
   --output /path/to/new-flora-run
 ```
@@ -288,7 +288,7 @@ from model captions. Long instructions scroll within the field.
 The Qwen methods run against an explicitly exported **single episode** using the same CLI:
 
 ```bash
-python -m lerobot.data_platform.temporal_caption infer \
+python -m lerobot.data_platform.operators.implementations.caption.core infer \
   --scheme video_events --bundle /path/to/episode-bundle --dataset-key "$DATASET_KEY" \
   --output "$CAPTION_ROOT/$CAPTION_KEY/video_events_trial_001"
 ```
@@ -296,7 +296,7 @@ python -m lerobot.data_platform.temporal_caption infer \
 Existing completed demo results can also be imported without rerunning a model:
 
 ```bash
-python -m lerobot.data_platform.temporal_caption import-demo \
+python -m lerobot.data_platform.operators.implementations.caption.core import-demo \
   --source /path/to/demo/episode-directory --dataset-key "$DATASET_KEY" \
   --output "$CAPTION_ROOT/$CAPTION_KEY/demo_trial_001"
 ```
@@ -339,7 +339,7 @@ not call Qwen. A privileged deployment operator can also import using the deploy
 
 ```bash
 sudo /opt/data-platform/dev/current/.venv/bin/python \
-  -m lerobot.data_platform.temporal_caption_jobs --env dev \
+  -m lerobot.data_platform.annotations.jobs --env dev \
   --location-id "$LOCATION_ID" --archive /path/to/review-results.zip
 ```
 

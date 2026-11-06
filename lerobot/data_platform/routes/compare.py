@@ -5,9 +5,9 @@ import uuid
 
 from flask import jsonify, render_template, request
 
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.precompute.compare import load_compare_json, run_compare_build
+from lerobot.data_platform.operators.implementations.compare import load_compare_json, run_compare_build
 from lerobot.data_platform.routes.context import RouteContext
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_compare_routes(app, ctx: RouteContext) -> None:

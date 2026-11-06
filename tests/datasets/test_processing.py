@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from flask import Flask, g
 
-from lerobot.data_platform.control_plane import ControlPlaneStore
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.control.store import ControlPlaneStore
 from lerobot.data_platform.operators.registry import operation_ids, worker_manifest
 from lerobot.data_platform.processing.service import PipelineManager
 from lerobot.data_platform.routes.processing import register_processing_routes
+from lerobot.data_platform.runtime.jobs import JobConflictError
 from tests.datasets.test_quality_eef import make_eef
 
 
@@ -183,7 +183,7 @@ def test_processing_routes_auth_and_viewer_role(setup):
 
 
 def test_changed_input_blocks_execution(setup):
-    from lerobot.data_platform.control_plane import DatasetLocation
+    from lerobot.data_platform.control.store import DatasetLocation
 
     store, manager, actor, node, location = setup
     _, run = start(setup)
@@ -204,8 +204,8 @@ def test_preprocess_output_registers_version_and_preserves_episode_identity(
     import shutil
     from types import SimpleNamespace
 
-    from lerobot.data_platform.curation import register_snapshot, snapshot_from_version
-    from lerobot.data_platform.lifecycle import LifecycleStore
+    from lerobot.data_platform.datasets.curation import register_snapshot, snapshot_from_version
+    from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
     from tests.datasets.test_data_platform_agent import _agent
 
     store, _, actor, node, location = setup
@@ -242,7 +242,7 @@ def test_preprocess_output_registers_version_and_preserves_episode_identity(
     final = Path(job["options"]["out_root"])
     computed_job = copy.deepcopy(job)
     if publication != "direct":
-        from lerobot.data_platform.execution import SpoolingClient
+        from lerobot.data_platform.runtime.supervisor import SpoolingClient
 
         work = tmp_path / "supervisor" / attempt
         staging = final.parent / f".dp-{job['job_id']}-{attempt}"
@@ -251,8 +251,8 @@ def test_preprocess_output_registers_version_and_preserves_episode_identity(
         agent.client = SpoolingClient("http://127.0.0.1:1", work)
     else:
         agent.client.upload_artifact = upload
-    from lerobot.data_platform import agent as agent_module
     from lerobot.data_platform.operators import dataset_versions
+    from lerobot.data_platform.runtime import agent as agent_module
 
     with monkeypatch.context() as failure:
         failure.setattr(
@@ -270,8 +270,8 @@ def test_preprocess_output_registers_version_and_preserves_episode_identity(
         )
         result = agent.execute_job(computed_job)
     if publication != "direct":
-        from lerobot.data_platform import execution as execution_module
-        from lerobot.data_platform.curation import validate_bundle
+        from lerobot.data_platform.datasets.curation import validate_bundle
+        from lerobot.data_platform.runtime import supervisor as execution_module
         from tests.datasets.test_execution_supervisor import Client, fake_agent
 
         supervisor = execution_module.ExecutionSupervisor(fake_agent(tmp_path, Client()))
@@ -387,7 +387,7 @@ def test_retry_keeps_acknowledged_output_and_job_identity(setup):
 def test_maintenance_pauses_coordination_and_concurrent_ticks_submit_once(setup):
     from concurrent.futures import ThreadPoolExecutor
 
-    from lerobot.data_platform.maintenance import set_maintenance
+    from lerobot.data_platform.ops.maintenance import set_maintenance
 
     store, manager, actor, node, location = setup
     _, run = start(setup)
@@ -417,7 +417,7 @@ def test_pipeline_tables_compile_for_mysql():
 
 
 def test_run_delivery_retry_does_not_repreview_changed_source(setup):
-    from lerobot.data_platform.control_plane import DatasetLocation
+    from lerobot.data_platform.control.store import DatasetLocation
 
     store, manager, actor, node, location = setup
     saved, run = start(setup)
@@ -431,9 +431,9 @@ def test_run_delivery_retry_does_not_repreview_changed_source(setup):
 
 
 def test_legacy_local_metadata_stub_uses_snapshot_metadata(setup, tmp_path):
-    from lerobot.data_platform.control_plane import ControlPlaneNode, DatasetLocation
-    from lerobot.data_platform.curation import register_snapshot, snapshot_from_version
-    from lerobot.data_platform.lifecycle import LifecycleStore
+    from lerobot.data_platform.control.store import ControlPlaneNode, DatasetLocation
+    from lerobot.data_platform.datasets.curation import register_snapshot, snapshot_from_version
+    from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
     from lerobot.data_platform.processing.service import location_identity
 
     store, _, actor, node, location = setup
@@ -466,7 +466,7 @@ def test_coordinator_opens_only_shared_durable_state(setup, tmp_path, monkeypatc
     store, _, actor, node, location = setup
     monkeypatch.setenv("DATA_PLATFORM_DATABASE_URL", str(store.engine.url))
     monkeypatch.setenv("DATA_PLATFORM_OUTPUT_DIR", str(tmp_path / "console"))
-    monkeypatch.setattr("lerobot.data_platform.environment.check_server_environment", lambda: None)
+    monkeypatch.setattr("lerobot.data_platform.ops.environment.check_server_environment", lambda: None)
     manager = configured_manager()
     assert manager.lifecycle.root == tmp_path / "console/static/lifecycle"
     assert manager.store.get_location(location["location_id"])["root"] == location["root"]
@@ -476,8 +476,8 @@ def test_coordinator_opens_only_shared_durable_state(setup, tmp_path, monkeypatc
 def test_snapshot_evidence_uses_acknowledged_output_version(setup, tmp_path, mismatch):
     from types import SimpleNamespace
 
-    from lerobot.data_platform.curation import register_snapshot, snapshot_from_version
-    from lerobot.data_platform.lifecycle import LifecycleStore
+    from lerobot.data_platform.datasets.curation import register_snapshot, snapshot_from_version
+    from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
     from lerobot.data_platform.processing.planner import PipelineStep
 
     store, _, actor, node, location = setup
@@ -520,8 +520,8 @@ def test_pose_review_binds_existing_curation_username_owner_and_revision(setup, 
     from dataclasses import asdict
     from types import SimpleNamespace
 
-    from lerobot.data_platform.curation import register_snapshot, snapshot_from_version
-    from lerobot.data_platform.lifecycle import EpisodeRef, LifecycleStore
+    from lerobot.data_platform.datasets.curation import register_snapshot, snapshot_from_version
+    from lerobot.data_platform.datasets.lifecycle.service import EpisodeRef, LifecycleStore
     from lerobot.data_platform.processing.service import location_identity
     from tests.datasets.test_pose_interpolate import repairs
 
@@ -560,7 +560,7 @@ def test_pose_review_binds_existing_curation_username_owner_and_revision(setup, 
 
 
 def test_preview_rejects_remote_derived_outputs_outside_configured_read_roots(setup):
-    from lerobot.data_platform.control_plane import ControlPlaneNode
+    from lerobot.data_platform.control.store import ControlPlaneNode
 
     store, manager, actor, node, location = setup
     with store.sessions.begin() as session:
@@ -574,8 +574,8 @@ def test_preview_rejects_remote_derived_outputs_outside_configured_read_roots(se
 def test_preprocess_execution_uses_selected_replica_without_changing_logical_version(setup, tmp_path):
     import shutil
 
-    from lerobot.data_platform.curation import register_snapshot, snapshot_from_version
-    from lerobot.data_platform.lifecycle import LifecycleStore
+    from lerobot.data_platform.datasets.curation import register_snapshot, snapshot_from_version
+    from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
     from tests.datasets.test_data_platform_agent import _agent
 
     store, _, actor, node, original = setup
@@ -634,7 +634,7 @@ def test_pipeline_repair_review_preserves_curation_scope_guard(setup, monkeypatc
 
 
 def test_deleted_source_keeps_pipeline_history_and_cancel_but_blocks_new_work(setup):
-    from lerobot.data_platform.control_plane import DatasetLocation
+    from lerobot.data_platform.control.store import DatasetLocation
 
     store, manager, actor, node, location = setup
     _, run = start(setup)

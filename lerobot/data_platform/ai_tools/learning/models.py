@@ -3,7 +3,7 @@
 from sqlalchemy import JSON, BigInteger, Boolean, Double, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from lerobot.data_platform.management_storage import ManagementBase
+from lerobot.data_platform.control.storage import ManagementBase
 
 
 class LearningControl(ManagementBase):

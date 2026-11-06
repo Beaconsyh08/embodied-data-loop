@@ -114,9 +114,9 @@ DATA_PLATFORM_GPU_DEVICES=
 连接地址通过环境注入。执行显式初始化和导入：
 
 ```bash
-python -m lerobot.data_platform.management_cli migrate
-python -m lerobot.data_platform.management_cli import-jsonl <历史日志文件>
-python -m lerobot.data_platform.management_cli backfill-job-events
+python -m lerobot.data_platform.control.cli migrate
+python -m lerobot.data_platform.control.cli import-jsonl /path/to/history.jsonl
+python -m lerobot.data_platform.control.cli backfill-job-events
 ```
 
 这些命令会写数据库，但不修改源数据集；导入可重复执行，不删除旧日志。
@@ -132,7 +132,7 @@ SQLite 在线备份应使用其备份 API，而不是仅复制主文件并遗漏
 4. 从同一版本构建 `dist/agent/` 包，升级远程 Agent；安装器使用更新后的 systemd 模板。
 5. 检查本地执行器、远程 Agent 和日志投递，恢复 `DATA_PLATFORM_PAUSE_CLAIMS=0`。
 
-本地执行器启动命令为 `python -m lerobot.data_platform.local_execution`；默认读取
+本地执行器启动命令为 `python -m lerobot.data_platform.runtime.local`；默认读取
 `DATA_PLATFORM_OUTPUT_DIR/management/local-executor.json`，该文件由首次本地任务提交建立。
 
 执行器 systemd 单元启用 `Delegate=yes` 和 `DATA_PLATFORM_REQUIRE_CGROUP=1`。

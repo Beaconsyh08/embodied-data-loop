@@ -36,7 +36,7 @@ Viewer 使用 `Stage 1/N` 等时间段名称，不将时间等分结果解释为
   C3 可单独选择检查图像。无需 DVT 配置；检测结果是待复核候选，不自动删除数据。
   结果表的 Open in Viewer 可定位候选区间，返回 Episode review 保存人工决定。
   Server 与 Agent 都需升级，Agent 必须声明 `quality_checks` 包含 `eef`。
-  阈值、单位限制和重跑规则见 [统一 Curation 文档](data_platform_unified_curation.md#quality-checks)。
+  阈值、单位限制和重跑规则见 [统一 Curation 文档](data_platform_unified_curation.md#quality-checks-and-reports)。
 - DVT 标准化、动作维度转换、平滑、动作状态数值编辑、基于关节/夹爪事件的 DVT Stage、动作状态异常检测和
   依赖特定策略输入的 Embedding 不适用于 UMI；页面与服务端均校验，Agent 会再次检查。
 - DVT 操作默认统一使用 `h10w_dvt2_stage_v1`，包括原始记录为 DVT1 的数据；
@@ -91,18 +91,19 @@ Viewer cache 写入缓存目录，不修改源数据。Split/Merge 才会生成�
 
 ## 升级顺序
 
-1. 先在 Server A 使用现有 `sudo data-platform-update` 更新服务。
-2. 检查 `/healthz` 返回 `data_profile_protocol: 3`。
-3. 从同一工作区构建 Agent 包，再按照分布式部署文档升级 Agent。
-4. 确认节点心跳中的 `data_profile_protocol` 为 3，并等待数据目录重新同步。
-5. 选择少量 episode 验证预览，再运行拆分或合并。
+1. 按 [双环境发布流程](data_platform_environments.md#日常开发验收和生产发布) 检查当前版本，
+   从干净且已提交的源码构建新的不可变发行包；显式选择 `--env dev`，先升级 Server，再升级匹配 Agent。
+2. 核对 Server 与 Agent 心跳的 `data_profile_protocol: 3`，等待目录重新同步；
+   `/healthz` 只作为能力检查的一部分，不代替用户流程验收。
+3. 对所需功能分别确认能力：末端质量检查需要 `quality_checks` 包含 `eef`；
+   Replay/Cosmos 与原版查看器还需要下文的外部运行环境及相应算子版本。
+4. 用授权账号检查 Viewer 播放和信号，选择少量 episode 验证预览及拆分/合并，
+   核对源数据未变与结果发布；使用临时账号时完成删除和会话清理。
+5. 发布并验收独立版本的兼容 CLI，开发批准后以 `--env prod --release RELEASE`
+   安装同一份包。具体命令和滚动升级约束统一维护在 [运维手册](data_platform_operations.md)。
 
-旧 Agent 接收 UMI 或强制重新切分 Stage 的任务前会被中央服务以 409 拒绝，并提示升级。安装包位于 `dist/agent/`，
-可用以下命令构建一个新的版本（版本名必须未使用）：
-
-```bash
-python3 scripts/build_data_platform_agent_bundle.py --output-dir dist/agent --version 0.1.0-r12-stage-defaults
-```
+旧 Agent 接收 UMI 或强制重新切分 Stage 的任务前会被中央服务以 409 拒绝，并提示升级。
+Agent 包由统一发行流程构建；不复用历史示例版本，也不单独跳过 Server/Agent 兼容验收。
 
 测试覆盖共享分片、三路内嵌图像、重名维度、原始夹爪数值、缓存失效、旧 profile、
 本地与远程接口、Agent 协议、拆分合并一致性、输出冲突、dry-run 和失败清理。

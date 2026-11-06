@@ -23,11 +23,11 @@ from flask import (
     request,
 )
 
-from lerobot.data_platform.cli import get_default_output_dir
-from lerobot.data_platform.data_protection import (
+from lerobot.data_platform.access.source_policy import (
     evaluate_dataset_protection,
     normalized_path,
 )
+from lerobot.data_platform.cli import get_default_output_dir
 from lerobot.data_platform.services.dataset_paths import (
     _is_dataset_root,
 )

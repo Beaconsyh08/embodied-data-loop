@@ -8,13 +8,13 @@ from functools import wraps
 
 from flask import jsonify, render_template, request, send_file
 
-from lerobot.data_platform.camera_layout import camera_rank
+from lerobot.data_platform.datasets.camera_layout import camera_rank
 from lerobot.data_platform.evaluation.metrics import edges, evaluate
 from lerobot.data_platform.evaluation.review import EvaluationStore, digest, draft
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.operators.implementations.caption.core import artifact_key
 from lerobot.data_platform.processing.service import PipelineManager
 from lerobot.data_platform.routes.control_plane import _current_user
-from lerobot.data_platform.temporal_caption import artifact_key
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def register_evaluation_routes(app, ctx, resolve, read_artifact):

@@ -10,8 +10,8 @@ from experiments.assistant_langgraph.checkpointer import FencedMySQLSaver  # noq
 from experiments.assistant_langgraph.s3_graph import build_graph  # noqa: E402
 from lerobot.data_platform.ai_tools.actions import confirm  # noqa: E402
 from lerobot.data_platform.ai_tools.personalization import DEFAULTS, preferences  # noqa: E402
-from lerobot.data_platform.control_plane import ControlPlaneUser, DatasetLocation  # noqa: E402
-from lerobot.data_platform.job_management import JobConflictError  # noqa: E402
+from lerobot.data_platform.control.store import ControlPlaneUser, DatasetLocation  # noqa: E402
+from lerobot.data_platform.runtime.jobs import JobConflictError  # noqa: E402
 from tests.datasets.test_ai_assistant import assistant, call, processing_setup  # noqa: E402, F401
 from tests.datasets.test_ai_assistant_context import bind_lifecycle, text_response  # noqa: E402
 from tests.datasets.test_assistant_graph_mysql import config, database, expire, pytestmark  # noqa: E402, F401

@@ -1,0 +1,1 @@
+"""artifacts domain modules."""

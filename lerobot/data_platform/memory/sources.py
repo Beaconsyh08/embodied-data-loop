@@ -5,15 +5,15 @@ from __future__ import annotations
 import random
 from pathlib import Path
 
-from lerobot.data_platform.mem_export import inspect_selection
+from lerobot.data_platform.artifacts.mem_export import inspect_selection
 from lerobot.data_platform.memory.contracts import (
     AnnotationConfig,
     checkpoints,
     digest,
     provider_config_digest,
 )
-from lerobot.data_platform.temporal_caption_flora import camera_roles, validate_flora
-from lerobot.data_platform.temporal_caption_snapshot import caption_source_fingerprint
+from lerobot.data_platform.operators.implementations.caption.flora import camera_roles, validate_flora
+from lerobot.data_platform.operators.implementations.caption.snapshot import caption_source_fingerprint
 
 
 def preview(source: Path, selection: dict, config: AnnotationConfig, cache: Path) -> dict:
@@ -107,7 +107,7 @@ def read_preview(agent, read):
     """Bounded relay preflight. Caption payload is server-resolved, never a model input."""
     import tempfile
 
-    from lerobot.data_platform.agent import _require_within
+    from lerobot.data_platform.runtime.agent import _require_within
 
     source = _require_within(Path(read["root"]), agent.allowed_roots, "memory source")
     with tempfile.TemporaryDirectory(prefix="memory-preflight-", dir=agent.state_path.parent) as folder:

@@ -5,7 +5,7 @@ import uuid
 
 import pytest
 
-from lerobot.data_platform.control_plane import ControlPlaneStore
+from lerobot.data_platform.control.store import ControlPlaneStore
 from tests.datasets import test_job_management, test_list_pagination, test_report_migration
 from tests.datasets.test_artifact_store import archive  # noqa: F401
 

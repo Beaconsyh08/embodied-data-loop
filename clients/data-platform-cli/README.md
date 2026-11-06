@@ -27,7 +27,7 @@ data-platform --server https://platform.example.com \
   --ca-bundle /path/to/platform-ca.crt
 ```
 
-The CLI prompts for your password without echoing it, then lists accessible datasets. Passwords, session
+The CLI prompts for your password without echoing it. Use `/datasets` to select an accessible dataset. Passwords, session
 cookies and input history stay in memory; there is no password argument, credential file or TLS bypass.
 Exit logs out the session. Conversations are retained by the server under the same policy as the website.
 Do not paste credentials into conversation messages.
@@ -103,14 +103,9 @@ The assistant does not silently infer preferences, train a model, or change oper
 permissions or confirmation requirements. The web Preferences panel can edit or clear the same settings.
 Concurrent updates use revisions; reload settings if another client changed them.
 
-Candidate CLI 0.3.34 accompanies the FLORA idle-GPU executor change. Authentication, confirmation and
-`/open` contracts are unchanged; publish its immutable artifacts only after platform acceptance.
-
-CLI 0.3.33 accompanies the Agent-local caption dataset selector.
-
-CLI 0.3.32 accompanies the production training-memory Review. CLI 0.3.31 introduced the frozen
-training-memory Review. Use the authenticated web Annotation/Review form to prepare and confirm dataset memory jobs. `/memory` below still
-manages assistant account notes; it does not generate dataset labels or approve annotations.
+Dataset text-memory annotation is separate from assistant account notes. Use the authenticated web
+Annotation/Review form to prepare and confirm dataset memory jobs; `/memory` below manages personal
+assistant notes and does not generate labels or approve annotations.
 
 ## Explicit long-term memory and task updates
 
@@ -144,10 +139,10 @@ occur, and direct form/editor tasks and pre-upgrade work are not backfilled.
 
 ## Implementation choice
 
-Candidate 0.3.15 retains FLORA Review compatibility and supports explicit memory, Updates, and the server's optional
-background parameter/workflow and observed recovery experience. Reuse remains an explicit, confirmed action;
-current rules and requested parameters take priority. It requires no Hindsight/mem0 SDK or personal model key. Experience never
-confirms a task or changes CLI parameter/permission checks. Publication follows platform acceptance.
+The client supports explicit memory, Updates, and the server's optional background parameter/workflow
+and observed recovery experience. Reuse remains an explicit, confirmed action;
+current rules and requested parameters take priority. It requires no Hindsight/mem0 SDK or personal model key.
+Experience never confirms a task or changes CLI parameter/permission checks.
 
 [prompt-toolkit](https://python-prompt-toolkit.readthedocs.io/en/stable/pages/asking_for_input.html)
 provides terminal editing, in-memory history, completion and key bindings. Rich provides waiting feedback;
@@ -161,28 +156,9 @@ versioned independently and released together: every platform upgrade also publi
 CLI version and advances `latest/install.py` after verification, including browser-only platform changes.
 The upgrade is incomplete until both platform and CLI acceptance finish. An older server without action APIs cannot confirm operations from this client.
 
-CLI 0.3.17 displays the shared strategy version when the server supplies one. This is planning provenance,
-not execution approval; `/confirm` and existing result links are unchanged. Versioned publication and
-advancing the stable latest installer require the normal platform compatibility acceptance.
-
-External Codex/Claude Code access: [MCP setup and credential management](../../docs/data_platform_mcp.md).
-
-CLI 0.3.20 accompanies the aligned Temporal Caption review timeline. Authenticated result links,
-read-only access and confirmation behavior are unchanged; publish the compatible installer only
-after platform acceptance, then advance the stable latest installer.
-
-CLI 0.3.20 updates the installer default to the currently verified platform origin. CLI 0.3.19
-versioned objects remain immutable; it was not promoted to the stable latest installer.
-
-CLI 0.3.21 accompanies the prominent Overall and Window score panel. Authentication, result links
-and execution confirmation remain compatible; publication follows platform acceptance.
-
-CLI 0.3.22 accompanies the viewport-based Temporal Caption Review layout, with unchanged authentication,
-result links and execution confirmation. Publication follows platform acceptance.
-
-CLI 0.3.23 accompanies Review playback shortcuts and automatic caption following. Authentication,
-result links and execution confirmation remain compatible; publication follows platform acceptance.
-
+The server may supply a shared strategy version as planning provenance. It does not approve execution;
+`/confirm` and authorized result links retain their existing behavior.
+External Codex/Claude Code access uses [MCP](../../docs/data_platform_mcp.md).
 
 ### Learning feedback
 
@@ -193,24 +169,20 @@ server revision. Optional reasons include `wrong_operator`, `wrong_order`, `wron
 This command never confirms or retries a task. Manage consent, material withdrawal and preference confirmation
 on the platform's `/learning` page. No browser clicks are simulated by the CLI.
 
-CLI 0.3.27 is compatible with dataset-level annotation jobs in Server V0.3.26.
-Use the web Jobs view to expand video subtasks; existing task receipts and result links remain valid.
+## Server capabilities and release compatibility
 
-CLI 0.3.29 accompanies Server V0.3.28's native single-view FLORA support and retains
-searchable annotated-dataset navigation in Temporal Caption Review. Authentication, result links, confirmation and job execution APIs
-remain compatible. Publish the versioned installer/wheel/CA and verify installation before
-advancing `cli/latest/install.py` during platform promotion.
+| Workflow | Server/Agent requirement |
+| --- | --- |
+| General account chat | Server V0.3.24 or later; select a dataset first on older servers |
+| Personal memory and Updates | AssistantMemoryFollowup APIs; separate from dataset annotation |
+| Dataset annotation jobs | Expand per-video jobs in the web Jobs view; existing receipts and result links remain valid |
+| Agent-local captions and mixed-episode FLORA | Updated Server/Agent discovery and capability gates; see [Temporal Caption](../../docs/temporal_caption_trial.md) |
+| UMI reports and Viser | Configured external runtimes and authorized viewer sessions; see [UMI](../../docs/umi_dataset_support.md) |
+| Human FLORA evaluation | Evaluation APIs and authorized dataset access; see [pilot contract](../../docs/flora_evaluation_pilot.md) |
 
-CLI 0.3.35 accompanies the mixed-episode Viewer candidate. Authentication, confirmation and result links are unchanged; publication and acceptance are pending.
-
-CLI 0.3.36 accompanies the mixed-episode FLORA candidate; authentication and confirmation contracts remain unchanged.
-
-CLI 0.3.37 accompanies the mixed-episode FLORA pipeline and parallel release validation candidate.
-
-CLI 0.3.38 accompanies the always-visible original instruction in Temporal Caption Review.
-
-CLI 0.3.40 accompanies the UMI processing source candidate. Login, explicit confirmation and authorized result links remain compatible. The wheel/installer must pass installation acceptance before publication; source builds do not advance latest.
-
+A client version alone does not enable a missing Server/Agent capability. Publish the immutable
+installer/wheel/CA and verify installation and compatibility before advancing `cli/latest/install.py`.
+This README describes source behavior; it does not assert that a candidate has been installed.
 
 ## FLORA 人工评测
 

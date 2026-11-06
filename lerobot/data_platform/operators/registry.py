@@ -128,7 +128,7 @@ def worker_manifest(operations=None) -> dict:
         if missing:
             unavailable[spec.operator_id] = "Missing dependencies: " + ", ".join(missing)
         elif spec.operator_id in {"umi.replay", "umi.cosmos_id"}:
-            from lerobot.data_platform.precompute.umi.runtime import runtime_unavailable
+            from lerobot.data_platform.operators.implementations.umi.runtime import runtime_unavailable
 
             reason = runtime_unavailable(spec.operator_id)
             if reason:

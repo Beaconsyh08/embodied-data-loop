@@ -12,8 +12,8 @@ import pytest
 from PIL import Image
 
 from lerobot.data_platform.cli import load_platform_metadata
-from lerobot.data_platform.precompute.annotation import write_episode_csv
-from lerobot.data_platform.precompute.data_profile import resolve_data_profile
+from lerobot.data_platform.operators.implementations.annotation import write_episode_csv
+from lerobot.data_platform.operators.implementations.data_profile import resolve_data_profile
 
 
 @pytest.fixture
@@ -104,7 +104,7 @@ def test_umi_profile_does_not_infer_dvt(umi_root):
 
 
 def test_processing_default_is_dvt2_without_rewriting_source_profile(umi_root):
-    from lerobot.data_platform.precompute.data_profile import (
+    from lerobot.data_platform.operators.implementations.data_profile import (
         dataset_semantics,
         profile_from_data_version,
         resolve_processing_profile,
@@ -167,9 +167,9 @@ def test_umi_csv_has_unique_named_raw_signals(umi_root, tmp_path):
 
 
 def test_native_split_merge_preserves_bytes_types_and_indices(umi_root, tmp_path):
-    from lerobot.data_platform.precompute.dataset_io import read_episode_table
-    from lerobot.data_platform.precompute.preprocess.dataset_merge import run_merge
-    from lerobot.data_platform.precompute.preprocess.dataset_split import run_split
+    from lerobot.data_platform.operators.implementations.dataset_io import read_episode_table
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import run_merge
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_split import run_split
 
     source = pq.read_table(umi_root / "data/chunk-000/file-000.parquet")
     first = run_split(umi_root, tmp_path / "first", episode_range="0:1")
@@ -189,7 +189,7 @@ def test_native_split_merge_preserves_bytes_types_and_indices(umi_root, tmp_path
 
 
 def test_native_dry_run_and_conflict(umi_root, tmp_path):
-    from lerobot.data_platform.precompute.preprocess.dataset_split import run_split
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_split import run_split
 
     before = sorted(tmp_path.rglob("*"))
     result = run_split(umi_root, tmp_path / "output", episode_range="1:2", dry_run=True)
@@ -202,7 +202,10 @@ def test_native_dry_run_and_conflict(umi_root, tmp_path):
 def test_native_merge_checks_arrow_schema_and_episode_selection(umi_root, tmp_path):
     import shutil
 
-    from lerobot.data_platform.precompute.preprocess.dataset_merge import run_merge, validate_merge_sources
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import (
+        run_merge,
+        validate_merge_sources,
+    )
 
     other = tmp_path / "other"
     shutil.copytree(umi_root, other)
@@ -238,8 +241,8 @@ def test_umi_cache_manifest_failure_is_not_success(umi_root, tmp_path, monkeypat
 
 
 def test_native_failure_cleans_staging(umi_root, tmp_path, monkeypatch):
-    from lerobot.data_platform.precompute.preprocess import v3_native
-    from lerobot.data_platform.precompute.preprocess.dataset_split import run_split
+    from lerobot.data_platform.operators.implementations.preprocess import v3_native
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_split import run_split
 
     def fail(*args, **kwargs):
         raise RuntimeError("injected write failure")
@@ -291,7 +294,7 @@ def test_umi_viewer_refreshes_old_csv_only(umi_root, tmp_path):
         root=umi_root, output_dir=output, visualize_only=True, show_progress=False, fallback_stage_count=3
     )
     assert json.loads(csv_path.with_suffix(".stages.json").read_text())["stage_count"] == 3
-    from lerobot.data_platform.task_text import cached_subtask_names
+    from lerobot.data_platform.datasets.tasks.text import cached_subtask_names
 
     max_stage, names = cached_subtask_names("Pick up the object.", static, 0)
     assert max_stage == 2 and names[0] == "Stage 1/3" and names[2] == "Stage 3/3"
@@ -372,7 +375,7 @@ def test_umi_local_routes_and_raw_analysis(umi_root, tmp_path, monkeypatch):
 def test_umi_agent_and_remote_protocol(umi_root, tmp_path):
     from dataclasses import replace
 
-    from lerobot.data_platform.agent import _dataset_payload
+    from lerobot.data_platform.runtime.agent import _dataset_payload
     from tests.datasets.test_control_plane import _app, _bootstrap, _store
     from tests.datasets.test_data_platform_agent import _agent
     from tests.datasets.test_remote_dataset_merge import _HttpClient
@@ -439,7 +442,7 @@ def test_umi_agent_and_remote_protocol(umi_root, tmp_path):
 def test_umi_remote_stage_preview_forwards_count_and_force(umi_root, tmp_path):
     from dataclasses import replace
 
-    from lerobot.data_platform.agent import _dataset_payload
+    from lerobot.data_platform.runtime.agent import _dataset_payload
     from tests.datasets.test_control_plane import _app, _bootstrap, _store
     from tests.datasets.test_data_platform_agent import _agent
     from tests.datasets.test_remote_dataset_merge import _HttpClient
@@ -477,7 +480,7 @@ def test_umi_remote_stage_preview_forwards_count_and_force(umi_root, tmp_path):
 
 
 def test_unknown_robot_and_legacy_profile_compatibility(umi_root):
-    from lerobot.data_platform.precompute.data_profile import (
+    from lerobot.data_platform.operators.implementations.data_profile import (
         profile_from_data_version,
         profile_from_info,
         write_data_profile,
@@ -501,8 +504,11 @@ def test_unknown_robot_and_legacy_profile_compatibility(umi_root):
 def test_umi_rejects_semantic_merge_mismatch_and_dvt_override(umi_root, tmp_path):
     import shutil
 
-    from lerobot.data_platform.precompute.preprocess.dataset_merge import run_merge, validate_merge_sources
-    from lerobot.data_platform.precompute.preprocess.standardize import run_standardize_dataset
+    from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import (
+        run_merge,
+        validate_merge_sources,
+    )
+    from lerobot.data_platform.operators.implementations.preprocess.standardize import run_standardize_dataset
 
     other = tmp_path / "other"
     shutil.copytree(umi_root, other)
@@ -519,7 +525,7 @@ def test_umi_rejects_semantic_merge_mismatch_and_dvt_override(umi_root, tmp_path
 
 
 def test_legacy_umi_robot_label_is_not_dvt(umi_root):
-    from lerobot.data_platform.precompute.data_profile import profile_from_info
+    from lerobot.data_platform.operators.implementations.data_profile import profile_from_info
 
     path = umi_root / "meta/info.json"
     info = json.loads(path.read_text())

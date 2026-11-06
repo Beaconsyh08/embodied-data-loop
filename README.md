@@ -1,277 +1,131 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="media/lerobot-logo-thumbnail.png">
-    <source media="(prefers-color-scheme: light)" srcset="media/lerobot-logo-thumbnail.png">
-    <img alt="LeRobot, Hugging Face Robotics Library" src="media/lerobot-logo-thumbnail.png" style="max-width: 100%;">
-  </picture>
-  <br/>
-  <br/>
-</p>
+# Embodied Data Loop · Data Platform
 
-<div align="center">
+基于 🤗 LeRobot 的数据管理、可视化、处理与审核平台。Server A 提供统一控制面，
+各数据节点的 Agent 就地计算，网页和轻量 CLI 共用账号、权限与任务记录。
 
-[![Tests](https://github.com/huggingface/lerobot/actions/workflows/nightly-tests.yml/badge.svg?branch=main)](https://github.com/huggingface/lerobot/actions/workflows/nightly-tests.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/huggingface/lerobot/branch/main/graph/badge.svg?token=TODO)](https://codecov.io/gh/huggingface/lerobot)
-[![Python versions](https://img.shields.io/pypi/pyversions/lerobot)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/huggingface/lerobot/blob/main/LICENSE)
-[![Status](https://img.shields.io/pypi/status/lerobot)](https://pypi.org/project/lerobot/)
-[![Version](https://img.shields.io/pypi/v/lerobot)](https://pypi.org/project/lerobot/)
-[![Examples](https://img.shields.io/badge/Examples-green.svg)](https://github.com/huggingface/lerobot/tree/main/examples)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.1%20adopted-ff69b4.svg)](https://github.com/huggingface/lerobot/blob/main/CODE_OF_CONDUCT.md)
-[![Discord](https://dcbadge.vercel.app/api/server/C5P34WJ68S?style=flat)](https://discord.gg/s3KuuzsPFb)
+[文档导航](docs/README.md) · [页面手册](docs/data_platform_page_user_guide.md) ·
+[CLI 安装](clients/data-platform-cli/README.md) · [开发与源码结构](docs/data_platform_development.md) ·
+[发行变更](docs/data_platform_changelog.md)
 
-</div>
-
-<br/>
-
-<h3 align="center">
-    <p>LeRobot: State-of-the-art AI for real-world robotics</p>
-</h3>
-
----
-
-🤗 LeRobot aims to provide models, datasets, and tools for real-world robotics in PyTorch. The goal is to lower the barrier to entry to robotics so that everyone can contribute and benefit from sharing datasets and pretrained models.
-
-🤗 LeRobot contains state-of-the-art approaches that have been shown to transfer to the real-world with a focus on imitation learning and reinforcement learning.
-
-🤗 LeRobot already provides a set of pretrained models, datasets with human collected demonstrations, and simulation environments to get started without assembling a robot. In the coming weeks, the plan is to add more and more support for real-world robotics on the most affordable and capable robots out there.
-
-🤗 LeRobot hosts pretrained models and datasets on this Hugging Face community page: [huggingface.co/lerobot](https://huggingface.co/lerobot)
+本文描述本分支源码。当前安装版本、Agent 能力和在线验收以各环境的发行记录为准。
+LeRobot 的本地安装、训练和评估入口保留在下方 [Installation](#installation) 与 [Walkthrough](#walkthrough)。
 
 ## Local Data Platform
 
-Public source distribution: [publication boundaries and installation notes](docs/public_distribution.md).
-
-**开发／生产双环境：** 新部署使用显式 `--env dev|prod`，开发验证后将同一份版本包发布到生产。
-首次初始化、角色切换、升级和回退请按 [双环境部署指南](docs/data_platform_environments.md) 操作。
-账号统一使用 username；改密和管理员重置流程见 [账号与密码恢复](docs/data_platform_accounts.md)。
+Public distribution: [publication boundaries](docs/public_distribution.md).
+Configure your own service addresses, network policy, external sources and model resources.
 
 ### 平台能力与文档入口
 
-平台采用 Server A 统一管理、Agent 就地计算的方式，支持 LeRobot v2.1/v3.0、UMI，以及
-已适配的 GenDAS MCAP 导入。处理默认生成独立输出；源数据写回需要单独授权和确认。
-
-| 工作 | 入口与能力 | 操作说明 |
+| 工作 | 当前源码能力 | 文档 |
 | --- | --- | --- |
-| 数据发现 | 选择授权目录或子路径；Scan 即时发现，Refresh 读取登记；记住浏览目录 | [页面手册](docs/data_platform_page_user_guide.md#31-第一次加载数据集) |
-| 数据理解 | 多视角 Viewer、Action/State 曲线、Analysis、只读 Parquet/CSV Inspect | [Explore](docs/data_platform_page_user_guide.md#7-explore-可视化中心与-analysis) |
-| 质量复核 | 按信号启用控制、标注、关节、末端、数值和媒体检查；报告连接 Viewer 人工复核 | [Quality](docs/data_platform_page_user_guide.md#54-data-curation--quality-review) |
-| 标注与构建 | 批量时序描述、可选信号、Review、版本化 Workspace/Manifest 与新数据集物化 | [时序标注](docs/temporal_caption_trial.md)、[生命周期](docs/data_lifecycle_architecture.md) |
-| 任务管理 | 节点/用户配额、分阶段进度、安全停止/重试、MCAP 检查点恢复、管理员单任务额外配额 | [Jobs](docs/data_platform_page_user_guide.md#11-jobs-抽屉与-pipeline-runs) |
-| 发布与恢复 | 不可变包、开发验收后生产批准、兼容滚动升级、缓存发布与结果确认 | [运维手册](docs/data_platform_operations.md) |
+| 数据发现与浏览 | 授权目录 Scan、登记 Refresh、多视角 Viewer、原始信号、Analysis 与只读 Inspect | [页面手册](docs/data_platform_page_user_guide.md) |
+| 数据格式与导入 | LeRobot v2.1/v3.0、UMI 三路内嵌图像、GenDAS MCAP 转换、按 episode 读取的混合评测集 | [UMI](docs/umi_dataset_support.md)、[MCAP](docs/data_platform_mcap_import.md) |
+| 质量与构建 | 关节/末端/数值/媒体检查、人工 Keep/Exclude、版本化 Workspace/Manifest、独立输出 | [统一 Curation](docs/data_platform_unified_curation.md)、[生命周期](docs/data_lifecycle_architecture.md) |
+| 算子与任务 | 版本化顺序 Pipeline、节点与用户配额、分阶段进度、取消/重试、有限的 MCAP 检查点恢复 | [算子与流程](docs/data_platform_operators.md)、[任务管理](docs/data_platform_multi_user_management.md) |
+| 标注与评测 | Temporal Caption、FLORA、文本记忆草稿/Review、人工参考修订及试点评分 | [时序标注](docs/temporal_caption_trial.md)、[文本记忆](docs/memory_annotation.md)、[FLORA 评测](docs/flora_evaluation_pilot.md) |
+| UMI 诊断与候选 | Tracker 诊断、版本对比、Replay 与 Cosmos 候选、原版报告和 Viser 查看器 | [UMI 工作流](docs/umi_dataset_support.md)、[data-laundry 安装](docs/data_laundry_setup.md) |
+| AI 与外部接入 | 上下文问答、待确认操作、网页/CLI 历史与显式记忆、受限 MCP | [助手](docs/data_platform_operators.md#qwen-draft-assistant)、[CLI](clients/data-platform-cli/README.md)、[MCP](docs/data_platform_mcp.md) |
+| 独立 FLORA 服务 | 独立 API、流式上传、任务查询和 GPU 后端路由 | [FLORA HTTP API](docs/flora_http_api.md) |
 
-能力和操作说明以本分支源码为准；安装版本及在线验收以各环境发行记录为准。
-完整索引见[文档导航](docs/README.md)。
-
-**AI 助手：** 点击右下角 **AI assistant**，或按 **Ctrl/Cmd + Shift + Space** 唤出、收起侧栏；
-聊天时仍可操作平台。默认跟随页面、数据集和 Viewer Episode，读取授权的 Instruction 等元数据；可固定上下文。操作卡片放在对应消息中，已有结果和运行进度紧凑显示。支持上下文解读、流程草稿，以及 Viewer、Quality、标注和单数据集派生处理的确认卡片。
-网页与 [CLI](clients/data-platform-cli/README.md) 共用历史会话、个人偏好和显式长期记忆；已确认助手任务由后台跟进，在 Updates 中显示终态总结；使用服务端配置的 Qwen，
-用户无需模型密钥。操作权限和确认规则不变，详见 [助手说明](docs/data_platform_operators.md#qwen-draft-assistant)。
-卡片先检查已有结果与正在运行的任务，再提供结果入口或一键确认；历史结果会注明配置或产物是否可核实。
-网页与 CLI 共用状态判断；CLI 的 `/open` 查看结果链接，`/confirm again` 明确重新运行。
-当前已发布 CLI 版本以 latest 和发行验收记录为准；CLI 支持[后台经验增强](docs/data_platform_hindsight.md)、`/memory`、`/updates`，外部助手接入见 [MCP 文档](docs/data_platform_mcp.md)。CLI 启动时显示网页地址，`/web` 随时查看，`--web` 免登录输出；CLI 0.3.2 起用 `data-platform update` 升级，旧版本先运行一次 `latest` 安装命令。
-
-**版本更新：** 功能与兼容性变化记录在 [发行变更](docs/data_platform_changelog.md)，
-当前架构见 [平台情况说明](docs/distributed_data_platform_current_status.md)。
-文档描述源码能力，实际安装版本以环境状态和验收记录为准。
-
-**远程列表访问：** 数据集、任务列表及任务进度使用摘要响应，避免重复下载逐 episode 元数据和
-完整转换报告；进度、权限和输出链接保留。Datasets 页始终显示 Server 和扫描目录选项。
-排障见 [运维手册](docs/data_platform_operations.md)。
-
-**MCAP 导入：** Data Platform → Data Import 支持 GenDAS MCAP → LeRobot v3.0，
-先预检、再转换，默认每个目录最多 3 个文件。重启导致计算进程丢失时，自动重新排队并复用完整文件检查点，
-连续自动恢复最多 3 次。操作与部署配置见 [MCAP 导入指南](docs/data_platform_mcap_import.md)。
-
-
-Task definitions are configurable in the console. Existing Pick/Place/Give tasks and new task families share versioned catalogs, dataset mappings, analysis and curation filters, and portable Agent configuration snapshots. See the [task onboarding guide](docs/data_platform_task_catalog.md).
-
-**Data Inspect:** Select a dataset and open **Explore → Inspect → Open data inspect** to preview
-actual Parquet records or stored Viewer CSV values, 50 rows at a time (maximum 200). Fields are
-searchable, arrays expand as JSON, and previews remain read-only. Remote datasets use published CSV
-without contacting the Agent. See the [page user guide](docs/data_platform_page_user_guide.md).
-
-### Run Analysis without preparing caches
-
-Select a dataset and open **Explore → Dataset Analysis → Open analysis**. **Refresh analysis**
-runs analysis directly; neither action starts Prepare cache or a remote preparation job.
-Tasks, attributes, episode counts, frame counts, and durations come from dataset metadata.
-Duration is episode length divided by FPS. Existing CSV files optionally supply stage and
-object-presence distributions; missing optional files are shown as **Not generated**, not review flags.
-
-Remote Analysis uses the latest metadata synced by the Agent, even when no Viewer cache exists or
-the Agent is offline. The page shows the report's sync time. Update Server A first, then update the
-Agent and wait for its automatic metadata sync to include episode lengths (`analysis_metadata_version=1`). Older reports
-still provide known totals and task distributions; unavailable per-episode values remain empty.
-Preparing videos is only needed when you want to use the Viewer. Analysis does not modify source data.
-
-### Shared Qwen API key on Server A
-
-Task suggestions, Qwen API object labeling, and VLM auto-tagging use the same server-side
-`DASHSCOPE_API_KEY`. Configure it once in the deployed service environment:
-
-```bash
-sudoedit /etc/data-platform/dev/server.env
-```
-
-Add or update these entries in that file (replace the key placeholder there):
-
-```ini
-DASHSCOPE_API_KEY=YOUR_QWEN_API_KEY
-DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-DATA_PLATFORM_TASK_MODEL=qwen3.6-plus
-```
-
-Keep the endpoint in the same region as your key. `DATA_PLATFORM_TASK_MODEL` only controls task
-suggestions; image labeling and tagging retain their own model selectors. Save the file, then run:
-
-```bash
-sudo chmod 640 /etc/data-platform/dev/server.env
-sudo systemctl restart data-platform-web@dev.service
-sudo systemctl status data-platform-web@dev.service --no-pager -l
-```
-
-This example targets development. Configure production separately in `prod/server.env` and
-use its matching service during an authorized maintenance window. Legacy single-environment
-installations may still use `/etc/data-platform/server.env`; check the actual unit before editing.
-
-For a code update, run `data-platform-update-all --env prod --release RELEASE` after development acceptance, following the deployment
-workflow below. That updater preserves the environment file. This Qwen feature runs on Server A
-and does not require another Agent upgrade or distributing the API key to Agents.
-
-In **Task setup**, load instructions, select the latest catalog, and click **Suggest with AI**.
-Review the proposed tasks, select the ones to keep, then click **Save selected & preview → Apply
-to dataset**. Suggestions use unique instruction texts and the catalog; generating and reviewing
-them require no Prepare cache. Saving suggestions creates a catalog version, while **Apply to
-dataset** remains the explicit mapping update and background CSV refresh.
-
-In **Auto labeling** and **Auto-tagging**, choose the Qwen API backend and leave the API key field
-empty to use the shared key. Explicit keys still override it. A custom endpoint requires its own
-explicit key (or `EMPTY` for a local unauthenticated server), unless it is configured centrally with
-`DASHSCOPE_BASE_URL`. The Qwen Gradio backend retains its separate ModelScope token.
-The browser receives only whether the shared key is configured. Keep the real key out of source
-files and shell command arguments. See the [task setup guide](docs/data_platform_task_catalog.md#ai-assisted-task-setup).
+处理默认生成独立输出；源数据写回仍需专门授权、路径检查和确认。
+模型结果、质量候选、回放通过与人工批准分别记录；混合评测集不自动成为通用训练数据。
 
 ### Start the web console
 
-The Data Platform is included with LeRobot and does not require a separate installation. Before
-starting it, install this repository by following the [Installation](#installation) instructions
-below.
-
-Start the platform with a directory containing one or more local datasets:
+平台随本仓库安装。开发环境准备见 [开发指南](docs/data_platform_development.md)，
+本地查看已授权的数据目录：
 
 ```bash
 python -m lerobot.data_platform --root /path/to/datasets
 ```
 
-The home page recursively discovers directories containing `meta/info.json` and exposes two
-logical workspaces in the same process:
+Data Platform 与 Data Curation 共用数据选择、Viewer、Jobs 和审计日志。
+本地 Admin Mode、源保护及 `full` / `visualize` 的操作边界见
+[页面手册](docs/data_platform_page_user_guide.md#2-进入页面与账号权限)。
+集中部署的用户使用管理员提供的网页地址或 [CLI 安装入口](clients/data-platform-cli/README.md)。
 
-- **Data Platform** is the supply and execution plane for ingestion, preprocessing, immutable
-  dataset versions, lineage, and materialization.
-- **Data Curation** is the decision plane for exploration, quality review, annotation, cohort
-  selection, profiling, versioned requirements/recipes, and dataset construction.
+### Run Analysis without preparing caches
 
-The two workspaces continue to share the dataset selector, Viewer, Job & Artifacts panel, and
-operation audit log. The implementation lives in [`lerobot/data_platform`](lerobot/data_platform).
-For a central MySQL-backed service with node agents on multiple servers, see the
-[distributed deployment guide](docs/distributed_data_platform_deployment.md).
+选择数据集，进入 **Explore → Dataset Analysis → Open analysis**。Analysis 可直接使用元数据；
+**Refresh analysis** 不提交 Prepare cache 任务。远程数据使用 Agent 最近同步的元数据，
+页面显示同步时间；缺失可选统计时明确显示未生成。Viewer 视频需另行准备。
+详细字段与限制见 [Analysis](docs/data_platform_page_user_guide.md#71-analysis直接查看基础统计)。
 
-The platform always operates on real LeRobot metadata and trajectory data. It reports invalid
-inputs instead of replacing them with fabricated samples. Data Construction also preserves the
-source observation and action values; it creates training variants by changing task metadata,
-bookkeeping indices, and `exist_label`.
+<a id="shared-qwen-api-key-on-server-a"></a>
 
-### Platform overview
+### AI 助手与模型配置
+
+右下角 **AI assistant** 或 **Ctrl/Cmd + Shift + Space** 打开侧栏。
+助手跟随当前页面、数据集和 Episode，可固定上下文；操作卡片先展示已有结果与运行中任务。
+网页与 CLI 共用历史、显式记忆和任务 Updates，执行仍经用户确认。
+
+管理员在所选环境的受保护配置中设置 Qwen；模型和运行器配置见
+[运维手册](docs/data_platform_operations.md#qwen-web-assistant-configuration)，
+Task setup、标注与共享密钥行为见 [任务目录](docs/data_platform_task_catalog.md#ai-assisted-task-setup)。
+[后台经验](docs/data_platform_hindsight.md)、[策略实验](docs/data_platform_strategies.md) 和
+[使用反馈](docs/data_platform_continuous_learning.md) 各自保留授权、预算及人工启用边界。
+
+<a id="umi-lerobot-v3-数据"></a>
+<a id="单条数据分段与-caption-实验"></a>
+<a id="text-memory-annotation"></a>
+<a id="offline-mem-export"></a>
+
+### 专项工作流
+
+- UMI 的独立模型环境、固定源码、权重与校准资源按 [data-laundry 指南](docs/data_laundry_setup.md) 准备；候选生成与原版查看器见 [UMI 支持](docs/umi_dataset_support.md)。
+- FLORA 的单/多视角、混合 episode、原始 Reward 窗口和分阶段验收见 [Temporal Caption](docs/temporal_caption_trial.md)；人工参考修订与评分见 [评测试点](docs/flora_evaluation_pilot.md)。
+- 因果文本记忆草稿、Review、冻结训练快照见 [Text memory](docs/memory_annotation.md)；离线多视角导出见 [MEM export](docs/mem_export.md)。
+
+<a id="platform-overview"></a>
+<a id="modules-and-capabilities"></a>
+<a id="data-platform-operators-and-pipelines"></a>
+
+### 架构与源码
 
 ```mermaid
 flowchart LR
-    A[Source Delivery] --> B[Platform Ingestion]
-    B --> C[Raw Dataset Version and Reconciliation]
-    C --> D[Platform Preprocessing]
-    D --> E[Standard Dataset Version]
-    E --> F[Profile Requirement and Recipe]
-    F --> G[Curation Review and Manifest]
-    G --> H[Platform Materializer]
-    H --> I[Curated Dataset Version and Export]
+    UI[网页 / CLI / MCP] --> S[Server A 授权与控制面]
+    S --> P[Pipeline / Job / Attempt]
+    P --> A[本地执行器 / 节点 Agent]
+    A --> D[节点数据与统一算子]
+    A --> R[校验 / 上传 / 发布确认]
+    R --> S
 ```
 
-Published raw, standard, and curated dataset versions are immutable. Stable `episode_uid` values
-live in portable Identity Artifacts outside dataset roots; physical copies are registered as
-`DatasetReplica` records. Curation edits first live in revision-controlled Workspaces and are
-frozen into versioned manifests. Versioned preprocessing/materialization Profiles separate
-content-affecting configuration from runtime options. The materializer is idempotent, persists its
-state in SQLite, validates row counts, timestamps, metadata, and complete file SHA256 values, then
-atomically registers the logical version and output replica.
+职责与能力边界见 [架构状态](docs/distributed_data_platform_current_status.md)，
+目录分工、测试选择和结构整理原则见 [开发指南](docs/data_platform_development.md)。
+源码按控制面、数据集、运行时、标注、产物与运维分包；计算实现统一归入 `operators/implementations/`。
+详见 [目录树与算子放置规则](lerobot/data_platform/README.md)。
 
-### Modules and capabilities
+## 中央服务器日常运维（Server A）
 
-| Domain | Main modules | What the UI can do |
-| --- | --- | --- |
-| Platform — ingestion and versions | `lifecycle.py`, `lifecycle_repository.py`, `routes/lifecycle.py` | Full-hash local datasets, register immutable versions/replicas and portable identity artifacts, inspect explicit episode lineage. |
-| Platform — delivery and reconciliation | `lifecycle.py`, `routes/lifecycle.py` | Register source deliveries and explain every received/accepted/excluded/repaired/generated Episode transition. |
-| Platform — preprocessing and materialization | `precompute/preprocess/`, `lifecycle.py` | Execute versioned Profiles and idempotently materialize a published manifest through a persisted validation state machine. |
-| Curation — understand and quality | `viewer.py`, `precompute/analysis.py`, `precompute/compare/`, `precompute/embedding/`, `precompute/preprocess/quality_flags.py` | Explore trajectories, distributions, embeddings, comparisons, technical issues, and semantic quality evidence. |
-| Curation — enrichment and selection | `precompute/annotation.py`, `precompute/labeling/`, `precompute/tagging/`, `precompute/construction/` | Edit revision-controlled Workspaces containing stage, prompt, bbox, tag, include/exclude, trim, and value-edit decisions before publishing a manifest. |
-| Curation — profile and recipe | `lifecycle.py`, `routes/lifecycle.py` | Publish Dataset Profiles and Requirements, resolve fixed cohorts, and compile deterministic Recipes into reviewable Workspaces. |
+<a id="服务与访问入口"></a>
+<a id="server-a-重启之后"></a>
+<a id="固定更新流程开发验收--生产发布"></a>
+<a id="手动启动停止和重启"></a>
+<a id="查看日志"></a>
+<a id="更新失败mysql-报-out-of-sort-memory"></a>
+<a id="用户注册审批与权限"></a>
+<a id="远程节点与反向隧道"></a>
+<a id="常用路径"></a>
+<a id="多用户日志与任务管理"></a>
 
-The data-processing area is divided into smaller modules:
+使用显式 `--env dev|prod`。先开发验收，再将同一不可变发行包发布到生产。
+服务、配置和状态均按环境隔离；下面的手册统一维护命令，旧单环境命令仅供迁移时识别。
 
-| Processing module | Capabilities |
+| 需要做什么 | 入口 |
 | --- | --- |
-| Feature conversion (`action_dim.py`, `field_ops.py`) | Trim action/state vectors to a target dimension and remove selected fields from parquet data and feature metadata. |
-| Signal processing (`smooth_action.py`) | Apply centered temporal smoothing to action values and, when requested, state values. |
-| Dataset standardization (`standardize.py`) | Run the platform's combined cleanup pipeline: normalize DVT2 grippers, align action/state dimensions, remove depth fields, write stage/subtask data, and repair indices. |
-| Dataset composition (`dataset_split.py`, `dataset_merge.py`, `dataset_subtract.py`) | Create task/episode subsets, combine datasets with remapped metadata, or remove episodes that exactly match episodes in other datasets. |
-| Quality and metadata repair (`quality_flags.py`, `flag_fixes.py`, `flag_clear.py`, `prompt_rewrite.py`) | Detect data-quality problems, apply supported repairs, review task/prompt assignments, and clear resolved flags. |
-| Episode maintenance (`delete_episodes.py`) | Delete selected episodes in place, reindex the remaining data and metadata, and attempt rollback if the operation fails. |
+| 首次安装、环境隔离、批准及回退 | [双环境部署](docs/data_platform_environments.md) |
+| 更新前检查、日常发布、任务期间滚动升级 | [运维手册](docs/data_platform_operations.md) |
+| 重启、日志与故障恢复 | [服务检查](docs/data_platform_environments.md#查看重启与故障恢复) |
+| 节点接入、SSH 隧道与 Agent 配置 | [分布式部署](docs/distributed_data_platform_deployment.md) |
+| 源码、配置、数据库、缓存与数据位置 | [存储位置](docs/data_platform_storage_locations.md) |
+| 注册、密码恢复、角色及数据范围 | [账号](docs/data_platform_accounts.md)、[权限](docs/data_platform_permissions.md) |
 
-Dataset merge defaults to strict signal schemas and dimension order. Use
-`--preprocess-merge-dimension-policy min` (or **Signal dimensions → Minimum** in the Merge page)
-to align each action/state field to the smallest source layout by complete, unique dimension names.
-Missing dimensions or incompatible robot semantics/units are rejected. Dry run reports the mappings
-and dropped dimensions; execution writes a new dataset and rebuilds its signal statistics and CSV cache.
-The same Merge form supports multiple datasets on one Agent after Server A and that Agent are updated.
-Remote merge validates registered location IDs and path boundaries, then uploads the new Viewer cache
-and registers the output. Cross-Agent merging is not supported.
-
-The default console path does not expose direct source-dataset mutation controls. Cache,
-analysis, Workspaces, manifests, and lifecycle records live outside the source dataset; preprocessing
-and materialization create sibling outputs. The normal startup command also provides a password-
-protected Admin Mode in the browser. On first entry, set the local administrator password for that
-dataset root; later entries require the same password. The password is stored only as a salted hash,
-and Admin Mode remains active until explicitly exited or the browser session ends. Episode deletion
-requires an impact confirmation and a reason recorded in the operation audit log. Remote source
-mutation confirmation on the Datasets page requires typing only `MUTATE`.
-
-To mark one or more read-only source zones at startup, repeat `--protected-source-root`. The console
-also exposes the same policy on the Datasets page. Protected datasets can be reviewed and used to
-create sibling outputs, but every legacy in-place delete, repair, or overwrite request is rejected.
-
-```bash
-python -m lerobot.data_platform \
-  --root /path/to/datasets \
-  --protected-source-root /path/to/raw_data
-```
-
-Admin Mode can modify or delete source Parquet, videos, and metadata and should not be used for
-normal curation work.
-
-When `DATA_PLATFORM_DATABASE_URL` enables the central multi-user service, the central `admin` role
-replaces this separate local Admin Mode login. Administrators receive admin controls immediately
-after signing in. Self-registered accounts remain pending until an administrator approves them;
-approved accounts start as read-only `viewer` users with no delete permission.
-
-See [`docs/data_lifecycle_architecture.md`](docs/data_lifecycle_architecture.md) for the capability
-matrix, persisted contracts, API mapping, lifecycle states, and materialization invariants.
-
-## Deployment
-
-Configure your own hosts, data roots, credentials, trusted CA and network policy.
-This public source distribution contains no hosted platform endpoint or bundled model weights.
-Start locally using the instructions above; deployment procedures are in the
-[environment guide](docs/data_platform_environments.md) and
-[operations guide](docs/data_platform_operations.md).
+每次平台升级同时发布独立版本的兼容 CLI，验证不可变安装包后再更新 `cli/latest/install.py`。
+服务 `active` 或 `/healthz` 只能证明部分状态，完整验收还包括正常 TLS、登录后的受影响流程、
+Agent 心跳/能力、产物确认，以及临时验收账号清理。
 
 ## Installation
 
@@ -556,79 +410,3 @@ Additionally, if you are using any of the particular policy architecture, pretra
   year={2024}
 }
 ```
-
-### UMI LeRobot v3 数据
-
-支持 UMI 三路内嵌图像、头部/左右手位姿及夹爪原始信号的预览、基础分析、拆分和同结构合并。
-数据列表显示机器人类型与 LeRobot 版本；DVT1/DVT2 保留为旧处理流程的参数。
-兼容 DVT 的处理默认使用 DVT2，Quality 无需手工确认；只有需要旧规则时才主动选择 DVT1。
-UMI 不套用 DVT 归一化或自动 Stage，也不生成训练用 action/state。
-配置外部运行环境后，Pipelines 中的 `umi.cosmos_id` / `umi.replay` 可运行 laundry 算子，并打开原版 Cosmos 和 Viser 可视化。
-首次 clone 请先按 [data-laundry 安装与配置](docs/data_laundry_setup.md) 获取固定源码、安装独立环境并检查配置。
-安装脚本支持授权 Git 镜像，不使用 submodule；Cosmos 权重和 Tracker 校准资源需要单独准备。
-回放读取已保存的执行轨迹，模型候选不自动发布为训练数据。
-操作、来源追踪与 Server A → Agent 升级顺序见 [UMI 数据支持](docs/umi_dataset_support.md)。
-
-### 多用户日志与任务管理
-
-不同维度的 Minimum/Padding 合并及页面显式映射配置见
-[不同维度的数据集合并](docs/data_platform_merge_alignment.md)。
-
-Agent 文件权限、任务提交反馈及 operator 删除 episode 的审批流程见
-[执行权限与删除审批](docs/data_platform_permissions.md)。
-
-集中部署支持在现有管理员控制面页面查看使用日志和只读数据库记录。协议 2 Agent 支持持久化执行批次、
-排队优先级、取消及符合条件的重试/终止；本地后台任务使用独立本地执行器和兼容的 `/api/jobs` 查询。
-管理员可在 Platform management → Jobs 点击 **Use extra quota (+1)**，给指定排队任务增加一个用户并发名额，
-仍遵守节点总并发和数据锁；排队时可撤回，手动重试需重新授权。
-需要配置独立日志库、安装本地执行器并升级 Agent。部署顺序、能力限制及存储分工见
-[多用户管理与任务执行](docs/data_platform_multi_user_management.md)。
-
-日常更新先在开发环境验收候选包，再执行 `data-platform-update-all --env prod --release RELEASE`。
-工具保留环境配置，维护期间备份并更新 Server、本地执行器和对应 Agent，最后校验节点心跳。
-首次环境初始化、旧生产接入和回退步骤见 [双环境部署指南](docs/data_platform_environments.md)。
-
-### 单条数据分段与 Caption 实验
-
-需要通过 Python 调用离线 FLORA 时，可独立部署 [FLORA HTTP API](docs/flora_http_api.md)：
-支持 API Key、异步任务、本地整数据集上传与已授权的服务器数据集，最多八张 GPU 并行处理 episodes，
-与平台共用 GPU 锁。该服务独立发布，不替换平台 Server/Agent 或绕过平台网页确认流程。
-
-在 `Data Curation → Annotation → Temporal Caption` 平行查看三视角视频和分段 caption，
-选择 FLORA（本地分段、Caption、Reward）、Multi-view Semantics（多视角语义分段）、Video + Events（视频事件分段）或 Fusion + Review（融合及独立复核），
-按 episode 查看双语 caption、运动曲线和各自结果版本。Fusion V2 在本地计算信号变化、候选边界来源和时间一致性矩阵，
-再由模型进行语义融合与独立复核。支持按 episode 区间或整个数据集提交标注 Jobs，并选择是否输入 action/state 等信号；
-FLORA 使用已配置的 80 GB GPU、仅输入视频，在 Review 保留原始 Reward 窗口及评分分歧，支持点击回看。
-支持每卡一个 episode、最多 8 卡并行；复用未变化文件的校验结果并流式生成视频，资源配置和分阶段验收见下方文档。
-不覆盖现有标注，不回写源数据。运行步骤、范围和结果复核限制见
-[Temporal Caption 实验](docs/temporal_caption_trial.md)。
-
-### Data Platform operators and pipelines
-
-The data console includes versioned sequential pipelines, a unified operator catalog, review-gated pose repairs and existing Agent/Job execution. See the [architecture and API guide](docs/data_platform_operators.md).
-
-### Text memory annotation
-
-Registered Agent datasets can use **Annotation → Text memory** for causal Qwen drafts,
-authenticated revisioned Review and approved high-level exports. A separately installed frozen
-training snapshot can be browsed read-only against its matching video and stopped-review evidence;
-Temporal Caption Review also displays source-matched memory alongside captions. See the
-[Text memory contract](docs/memory_annotation.md). Real-provider pilot and installed acceptance
-are separate from the synthetic implementation checks; no model training is started.
-
-### Offline MEM export
-
-For versioned raw multiview exports of selected segmentation/caption artifacts, see
-[MEM export](docs/mem_export.md). Run `python -m lerobot.data_platform.mem_export --help`
-on the source host; the command does not modify source datasets or platform state.
-
-Administrator-managed [workflow strategy experiments](docs/data_platform_strategies.md) are available
-as an opt-in source feature. Strategies are evaluated against a baseline and require manual activation;
-private memory and task confirmation remain unchanged. Server/Agent/CLI deployment acceptance is separate.
-
-External Codex/Claude Code access: [MCP setup and credential management](docs/data_platform_mcp.md).
-
-
-Authorized usage learning, private opt-in analysis and offline strategy review are documented in
-[Continuous learning](docs/data_platform_continuous_learning.md). New model budgets default to zero;
-feedback does not execute tasks or automatically activate strategies.

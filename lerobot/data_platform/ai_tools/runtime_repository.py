@@ -13,8 +13,8 @@ from lerobot.data_platform.ai_tools.models import (
     AssistantModelCall,
     AssistantTurn,
 )
-from lerobot.data_platform.job_management import scheduler_lock
-from lerobot.data_platform.task_catalog import content_digest
+from lerobot.data_platform.datasets.tasks.catalog import content_digest
+from lerobot.data_platform.runtime.jobs import scheduler_lock
 
 GRAPH_VERSION = "bounded-v1"
 STATE_VERSION = 1

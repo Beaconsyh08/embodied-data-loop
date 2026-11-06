@@ -7,15 +7,23 @@ import pyarrow.parquet as pq
 import pytest
 
 from lerobot.data_platform.cli import run_precompute
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.operators.implementations.data_profile import (
     profile_from_data_version,
     resolve_data_profile,
     write_data_profile,
 )
-from lerobot.data_platform.precompute.dataset_io import V3DatasetMetadata, read_episode_table
-from lerobot.data_platform.precompute.preprocess.common import load_json, load_jsonl, write_json, write_jsonl
-from lerobot.data_platform.precompute.preprocess.dataset_merge import run_merge
-from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3, validate_v3_dataset
+from lerobot.data_platform.operators.implementations.dataset_io import V3DatasetMetadata, read_episode_table
+from lerobot.data_platform.operators.implementations.preprocess.common import (
+    load_json,
+    load_jsonl,
+    write_json,
+    write_jsonl,
+)
+from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import run_merge
+from lerobot.data_platform.operators.implementations.preprocess.dataset_version import (
+    run_convert_v3,
+    validate_v3_dataset,
+)
 
 
 def _make_named_dataset(
@@ -295,7 +303,7 @@ def test_merge_identical_unnamed_signals_preserves_values(tmp_path, policy, name
 @pytest.mark.parametrize("policy,target_dim", [("min", 17), ("pad", 20)])
 @pytest.mark.parametrize("v3", [False, True])
 def test_explicit_prefix_tail_merge_17_and_20(tmp_path, policy, target_dim, v3):
-    from lerobot.data_platform.precompute.preprocess.merge_alignment import numeric_stats
+    from lerobot.data_platform.operators.implementations.preprocess.merge_alignment import numeric_stats
 
     roots = [tmp_path / "short", tmp_path / "wide"]
     mappings = []
@@ -393,7 +401,7 @@ def test_explicit_mapping_rejects_invalid_names_without_writing(tmp_path, mappin
 @pytest.mark.parametrize("dimensions,prefix,tail", [([5, 8], 3, 2), ([9, 12, 10], 6, 3), ([2, 7], 1, 1)])
 @pytest.mark.parametrize("policy", ["min", "pad"])
 def test_explicit_alignment_supports_arbitrary_dimensions(dimensions, prefix, tail, policy):
-    from lerobot.data_platform.precompute.preprocess.merge_alignment import (
+    from lerobot.data_platform.operators.implementations.preprocess.merge_alignment import (
         plan_signal_alignment,
         project_signals,
     )
@@ -431,7 +439,9 @@ def test_explicit_alignment_supports_arbitrary_dimensions(dimensions, prefix, ta
 
 @pytest.mark.parametrize("dtype,fill", [("uint8", -1), ("int8", 128), ("int32", 0.5), ("float32", 1e100)])
 def test_padding_value_must_fit_signal_type(dtype, fill):
-    from lerobot.data_platform.precompute.preprocess.merge_alignment import plan_signal_alignment
+    from lerobot.data_platform.operators.implementations.preprocess.merge_alignment import (
+        plan_signal_alignment,
+    )
 
     infos = [
         {"features": {"action": {"shape": [len(names)], "names": names, "dtype": dtype}}}
@@ -507,7 +517,9 @@ def test_index_merge_rewrites_data_stats_and_preserves_sources(tmp_path, policy,
     ],
 )
 def test_index_mapping_rejects_invalid_positions(policy, mappings, error):
-    from lerobot.data_platform.precompute.preprocess.merge_alignment import plan_signal_alignment
+    from lerobot.data_platform.operators.implementations.preprocess.merge_alignment import (
+        plan_signal_alignment,
+    )
 
     infos = [{"features": {"action": {"dtype": "float32", "shape": [2], "names": ["actions"]}}}] * 2
     with pytest.raises(ValueError, match=error):

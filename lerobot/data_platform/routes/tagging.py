@@ -12,10 +12,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from flask import abort, jsonify, redirect, render_template, request, send_file
 
-from lerobot.data_platform.local_execution import launch_background
-from lerobot.data_platform.precompute.dataset_io import read_episode_table
-from lerobot.data_platform.precompute.labeling import sample_episodes_by_task_type
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.dataset_io import read_episode_table
+from lerobot.data_platform.operators.implementations.labeling import sample_episodes_by_task_type
+from lerobot.data_platform.operators.implementations.tagging import (
     DEFAULT_SELECTED_TAG_NAMES,
     DEFAULT_VLM_BACKEND,
     DEFAULT_VLM_MODEL,
@@ -26,27 +25,30 @@ from lerobot.data_platform.precompute.tagging import (
     save_reviewed_tag,
     tags_path,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     get_capabilities as get_tagging_capabilities,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     get_schema as get_tagging_schema,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     load_episode_record as load_tagging_episode_record,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     resolved_reviewed_path as tagging_resolved_reviewed_path,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     resolved_tags_path as tagging_resolved_tags_path,
 )
-from lerobot.data_platform.precompute.tagging import (
+from lerobot.data_platform.operators.implementations.tagging import (
     source_path as tagging_source_path,
 )
-from lerobot.data_platform.precompute.tagging.geometric_backend import trajectory_xy_details_from_table
+from lerobot.data_platform.operators.implementations.tagging.geometric_backend import (
+    trajectory_xy_details_from_table,
+)
 from lerobot.data_platform.processing.commands import build_command
 from lerobot.data_platform.routes.context import RouteContext
+from lerobot.data_platform.runtime.local import launch_background
 
 
 def register_tagging_routes(app, ctx: RouteContext) -> None:

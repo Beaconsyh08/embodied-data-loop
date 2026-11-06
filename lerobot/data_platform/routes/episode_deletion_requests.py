@@ -2,8 +2,8 @@
 
 from flask import g, jsonify, request
 
-from lerobot.data_platform.episode_deletion_requests import create_request, list_requests, review_request
-from lerobot.data_platform.job_management import JobConflictError
+from lerobot.data_platform.access.episode_deletion import create_request, list_requests, review_request
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def register_episode_deletion_request_routes(app, store, *, mutations_enabled):

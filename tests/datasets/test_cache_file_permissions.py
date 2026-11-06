@@ -15,7 +15,7 @@ def create_cache(path, mask):
             """
 import os, sys
 from pathlib import Path
-from lerobot.data_platform.precompute.video import temporary_output_path
+from lerobot.data_platform.operators.implementations.video import temporary_output_path
 os.umask(int(sys.argv[2], 8))
 target = Path(sys.argv[1])
 temporary = temporary_output_path(target)

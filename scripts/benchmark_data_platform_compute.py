@@ -53,7 +53,9 @@ def main():
     root = candidates[0]
     inputs = [root]
     if args.operation == "merge":
-        from lerobot.data_platform.precompute.preprocess.dataset_merge import validate_merge_sources
+        from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import (
+            validate_merge_sources,
+        )
 
         for candidate in sorted(args.datasets.glob("*/meta/info.json")):
             other = candidate.parent.parent
@@ -75,10 +77,10 @@ def main():
         raise ValueError("Benchmark output must be outside every source dataset")
     args.output.mkdir(parents=True, exist_ok=False)
     os.environ["DATA_PLATFORM_EXECUTION_STOP_FILE"] = str(args.output / "stop.json")
-    from lerobot.data_platform.execution import input_fingerprint
+    from lerobot.data_platform.runtime.supervisor import input_fingerprint
 
     try:
-        from lerobot.data_platform.execution_resources import configure_native_threads
+        from lerobot.data_platform.runtime.resources import configure_native_threads
 
         configure_native_threads()
     except ImportError:
@@ -128,25 +130,27 @@ def main():
             progress_callback=progress,
         )
     elif args.operation == "smooth":
-        from lerobot.data_platform.precompute.preprocess.smooth_action import run_smooth_action
+        from lerobot.data_platform.operators.implementations.preprocess.smooth_action import run_smooth_action
 
         run_smooth_action(
             root, out_root=args.output / "dataset", workers=args.workers, progress_callback=progress
         )
     elif args.operation == "standardize":
-        from lerobot.data_platform.precompute.preprocess.standardize import run_standardize_dataset
+        from lerobot.data_platform.operators.implementations.preprocess.standardize import (
+            run_standardize_dataset,
+        )
 
         run_standardize_dataset(
             root, out_root=args.output / "dataset", workers=args.workers, progress_callback=progress
         )
     elif args.operation == "convert":
-        from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+        from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 
         run_convert_v3(
             root, out_root=args.output / "dataset", workers=args.workers, progress_callback=progress
         )
     else:
-        from lerobot.data_platform.precompute.preprocess.dataset_merge import run_merge
+        from lerobot.data_platform.operators.implementations.preprocess.dataset_merge import run_merge
 
         run_merge(inputs, out_root=args.output / "dataset", workers=args.workers, progress_callback=progress)
     elapsed = time.monotonic() - started

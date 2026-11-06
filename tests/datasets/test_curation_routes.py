@@ -6,11 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from lerobot.data_platform.curation import OPERATIONS
-from lerobot.data_platform.curation_execution import execute_curation_job
-from lerobot.data_platform.execution import SpoolingClient
-from lerobot.data_platform.lifecycle import LifecycleStore
+from lerobot.data_platform.datasets.curation import OPERATIONS
+from lerobot.data_platform.datasets.lifecycle.service import LifecycleStore
+from lerobot.data_platform.operators.implementations.curation import execute_curation_job
 from lerobot.data_platform.routes.curation import register_curation_routes
+from lerobot.data_platform.runtime.supervisor import SpoolingClient
 from tests.datasets.test_control_plane import _app, _bootstrap, _store
 from tests.datasets.test_lifecycle import _make_dataset, _snapshot
 
@@ -26,7 +26,7 @@ def remote(tmp_path, request):
     source = tmp_path / "source"
     _make_dataset(source)
     if request.param == "v3.0":
-        from lerobot.data_platform.precompute.preprocess.dataset_version import run_convert_v3
+        from lerobot.data_platform.operators.implementations.preprocess.dataset_version import run_convert_v3
 
         converted = tmp_path / "v3"
         run_convert_v3(source, converted)
@@ -89,7 +89,7 @@ def queue(remote, operation, **extra):
 
 
 def execute(remote, job, headers):
-    from lerobot.data_platform.agent import DataPlatformAgent
+    from lerobot.data_platform.runtime.agent import DataPlatformAgent
 
     work = remote.tmp / "work" / job["job_id"]
     if job["options"].get("input_files"):
@@ -200,7 +200,7 @@ def test_viewer_cannot_queue_or_edit(remote):
 def test_s1_default_and_explicit_profile_round_trip(remote, data_version, source_profile, monkeypatch):
     import pandas as pd
 
-    from lerobot.data_platform.precompute import data_profile
+    from lerobot.data_platform.operators.implementations import data_profile
 
     info_path = remote.source / "meta/info.json"
     info = json.loads(info_path.read_text())
@@ -280,7 +280,7 @@ def test_umi_quality_keeps_native_profile(remote):
 
 
 def test_quality_capability_upgrade_publication_and_partial_rerun(remote):
-    from lerobot.data_platform.precompute.preprocess.quality_flags import _write_json
+    from lerobot.data_platform.operators.implementations.preprocess.quality_flags import _write_json
 
     before = _snapshot(remote.source)
     job, headers = queue(remote, "curation.snapshot")
@@ -318,7 +318,7 @@ def test_quality_capability_upgrade_publication_and_partial_rerun(remote):
     job["options"]["input_root"] = str(inputs)
     job["options"]["input_files"] = {"annotation_issues.json": {}}
     # execute() normally downloads inputs; this attempt supplies its local validated input directly.
-    from lerobot.data_platform.execution import SpoolingClient
+    from lerobot.data_platform.runtime.supervisor import SpoolingClient
 
     work = remote.tmp / "work" / job["job_id"]
     agent = SimpleNamespace(
@@ -575,7 +575,7 @@ def test_local_target_uses_same_durable_worker_protocol(tmp_path):
 
 def test_label_review_input_and_construction_preserve_source(remote, monkeypatch):
     from lerobot.data_platform import cli
-    from lerobot.data_platform.precompute import labeling
+    from lerobot.data_platform.operators.implementations import labeling
 
     def label(root, meta, episodes, static, **kwargs):
         path = Path(static) / f"labeling/labels_{kwargs['output_variant']}.jsonl"

@@ -15,38 +15,40 @@ import pytest
 from PIL import Image
 
 from lerobot.data_platform import cli as prepare_script
-from lerobot.data_platform.precompute import v3_viewer as v3_viewer_module
-from lerobot.data_platform.precompute.compare.stats import action_stats, metadata_stats
-from lerobot.data_platform.precompute.construction import run_construction
-from lerobot.data_platform.precompute.construction.review import (
+from lerobot.data_platform.operators.implementations import v3_viewer as v3_viewer_module
+from lerobot.data_platform.operators.implementations.compare.stats import action_stats, metadata_stats
+from lerobot.data_platform.operators.implementations.construction import run_construction
+from lerobot.data_platform.operators.implementations.construction.review import (
     finalize as finalize_construction,
 )
-from lerobot.data_platform.precompute.construction.review import (
+from lerobot.data_platform.operators.implementations.construction.review import (
     save_decision as save_construction_decision,
 )
-from lerobot.data_platform.precompute.data_profile import (
+from lerobot.data_platform.operators.implementations.data_profile import (
     SIGNAL_SCHEMA_TRAIN_16D,
     has_body_joint_dimensions,
     profile_from_data_version,
     resolve_data_profile,
     write_data_profile,
 )
-from lerobot.data_platform.precompute.dataset_io import (
+from lerobot.data_platform.operators.implementations.dataset_io import (
     V3DatasetMetadata,
     read_episode_frame_image,
     read_episode_table,
     replace_episode_column,
     update_episode_metadata,
 )
-from lerobot.data_platform.precompute.mutations import (
+from lerobot.data_platform.operators.implementations.mutations import (
     fix_episode_indices,
     update_episode_stats_for_subtask_state,
     update_info_features,
     write_subtask_state_to_parquet,
     write_subtask_text_to_parquet,
 )
-from lerobot.data_platform.precompute.preprocess import dataset_version as dataset_version_module
-from lerobot.data_platform.precompute.preprocess import (
+from lerobot.data_platform.operators.implementations.preprocess import (
+    dataset_version as dataset_version_module,
+)
+from lerobot.data_platform.operators.implementations.preprocess import (
     default_v3_path,
     delete_episodes_inplace,
     detect_dataset_version,
@@ -65,14 +67,14 @@ from lerobot.data_platform.precompute.preprocess import (
     run_subtract,
     validate_v3_dataset,
 )
-from lerobot.data_platform.precompute.preprocess.flag_fixes import (
+from lerobot.data_platform.operators.implementations.preprocess.flag_fixes import (
     trim_v3_episode_inplace,
 )
-from lerobot.data_platform.precompute.preprocess.quality_flags import (
+from lerobot.data_platform.operators.implementations.preprocess.quality_flags import (
     apply_task_assignment_choice,
 )
-from lerobot.data_platform.precompute.tagging.runner import run_tagging
-from lerobot.data_platform.precompute.timeseries import (
+from lerobot.data_platform.operators.implementations.tagging.runner import run_tagging
+from lerobot.data_platform.operators.implementations.timeseries import (
     DATA_VERSION_DVT1,
     DATA_VERSION_DVT2,
     infer_data_version_from_features,

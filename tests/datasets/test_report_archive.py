@@ -2,8 +2,8 @@
 
 import pytest
 
-from lerobot.data_platform.artifact_store import ArtifactUnavailableError
-from lerobot.data_platform.report_archive import hydrate_result, reference
+from lerobot.data_platform.artifacts.reports import hydrate_result, reference
+from lerobot.data_platform.artifacts.store import ArtifactUnavailableError
 from tests.datasets.test_artifact_store import archive, source  # noqa: F401
 
 

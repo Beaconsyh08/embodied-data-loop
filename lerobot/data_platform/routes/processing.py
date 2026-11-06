@@ -5,11 +5,11 @@ from pathlib import PurePosixPath
 
 from flask import g, jsonify, render_template, request, send_file
 
-from lerobot.data_platform.job_management import JobConflictError
 from lerobot.data_platform.operators import get_operator, list_operators
 from lerobot.data_platform.processing.capabilities import OperatorCatalog
 from lerobot.data_platform.processing.service import PipelineManager
 from lerobot.data_platform.routes.control_plane import _current_user
+from lerobot.data_platform.runtime.jobs import JobConflictError
 
 
 def register_processing_routes(app, ctx):
@@ -49,7 +49,7 @@ def register_processing_routes(app, ctx):
         return value
 
     def list_page(kind, filters):
-        from lerobot.data_platform.list_queries import ListPage
+        from lerobot.data_platform.control.queries import ListPage
 
         return ListPage.parse(request.args, scope={"actor": owner(), "kind": kind, **filters})
 
@@ -161,7 +161,7 @@ def register_processing_routes(app, ctx):
     def complete_operator(job, returned):
         import json
 
-        from lerobot.data_platform.curation import publish_bundle
+        from lerobot.data_platform.datasets.curation import publish_bundle
 
         attempt = request.headers.get("X-Job-Attempt", "")
         if not attempt or any(char not in "0123456789abcdef-" for char in attempt):
@@ -171,10 +171,10 @@ def register_processing_routes(app, ctx):
         publish_bundle(staged, destination, job["operation"], job["options"]["target"])
         result = json.loads((destination / "result.json").read_text())
         if job["options"].get("version_inputs"):
-            from lerobot.data_platform.curation import CurationSnapshot, register_snapshot
+            from lerobot.data_platform.datasets.curation import CurationSnapshot, register_snapshot
 
             value = CurationSnapshot.from_dict(json.loads((destination / "snapshot.json").read_text()))
-            from lerobot.data_platform.execution import replace_paths
+            from lerobot.data_platform.runtime.supervisor import replace_paths
 
             expected = {item["version"]["version_id"] for item in job["options"]["version_inputs"]}
             final = PurePosixPath(job["options"]["out_root"])
@@ -219,7 +219,7 @@ def register_processing_routes(app, ctx):
     @app.get("/api/operator-results/<job_id>/<path:filename>")
     @checked
     def processing_artifact(job_id, filename):
-        from lerobot.data_platform.curation import artifact_path
+        from lerobot.data_platform.datasets.curation import artifact_path
 
         job = manager.store.get_job(job_id)
         if job["requested_by"] != owner() or job["status"] != "done":

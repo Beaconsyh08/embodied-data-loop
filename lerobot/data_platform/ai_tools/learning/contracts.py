@@ -68,7 +68,7 @@ def identifier(value):
 
 
 def revision(value, expected):
-    from lerobot.data_platform.job_management import JobConflictError
+    from lerobot.data_platform.runtime.jobs import JobConflictError
 
     if type(value) is not int or value != expected:
         raise JobConflictError("Learning record changed; reload before editing")

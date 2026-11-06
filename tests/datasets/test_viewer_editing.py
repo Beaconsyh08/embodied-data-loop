@@ -151,7 +151,7 @@ def test_cache_annotations_and_reload(cached_viewer, role):
         assert "stageEditEnabled: true" in client.get("/remote/test/episode_0?direct=1").get_data(
             as_text=True
         )
-        from lerobot.data_platform.cache_files import cached_csv_files, open_cached_csv
+        from lerobot.data_platform.datasets.cache_files import cached_csv_files, open_cached_csv
 
         with open_cached_csv(cached_csv_files(static / "csv")[0]) as stream:
             assert "subtask_state" in stream.read()

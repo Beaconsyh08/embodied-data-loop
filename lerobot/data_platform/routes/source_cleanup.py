@@ -4,8 +4,8 @@ from pathlib import Path
 
 from flask import jsonify, request
 
-from lerobot.data_platform.source_cleanup import SourceCleanupManager
-from lerobot.data_platform.source_cleanup_files import prune_server_job_cache, prune_server_location_cache
+from lerobot.data_platform.datasets.cleanup.files import prune_server_job_cache, prune_server_location_cache
+from lerobot.data_platform.datasets.cleanup.service import SourceCleanupManager
 
 
 def register_source_cleanup_routes(app, ctx):

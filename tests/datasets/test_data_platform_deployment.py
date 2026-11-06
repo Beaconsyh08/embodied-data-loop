@@ -89,14 +89,14 @@ def test_agent_extra_exports_execution_logging_dependency():
     assert result.returncode == 0, result.stderr
     assert any(line.startswith("sqlalchemy==") for line in result.stdout.splitlines())
     installer = (DEPLOY_ROOT / "agent-bundle/install.sh").read_text()
-    assert installer.index(
-        "from lerobot.data_platform.management_storage import EventSpool"
-    ) < installer.index('mv -Tf "$INSTALL_ROOT/.current-next" "$INSTALL_ROOT/current"')
+    assert installer.index("from lerobot.data_platform.control.storage import EventSpool") < installer.index(
+        'mv -Tf "$INSTALL_ROOT/.current-next" "$INSTALL_ROOT/current"'
+    )
 
 
 @pytest.mark.parametrize("name", ["../outside", "", "bad name", "a" * 101])
 def test_upgrade_rejects_unsafe_package_names(name):
-    from lerobot.data_platform.releases import validate_version
+    from lerobot.data_platform.ops.releases import validate_version
 
     with pytest.raises(ValueError):
         validate_version(name)

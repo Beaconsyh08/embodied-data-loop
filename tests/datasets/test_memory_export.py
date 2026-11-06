@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from lerobot.data_platform.execution import atomic_json
 from lerobot.data_platform.memory.contracts import AnnotationConfig, digest
 from lerobot.data_platform.memory.jobs import execute, export_request
 from lerobot.data_platform.memory.review import review_payload
 from lerobot.data_platform.memory.sources import preview, select_pilot
 from lerobot.data_platform.operators import ExecutionContext
+from lerobot.data_platform.runtime.supervisor import atomic_json
 from tests.datasets.test_memory_annotation import Teacher, real_source
 
 
